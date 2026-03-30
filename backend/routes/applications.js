@@ -3,7 +3,8 @@ const { body } = require('express-validator');
 const {
   createApplication,
   getMyApplications,
-  getSingleApplication
+  getSingleApplication,
+  updateApplication
 } = require('../controllers/applicationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -39,5 +40,6 @@ router.post(
 
 router.get('/my', protect, getMyApplications);
 router.get('/:id', protect, getSingleApplication);
+router.put('/:id', protect, updateApplication);
 
 module.exports = router;
