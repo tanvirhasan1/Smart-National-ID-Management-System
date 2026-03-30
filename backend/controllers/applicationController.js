@@ -277,11 +277,119 @@ const getAllApplicationsForAdmin = async (req, res) => {
   }
 };
 
+const getSingleApplicationForAdmin = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role isVerified status createdAt');
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const reviewApplicationByAdmin = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const { status, rejectionReason } = req.body;
+
+    const allowedStatuses = ['under_review', 'approved', 'rejected'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review status'
+      });
+    }
+
+    const application = await Application.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (['cancelled', 'printed', 'delivered'].includes(application.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Application cannot be reviewed when status is '${application.status}'`
+      });
+    }
+
+    application.status = status;
+
+    if (status === 'approved') {
+      application.approvedAt = new Date();
+      application.rejectionReason = '';
+    }
+
+    if (status === 'rejected') {
+      if (!rejectionReason || !rejectionReason.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rejection reason is required when rejecting an application'
+        });
+      }
+
+      application.rejectionReason = rejectionReason;
+      application.approvedAt = undefined;
+    }
+
+    if (status === 'under_review') {
+      application.rejectionReason = '';
+      application.approvedAt = undefined;
+    }
+
+    const reviewedApplication = await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Application ${status} successfully`,
+      application: reviewedApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
   getMyApplications,
   getSingleApplication,
   updateApplication,
   cancelApplication,
-  getAllApplicationsForAdmin
+  getAllApplicationsForAdmin,
+  getSingleApplicationForAdmin,
+  reviewApplicationByAdmin
 };

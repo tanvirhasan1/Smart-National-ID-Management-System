@@ -6,7 +6,9 @@ const {
   getSingleApplication,
   updateApplication,
   cancelApplication,
-  getAllApplicationsForAdmin
+  getAllApplicationsForAdmin,
+  getSingleApplicationForAdmin,
+  reviewApplicationByAdmin
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -17,6 +19,20 @@ router.get(
   protect,
   authorize('admin', 'super_admin'),
   getAllApplicationsForAdmin
+);
+
+router.get(
+  '/admin/:id',
+  protect,
+  authorize('admin', 'super_admin'),
+  getSingleApplicationForAdmin
+);
+
+router.patch(
+  '/admin/:id/review',
+  protect,
+  authorize('admin', 'super_admin'),
+  reviewApplicationByAdmin
 );
 
 router.post(
