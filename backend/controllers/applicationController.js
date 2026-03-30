@@ -248,10 +248,40 @@ const cancelApplication = async (req, res) => {
   }
 };
 
+const getAllApplicationsForAdmin = async (req, res) => {
+  try {
+    const filter = {};
+
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    if (req.query.applicationType) {
+      filter.applicationType = req.query.applicationType;
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone role')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
   getMyApplications,
   getSingleApplication,
   updateApplication,
-  cancelApplication
+  cancelApplication,
+  getAllApplicationsForAdmin
 };
