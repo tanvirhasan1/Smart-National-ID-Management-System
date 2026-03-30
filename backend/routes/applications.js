@@ -6,17 +6,41 @@ const {
   getSingleApplication,
   updateApplication,
   cancelApplication,
-  getAllApplicationsForAdmin
+  getAllApplicationsForAdmin,
+  getSingleApplicationForAdmin,
+  reviewApplicationByAdmin,
+  getAdminDashboardStats
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 router.get(
+  '/admin/stats',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAdminDashboardStats
+);
+
+router.get(
   '/admin/all',
   protect,
   authorize('admin', 'super_admin'),
   getAllApplicationsForAdmin
+);
+
+router.get(
+  '/admin/:id',
+  protect,
+  authorize('admin', 'super_admin'),
+  getSingleApplicationForAdmin
+);
+
+router.patch(
+  '/admin/:id/review',
+  protect,
+  authorize('admin', 'super_admin'),
+  reviewApplicationByAdmin
 );
 
 router.post(
