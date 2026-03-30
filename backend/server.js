@@ -6,6 +6,8 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+require('./models/User');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
@@ -53,6 +55,9 @@ app.get('/health', (req, res) => {
     message: 'Backend server is healthy'
   });
 });
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 5000;
 
