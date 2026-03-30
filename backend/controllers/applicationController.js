@@ -383,6 +383,68 @@ const reviewApplicationByAdmin = async (req, res) => {
   }
 };
 
+const getAdminDashboardStats = async (req, res) => {
+  try {
+    const [
+      totalApplications,
+      submittedCount,
+      underReviewCount,
+      approvedCount,
+      rejectedCount,
+      cancelledCount,
+      printedCount,
+      deliveredCount,
+      newCount,
+      correctionCount,
+      reissueCount,
+      recentApplications
+    ] = await Promise.all([
+      Application.countDocuments(),
+      Application.countDocuments({ status: 'submitted' }),
+      Application.countDocuments({ status: 'under_review' }),
+      Application.countDocuments({ status: 'approved' }),
+      Application.countDocuments({ status: 'rejected' }),
+      Application.countDocuments({ status: 'cancelled' }),
+      Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'delivered' }),
+      Application.countDocuments({ applicationType: 'new' }),
+      Application.countDocuments({ applicationType: 'correction' }),
+      Application.countDocuments({ applicationType: 'reissue' }),
+      Application.find()
+        .populate('applicant', 'fullName email phone role')
+        .sort({ createdAt: -1 })
+        .limit(5)
+    ]);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalApplications,
+        byStatus: {
+          submitted: submittedCount,
+          under_review: underReviewCount,
+          approved: approvedCount,
+          rejected: rejectedCount,
+          cancelled: cancelledCount,
+          printed: printedCount,
+          delivered: deliveredCount
+        },
+        byType: {
+          new: newCount,
+          correction: correctionCount,
+          reissue: reissueCount
+        }
+      },
+      recentApplications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
   getMyApplications,
@@ -391,5 +453,6 @@ module.exports = {
   cancelApplication,
   getAllApplicationsForAdmin,
   getSingleApplicationForAdmin,
-  reviewApplicationByAdmin
+  reviewApplicationByAdmin,
+  getAdminDashboardStats
 };
