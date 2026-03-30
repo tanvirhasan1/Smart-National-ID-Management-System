@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 require('./models/User');
+require('./models/Application');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
