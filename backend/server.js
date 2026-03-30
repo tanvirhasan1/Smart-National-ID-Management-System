@@ -8,6 +8,9 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 require('./models/User');
 require('./models/Application');
+require('./models/Appointment');
+
+const appointmentRoutes = require('./routes/appointments');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
@@ -64,6 +67,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/appointments', appointmentRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
