@@ -149,7 +149,9 @@ const updateApplication = async (req, res) => {
     }
 
     if (
-      ['approved', 'rejected', 'printed', 'delivered'].includes(application.status)
+      ['approved', 'rejected', 'printed', 'delivered', 'cancelled'].includes(
+        application.status
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -200,9 +202,56 @@ const updateApplication = async (req, res) => {
   }
 };
 
+const cancelApplication = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findOne({
+      _id: req.params.id,
+      applicant: req.user._id
+    });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (['approved', 'printed', 'delivered', 'cancelled'].includes(application.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Application cannot be cancelled when status is '${application.status}'`
+      });
+    }
+
+    application.status = 'cancelled';
+    application.cancelledAt = new Date();
+
+    const cancelledApplication = await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Application cancelled successfully',
+      application: cancelledApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
   getMyApplications,
   getSingleApplication,
-  updateApplication
+  updateApplication,
+  cancelApplication
 };

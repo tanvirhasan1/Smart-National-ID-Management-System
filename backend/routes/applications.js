@@ -4,7 +4,8 @@ const {
   createApplication,
   getMyApplications,
   getSingleApplication,
-  updateApplication
+  updateApplication,
+  cancelApplication
 } = require('../controllers/applicationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -41,5 +42,6 @@ router.post(
 router.get('/my', protect, getMyApplications);
 router.get('/:id', protect, getSingleApplication);
 router.put('/:id', protect, updateApplication);
+router.patch('/:id/cancel', protect, cancelApplication);
 
 module.exports = router;

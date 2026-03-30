@@ -169,7 +169,8 @@ const applicationSchema = new mongoose.Schema(
         'approved',
         'rejected',
         'printed',
-        'delivered'
+        'delivered',
+        'cancelled'
       ],
       default: 'draft'
     },
@@ -184,6 +185,9 @@ const applicationSchema = new mongoose.Schema(
       type: Date
     },
     deliveredAt: {
+      type: Date
+    },
+    cancelledAt: {
       type: Date
     }
   },
