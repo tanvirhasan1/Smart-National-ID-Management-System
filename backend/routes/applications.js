@@ -2,7 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
-  getMyApplications
+  getMyApplications,
+  getSingleApplication
 } = require('../controllers/applicationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -37,5 +38,6 @@ router.post(
 );
 
 router.get('/my', protect, getMyApplications);
+router.get('/:id', protect, getSingleApplication);
 
 module.exports = router;
