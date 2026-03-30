@@ -11,6 +11,7 @@ require('./models/Application');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
+const applicationRoutes = require('./routes/applications');
 const app = express();
 
 // Connect database
@@ -62,6 +63,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/applications', applicationRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
