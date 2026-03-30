@@ -5,11 +5,19 @@ const {
   getMyApplications,
   getSingleApplication,
   updateApplication,
-  cancelApplication
+  cancelApplication,
+  getAllApplicationsForAdmin
 } = require('../controllers/applicationController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+router.get(
+  '/admin/all',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAllApplicationsForAdmin
+);
 
 router.post(
   '/',
