@@ -105,7 +105,92 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
+const getAllAppointmentsForAdmin = async (req, res) => {
+  try {
+    const filter = {};
+
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    const appointments = await Appointment.find(filter)
+      .populate('applicant', 'fullName email phone role')
+      .populate(
+        'application',
+        'applicationId fullNameEnglish applicationType status'
+      )
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const updateAppointmentStatusByAdmin = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid appointment id'
+      });
+    }
+
+    const { status } = req.body;
+    const allowedStatuses = ['booked', 'completed', 'cancelled'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid appointment status'
+      });
+    }
+
+    const appointment = await Appointment.findById(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    if (
+      ['completed', 'cancelled'].includes(appointment.status) &&
+      appointment.status !== status
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Appointment cannot be changed when status is '${appointment.status}'`
+      });
+    }
+
+    appointment.status = status;
+    const updatedAppointment = await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Appointment status updated to '${status}'`,
+      appointment: updatedAppointment
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   bookAppointment,
-  getMyAppointments
+  getMyAppointments,
+  getAllAppointmentsForAdmin,
+  updateAppointmentStatusByAdmin
 };
