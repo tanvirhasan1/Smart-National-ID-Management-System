@@ -81,6 +81,31 @@ const bookAppointment = async (req, res) => {
   }
 };
 
+const getMyAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({
+      applicant: req.user._id
+    })
+      .populate(
+        'application',
+        'applicationId fullNameEnglish applicationType status'
+      )
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
-  bookAppointment
+  bookAppointment,
+  getMyAppointments
 };
