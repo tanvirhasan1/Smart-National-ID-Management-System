@@ -1,6 +1,9 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { createApplication } = require('../controllers/applicationController');
+const {
+  createApplication,
+  getMyApplications
+} = require('../controllers/applicationController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -32,5 +35,7 @@ router.post(
   ],
   createApplication
 );
+
+router.get('/my', protect, getMyApplications);
 
 module.exports = router;
