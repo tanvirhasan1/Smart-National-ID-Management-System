@@ -93,7 +93,34 @@ const getMyApplications = async (req, res) => {
   }
 };
 
+const getSingleApplication = async (req, res) => {
+  try {
+    const application = await Application.findOne({
+      _id: req.params.id,
+      applicant: req.user._id
+    });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
-  getMyApplications
+  getMyApplications,
+  getSingleApplication
 };
