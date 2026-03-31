@@ -18,7 +18,11 @@ const {
   getDeliveryStats,
   getAuditStats,
   bulkMarkApplicationsAsPrinted,
-  bulkMarkApplicationsAsDelivered
+  bulkMarkApplicationsAsDelivered,
+  getAllApplicationsForAdmin,
+  getSingleApplicationForAdmin,
+  reviewApplicationByAdmin,
+  getApplicationStatsForAdmin
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -37,6 +41,36 @@ router.get(
   protect,
   authorize('admin', 'super_admin'),
   getAdminDashboardSummary
+);
+
+
+// Application routes
+router.get(
+  '/applications/stats',
+  protect,
+  authorize('admin', 'super_admin'),
+  getApplicationStatsForAdmin
+);
+
+router.get(
+  '/applications',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAllApplicationsForAdmin
+);
+
+router.get(
+  '/applications/:id',
+  protect,
+  authorize('admin', 'super_admin'),
+  getSingleApplicationForAdmin
+);
+
+router.patch(
+  '/applications/:id/review',
+  protect,
+  authorize('admin', 'super_admin'),
+  reviewApplicationByAdmin
 );
 
 // Support routes
