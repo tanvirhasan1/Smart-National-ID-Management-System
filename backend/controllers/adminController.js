@@ -1201,6 +1201,132 @@ const getAuditStats = async (req, res) => {
   }
 };
 
+
+const exportPrintingReport = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Filter by status
+    if (req.query.status) {
+      filter.status = req.query.status;
+    } else {
+      filter.status = { $in: ['approved', 'printed', 'delivered'] };
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone')
+      .sort({ createdAt: -1 });
+
+    const rows = applications.map((item) => ({
+      applicationId: item.applicationId,
+      applicantName: item.fullNameEnglish,
+      userName: item.applicant?.fullName || '',
+      userEmail: item.applicant?.email || '',
+      userPhone: item.applicant?.phone || '',
+      applicationType: item.applicationType,
+      status: item.status,
+      approvedAt: item.approvedAt || null,
+      printedAt: item.printedAt || null,
+      deliveredAt: item.deliveredAt || null,
+      createdAt: item.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const exportDeliveryReport = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Filter by status
+    if (req.query.status) {
+      filter.status = req.query.status;
+    } else {
+      filter.status = { $in: ['printed', 'delivered', 'cancelled'] };
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone')
+      .sort({ createdAt: -1 });
+
+    const rows = applications.map((item) => ({
+      applicationId: item.applicationId,
+      applicantName: item.fullNameEnglish,
+      userName: item.applicant?.fullName || '',
+      userEmail: item.applicant?.email || '',
+      userPhone: item.applicant?.phone || '',
+      status: item.status,
+      printedAt: item.printedAt || null,
+      deliveredAt: item.deliveredAt || null,
+      cancelledAt: item.cancelledAt || null,
+      createdAt: item.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const exportAuditReport = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Filter by entity type
+    if (req.query.entityType) {
+      filter.entityType = req.query.entityType;
+    }
+
+    // Filter by action
+    if (req.query.action) {
+      filter.action = req.query.action;
+    }
+
+    const logs = await AuditLog.find(filter)
+      .populate('actor', 'fullName email role')
+      .sort({ createdAt: -1 });
+
+    const rows = logs.map((log) => ({
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      actorName: log.actor?.fullName || '',
+      actorEmail: log.actor?.email || '',
+      actorRole: log.actorRole,
+      message: log.message || '',
+      createdAt: log.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
@@ -1226,5 +1352,8 @@ module.exports = {
   getAllApplicationsForAdmin,
   getSingleApplicationForAdmin,
   reviewApplicationByAdmin,
-  getApplicationStatsForAdmin
+  getApplicationStatsForAdmin,
+  exportPrintingReport,
+  exportDeliveryReport,
+  exportAuditReport
 };
