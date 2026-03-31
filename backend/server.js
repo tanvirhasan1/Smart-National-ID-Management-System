@@ -9,12 +9,15 @@ const connectDB = require('./config/db');
 require('./models/User');
 require('./models/Application');
 require('./models/Appointment');
+require('./models/SupportTicket');
 
 const appointmentRoutes = require('./routes/appointments');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const applicationRoutes = require('./routes/applications');
+const supportRoutes = require('./routes/support');
+
 const app = express();
 
 // Connect database
@@ -68,6 +71,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/support', supportRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
