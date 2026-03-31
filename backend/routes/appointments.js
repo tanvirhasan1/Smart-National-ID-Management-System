@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  getAvailableCenters,
   bookAppointment,
   getMyAppointments,
   getAllAppointmentsForAdmin,
@@ -11,9 +12,10 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Admin side appointment routes
+// Citizen center list
+router.get('/centers', protect, getAvailableCenters);
 
-// Admin dashboard appointment stats
+// Admin stats
 router.get(
   '/admin/stats',
   protect,
@@ -21,7 +23,7 @@ router.get(
   getAppointmentStatsForAdmin
 );
 
-// Admin can see all appointment list
+// Admin all appointments
 router.get(
   '/admin/all',
   protect,
@@ -29,7 +31,7 @@ router.get(
   getAllAppointmentsForAdmin
 );
 
-// Admin can see single appointment details 
+// Admin single appointment
 router.get(
   '/admin/:id',
   protect,
@@ -37,7 +39,7 @@ router.get(
   getSingleAppointmentForAdmin
 );
 
-// Admin appointment can change status
+// Admin update status
 router.patch(
   '/admin/:id/status',
   protect,
@@ -45,8 +47,10 @@ router.patch(
   updateAppointmentStatusByAdmin
 );
 
-// Citizen side appointment routes
+// Citizen book appointment
 router.post('/', protect, bookAppointment);
+
+// Citizen my appointments
 router.get('/my', protect, getMyAppointments);
 
 module.exports = router;

@@ -1,6 +1,33 @@
 const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment');
 const Application = require('../models/Application');
+const Center = require('../models/Center');
+
+const getAvailableCenters = async (req, res) => {
+  try {
+    const filter = { isActive: true };
+
+    // Filter by district
+    if (req.query.district) {
+      filter.district = req.query.district;
+    }
+
+    const centers = await Center.find(filter)
+      .select('name district address contactNumber officeHours dailyCapacity')
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: centers.length,
+      centers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
 const bookAppointment = async (req, res) => {
   try {
@@ -13,6 +40,7 @@ const bookAppointment = async (req, res) => {
       notes
     } = req.body;
 
+    // Check required fields
     if (!applicationId || !appointmentDate || !timeSlot || !centerName) {
       return res.status(400).json({
         success: false,
@@ -20,6 +48,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
+    // Check application id
     if (!mongoose.Types.ObjectId.isValid(applicationId)) {
       return res.status(400).json({
         success: false,
@@ -27,6 +56,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
+    // Find user application
     const application = await Application.findOne({
       _id: applicationId,
       applicant: req.user._id
@@ -39,7 +69,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
-    // Business rule: cannot book appointment for non-approved application
+    // Only approved application can book
     if (application.status !== 'approved') {
       return res.status(400).json({
         success: false,
@@ -47,7 +77,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
-    // avoid duplicate active appointment 
+    // Stop duplicate appointment
     const existingAppointment = await Appointment.findOne({
       application: applicationId,
       status: { $in: ['booked', 'completed'] }
@@ -111,12 +141,12 @@ const getAllAppointmentsForAdmin = async (req, res) => {
   try {
     const filter = {};
 
-    // we can filter using stats
+    // Filter by status
     if (req.query.status) {
       filter.status = req.query.status;
     }
 
-    // District wise filter frontend admin panel
+    // Filter by district
     if (req.query.centerDistrict) {
       filter.centerDistrict = req.query.centerDistrict;
     }
@@ -144,6 +174,7 @@ const getAllAppointmentsForAdmin = async (req, res) => {
 
 const getSingleAppointmentForAdmin = async (req, res) => {
   try {
+    // Check appointment id
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -179,6 +210,7 @@ const getSingleAppointmentForAdmin = async (req, res) => {
 
 const getAppointmentStatsForAdmin = async (req, res) => {
   try {
+    // Count appointment status
     const [
       totalAppointments,
       bookedAppointments,
@@ -210,6 +242,7 @@ const getAppointmentStatsForAdmin = async (req, res) => {
 
 const updateAppointmentStatusByAdmin = async (req, res) => {
   try {
+    // Check appointment id
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -236,6 +269,7 @@ const updateAppointmentStatusByAdmin = async (req, res) => {
       });
     }
 
+    // Lock final status
     if (
       ['completed', 'cancelled'].includes(appointment.status) &&
       appointment.status !== status
@@ -263,6 +297,7 @@ const updateAppointmentStatusByAdmin = async (req, res) => {
 };
 
 module.exports = {
+  getAvailableCenters,
   bookAppointment,
   getMyAppointments,
   getAllAppointmentsForAdmin,
