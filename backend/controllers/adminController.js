@@ -751,6 +751,118 @@ const getRecentAuditLogs = async (req, res) => {
   }
 };
 
+const getPrintingStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count printing data
+    const [
+      approvedForPrint,
+      printedCount,
+      deliveredAfterPrint,
+      printedToday
+    ] = await Promise.all([
+      Application.countDocuments({ status: 'approved' }),
+      Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'delivered' }),
+      Application.countDocuments({
+        printedAt: { $gte: today }
+      })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        approvedForPrint,
+        printedCount,
+        deliveredAfterPrint,
+        printedToday
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getDeliveryStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count delivery data
+    const [
+      readyForDelivery,
+      deliveredCount,
+      deliveredToday,
+      cancelledCount
+    ] = await Promise.all([
+      Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'delivered' }),
+      Application.countDocuments({
+        deliveredAt: { $gte: today }
+      }),
+      Application.countDocuments({ status: 'cancelled' })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        readyForDelivery,
+        deliveredCount,
+        deliveredToday,
+        cancelledCount
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getAuditStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count audit data
+    const [
+      totalLogs,
+      todayLogs,
+      supportLogs,
+      centerLogs,
+      applicationLogs
+    ] = await Promise.all([
+      AuditLog.countDocuments(),
+      AuditLog.countDocuments({ createdAt: { $gte: today } }),
+      AuditLog.countDocuments({ entityType: 'SupportTicket' }),
+      AuditLog.countDocuments({ entityType: 'Center' }),
+      AuditLog.countDocuments({ entityType: 'Application' })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalLogs,
+        todayLogs,
+        supportLogs,
+        centerLogs,
+        applicationLogs
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
@@ -767,5 +879,8 @@ module.exports = {
   markApplicationAsPrinted,
   getDeliveryQueue,
   markApplicationAsDelivered,
-  getRecentAuditLogs
+  getRecentAuditLogs,
+  getPrintingStats,
+  getDeliveryStats,
+  getAuditStats
 };
