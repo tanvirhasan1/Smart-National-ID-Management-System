@@ -729,6 +729,160 @@ const markApplicationAsDelivered = async (req, res) => {
   }
 };
 
+const bulkMarkApplicationsAsPrinted = async (req, res) => {
+  try {
+    const { applicationIds } = req.body;
+
+    // Check input
+    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'applicationIds must be a non-empty array'
+      });
+    }
+
+    const validIds = applicationIds.filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
+
+    if (validIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid application ids found'
+      });
+    }
+
+    const applications = await Application.find({
+      _id: { $in: validIds }
+    });
+
+    let updatedCount = 0;
+    const skipped = [];
+
+    for (const application of applications) {
+      // Only approved applications can be printed
+      if (application.status !== 'approved') {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: `Status is '${application.status}'`
+        });
+        continue;
+      }
+
+      application.status = 'printed';
+      application.printedAt = new Date();
+      await application.save();
+
+      updatedCount += 1;
+
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'BULK_MARK_APPLICATION_PRINTED',
+        entityType: 'Application',
+        entityId: application._id,
+        message: `Marked application ${application.applicationId} as printed`,
+        meta: {
+          status: application.status
+        }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Bulk print action completed',
+      totalRequested: applicationIds.length,
+      processed: applications.length,
+      updatedCount,
+      skipped
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const bulkMarkApplicationsAsDelivered = async (req, res) => {
+  try {
+    const { applicationIds } = req.body;
+
+    // Check input
+    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'applicationIds must be a non-empty array'
+      });
+    }
+
+    const validIds = applicationIds.filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
+
+    if (validIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid application ids found'
+      });
+    }
+
+    const applications = await Application.find({
+      _id: { $in: validIds }
+    });
+
+    let updatedCount = 0;
+    const skipped = [];
+
+    for (const application of applications) {
+      // Only printed applications can be delivered
+      if (application.status !== 'printed') {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: `Status is '${application.status}'`
+        });
+        continue;
+      }
+
+      application.status = 'delivered';
+      application.deliveredAt = new Date();
+      await application.save();
+
+      updatedCount += 1;
+
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'BULK_MARK_APPLICATION_DELIVERED',
+        entityType: 'Application',
+        entityId: application._id,
+        message: `Marked application ${application.applicationId} as delivered`,
+        meta: {
+          status: application.status
+        }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Bulk delivery action completed',
+      totalRequested: applicationIds.length,
+      processed: applications.length,
+      updatedCount,
+      skipped
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+
 const getRecentAuditLogs = async (req, res) => {
   try {
     const limit = Number(req.query.limit) || 20;
@@ -882,5 +1036,7 @@ module.exports = {
   getRecentAuditLogs,
   getPrintingStats,
   getDeliveryStats,
-  getAuditStats
+  getAuditStats,
+  bulkMarkApplicationsAsPrinted,
+  bulkMarkApplicationsAsDelivered
 };
