@@ -22,7 +22,10 @@ const {
   getAllApplicationsForAdmin,
   getSingleApplicationForAdmin,
   reviewApplicationByAdmin,
-  getApplicationStatsForAdmin
+  getApplicationStatsForAdmin,
+  exportPrintingReport,
+  exportDeliveryReport,
+  exportAuditReport
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -199,6 +202,29 @@ router.patch(
   protect,
   authorize('admin', 'super_admin'),
   bulkMarkApplicationsAsDelivered
+);
+
+
+// Export routes
+router.get(
+  '/printing/export',
+  protect,
+  authorize('admin', 'super_admin'),
+  exportPrintingReport
+);
+
+router.get(
+  '/delivery/export',
+  protect,
+  authorize('admin', 'super_admin'),
+  exportDeliveryReport
+);
+
+router.get(
+  '/audit/export',
+  protect,
+  authorize('admin', 'super_admin'),
+  exportAuditReport
 );
 
 module.exports = router;
