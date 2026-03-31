@@ -16,7 +16,9 @@ const {
   getRecentAuditLogs,
   getPrintingStats,
   getDeliveryStats,
-  getAuditStats
+  getAuditStats,
+  bulkMarkApplicationsAsPrinted,
+  bulkMarkApplicationsAsDelivered
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -147,6 +149,22 @@ router.get(
   protect,
   authorize('admin', 'super_admin'),
   getAuditStats
+);
+
+// Bulk printing
+router.patch(
+  '/printing/bulk-mark-printed',
+  protect,
+  authorize('admin', 'super_admin'),
+  bulkMarkApplicationsAsPrinted
+);
+
+// Bulk delivery
+router.patch(
+  '/delivery/bulk-mark-delivered',
+  protect,
+  authorize('admin', 'super_admin'),
+  bulkMarkApplicationsAsDelivered
 );
 
 module.exports = router;
