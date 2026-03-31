@@ -4,12 +4,18 @@ const {
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
-  updateSupportTicketStatus
+  updateSupportTicketStatus,
+  createCenter,
+  getAllCenters,
+  getSingleCenter,
+  updateCenter,
+  toggleCenterStatus
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Dashboard
 router.get(
   '/dashboard',
   protect,
@@ -17,6 +23,7 @@ router.get(
   getAdminDashboard
 );
 
+// Support routes
 router.get(
   '/support/tickets',
   protect,
@@ -43,6 +50,42 @@ router.put(
   protect,
   authorize('admin', 'super_admin'),
   updateSupportTicketStatus
+);
+
+// Center routes
+router.post(
+  '/centers',
+  protect,
+  authorize('admin', 'super_admin'),
+  createCenter
+);
+
+router.get(
+  '/centers',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAllCenters
+);
+
+router.get(
+  '/centers/:id',
+  protect,
+  authorize('admin', 'super_admin'),
+  getSingleCenter
+);
+
+router.put(
+  '/centers/:id',
+  protect,
+  authorize('admin', 'super_admin'),
+  updateCenter
+);
+
+router.patch(
+  '/centers/:id/toggle-status',
+  protect,
+  authorize('admin', 'super_admin'),
+  toggleCenterStatus
 );
 
 module.exports = router;

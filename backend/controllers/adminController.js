@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
+const Center = require('../models/Center');
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -89,6 +90,7 @@ const getSupportStats = async (req, res) => {
 
 const assignSupportTicket = async (req, res) => {
   try {
+    // Check ticket id
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -117,6 +119,7 @@ const assignSupportTicket = async (req, res) => {
         });
       }
 
+      // Only admin can be assigned
       if (!['admin', 'super_admin'].includes(assignee.role)) {
         return res.status(400).json({
           success: false,
@@ -127,6 +130,7 @@ const assignSupportTicket = async (req, res) => {
 
     ticket.assignedTo = assigneeId;
 
+    // Move open ticket to in progress
     if (ticket.status === 'open') {
       ticket.status = 'in_progress';
     }
@@ -152,6 +156,7 @@ const assignSupportTicket = async (req, res) => {
 
 const updateSupportTicketStatus = async (req, res) => {
   try {
+    // Check ticket id
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -212,10 +217,216 @@ const updateSupportTicketStatus = async (req, res) => {
   }
 };
 
+const createCenter = async (req, res) => {
+  try {
+    const {
+      name,
+      district,
+      address,
+      contactNumber,
+      officeHours,
+      dailyCapacity
+    } = req.body;
+
+    // Check required fields
+    if (!name || !district || !address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, district and address are required'
+      });
+    }
+
+    // Stop duplicate center
+    const existingCenter = await Center.findOne({
+      name: name.trim(),
+      district: district.trim()
+    });
+
+    if (existingCenter) {
+      return res.status(400).json({
+        success: false,
+        message: 'Center already exists in this district'
+      });
+    }
+
+    const center = await Center.create({
+      name,
+      district,
+      address,
+      contactNumber,
+      officeHours,
+      dailyCapacity
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Center created successfully',
+      center
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getAllCenters = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Filter by active status
+    if (req.query.isActive !== undefined) {
+      filter.isActive = req.query.isActive === 'true';
+    }
+
+    // Filter by district
+    if (req.query.district) {
+      filter.district = req.query.district;
+    }
+
+    const centers = await Center.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: centers.length,
+      centers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getSingleCenter = async (req, res) => {
+  try {
+    // Check center id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid center id'
+      });
+    }
+
+    const center = await Center.findById(req.params.id);
+
+    if (!center) {
+      return res.status(404).json({
+        success: false,
+        message: 'Center not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      center
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const updateCenter = async (req, res) => {
+  try {
+    // Check center id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid center id'
+      });
+    }
+
+    const center = await Center.findById(req.params.id);
+
+    if (!center) {
+      return res.status(404).json({
+        success: false,
+        message: 'Center not found'
+      });
+    }
+
+    const {
+      name,
+      district,
+      address,
+      contactNumber,
+      officeHours,
+      dailyCapacity
+    } = req.body;
+
+    // Update fields
+    if (name !== undefined) center.name = name;
+    if (district !== undefined) center.district = district;
+    if (address !== undefined) center.address = address;
+    if (contactNumber !== undefined) center.contactNumber = contactNumber;
+    if (officeHours !== undefined) center.officeHours = officeHours;
+    if (dailyCapacity !== undefined) center.dailyCapacity = dailyCapacity;
+
+    const updatedCenter = await center.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Center updated successfully',
+      center: updatedCenter
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const toggleCenterStatus = async (req, res) => {
+  try {
+    // Check center id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid center id'
+      });
+    }
+
+    const center = await Center.findById(req.params.id);
+
+    if (!center) {
+      return res.status(404).json({
+        success: false,
+        message: 'Center not found'
+      });
+    }
+
+    // Toggle status
+    center.isActive = !center.isActive;
+    await center.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Center is now ${center.isActive ? 'active' : 'inactive'}`,
+      center
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
-  updateSupportTicketStatus
+  updateSupportTicketStatus,
+  createCenter,
+  getAllCenters,
+  getSingleCenter,
+  updateCenter,
+  toggleCenterStatus
 };
