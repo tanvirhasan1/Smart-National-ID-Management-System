@@ -11,6 +11,8 @@ require('./models/Application');
 require('./models/Appointment');
 require('./models/SupportTicket');
 require('./models/Center');
+require('./models/AuditLog');
+
 
 const appointmentRoutes = require('./routes/appointments');
 const authRoutes = require('./routes/auth');

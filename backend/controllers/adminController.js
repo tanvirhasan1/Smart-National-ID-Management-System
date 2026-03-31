@@ -4,6 +4,8 @@ const User = require('../models/User');
 const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
+const AuditLog = require('../models/AuditLog');
+const { createAuditLog } = require('../utils/auditLogger');
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -215,6 +217,18 @@ const assignSupportTicket = async (req, res) => {
 
     await ticket.save();
 
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'ASSIGN_SUPPORT_TICKET',
+      entityType: 'SupportTicket',
+      entityId: ticket._id,
+      message: `Assigned support ticket ${ticket.ticketNumber || ''}`.trim(),
+      meta: {
+        assignedTo: assigneeId.toString()
+      }
+    });
+
     const updatedTicket = await SupportTicket.findById(ticket._id)
       .populate('citizen', 'fullName email phone role')
       .populate('assignedTo', 'fullName email role');
@@ -277,6 +291,19 @@ const updateSupportTicketStatus = async (req, res) => {
 
     await ticket.save();
 
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'UPDATE_SUPPORT_TICKET_STATUS',
+      entityType: 'SupportTicket',
+      entityId: ticket._id,
+      message: `Updated support ticket status to ${status}`,
+      meta: {
+        status,
+        resolutionNotes: resolutionNotes || ''
+      }
+    });
+
     const updatedTicket = await SupportTicket.findById(ticket._id)
       .populate('citizen', 'fullName email phone role')
       .populate('assignedTo', 'fullName email role')
@@ -334,6 +361,18 @@ const createCenter = async (req, res) => {
       contactNumber,
       officeHours,
       dailyCapacity
+    });
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'CREATE_CENTER',
+      entityType: 'Center',
+      entityId: center._id,
+      message: `Created center ${center.name}`,
+      meta: {
+        district: center.district
+      }
     });
 
     res.status(201).json({
@@ -447,6 +486,18 @@ const updateCenter = async (req, res) => {
 
     const updatedCenter = await center.save();
 
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'UPDATE_CENTER',
+      entityType: 'Center',
+      entityId: updatedCenter._id,
+      message: `Updated center ${updatedCenter.name}`,
+      meta: {
+        district: updatedCenter.district
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Center updated successfully',
@@ -482,6 +533,18 @@ const toggleCenterStatus = async (req, res) => {
     // Toggle status
     center.isActive = !center.isActive;
     await center.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'TOGGLE_CENTER_STATUS',
+      entityType: 'Center',
+      entityId: center._id,
+      message: `Center status changed to ${center.isActive ? 'active' : 'inactive'}`,
+      meta: {
+        isActive: center.isActive
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -556,6 +619,18 @@ const markApplicationAsPrinted = async (req, res) => {
 
     const updatedApplication = await application.save();
 
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'MARK_APPLICATION_PRINTED',
+      entityType: 'Application',
+      entityId: updatedApplication._id,
+      message: `Marked application ${updatedApplication.applicationId} as printed`,
+      meta: {
+        status: updatedApplication.status
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Application marked as printed successfully',
@@ -629,10 +704,44 @@ const markApplicationAsDelivered = async (req, res) => {
 
     const updatedApplication = await application.save();
 
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'MARK_APPLICATION_DELIVERED',
+      entityType: 'Application',
+      entityId: updatedApplication._id,
+      message: `Marked application ${updatedApplication.applicationId} as delivered`,
+      meta: {
+        status: updatedApplication.status
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Application marked as delivered successfully',
       application: updatedApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getRecentAuditLogs = async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 20;
+
+    const logs = await AuditLog.find()
+      .populate('actor', 'fullName email role')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      count: logs.length,
+      logs
     });
   } catch (error) {
     res.status(500).json({
@@ -657,5 +766,6 @@ module.exports = {
   getPrintingQueue,
   markApplicationAsPrinted,
   getDeliveryQueue,
-  markApplicationAsDelivered
+  markApplicationAsDelivered,
+  getRecentAuditLogs
 };

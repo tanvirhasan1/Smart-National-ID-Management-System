@@ -12,7 +12,8 @@ const {
   updateCenter,
   toggleCenterStatus,
   getDeliveryQueue,
-  markApplicationAsDelivered
+  markApplicationAsDelivered,
+  getRecentAuditLogs
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -111,6 +112,14 @@ router.patch(
   protect,
   authorize('admin', 'super_admin'),
   markApplicationAsDelivered
+);
+
+// Audit routes
+router.get(
+  '/audit/recent',
+  protect,
+  authorize('admin', 'super_admin'),
+  getRecentAuditLogs
 );
 
 module.exports = router;
