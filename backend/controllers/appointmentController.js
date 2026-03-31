@@ -39,6 +39,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
+    // Business rule: cannot book appointment for non-approved application
     if (application.status !== 'approved') {
       return res.status(400).json({
         success: false,
@@ -46,6 +47,7 @@ const bookAppointment = async (req, res) => {
       });
     }
 
+    // avoid duplicate active appointment 
     const existingAppointment = await Appointment.findOne({
       application: applicationId,
       status: { $in: ['booked', 'completed'] }
@@ -109,8 +111,14 @@ const getAllAppointmentsForAdmin = async (req, res) => {
   try {
     const filter = {};
 
+    // we can filter using stats
     if (req.query.status) {
       filter.status = req.query.status;
+    }
+
+    // District wise filter frontend admin panel
+    if (req.query.centerDistrict) {
+      filter.centerDistrict = req.query.centerDistrict;
     }
 
     const appointments = await Appointment.find(filter)
@@ -125,6 +133,72 @@ const getAllAppointmentsForAdmin = async (req, res) => {
       success: true,
       count: appointments.length,
       appointments
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getSingleAppointmentForAdmin = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid appointment id'
+      });
+    }
+
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role status')
+      .populate(
+        'application',
+        'applicationId fullNameEnglish fullNameBangla applicationType status phone email'
+      );
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      appointment
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getAppointmentStatsForAdmin = async (req, res) => {
+  try {
+    const [
+      totalAppointments,
+      bookedAppointments,
+      completedAppointments,
+      cancelledAppointments
+    ] = await Promise.all([
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: 'booked' }),
+      Appointment.countDocuments({ status: 'completed' }),
+      Appointment.countDocuments({ status: 'cancelled' })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalAppointments,
+        bookedAppointments,
+        completedAppointments,
+        cancelledAppointments
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -192,5 +266,7 @@ module.exports = {
   bookAppointment,
   getMyAppointments,
   getAllAppointmentsForAdmin,
+  getSingleAppointmentForAdmin,
+  getAppointmentStatsForAdmin,
   updateAppointmentStatusByAdmin
 };
