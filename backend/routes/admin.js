@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getAdminDashboard,
+  getAdminDashboardSummary,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
@@ -21,6 +22,13 @@ router.get(
   protect,
   authorize('admin', 'super_admin'),
   getAdminDashboard
+);
+
+router.get(
+  '/dashboard/summary',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAdminDashboardSummary
 );
 
 // Support routes

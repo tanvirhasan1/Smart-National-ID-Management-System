@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const Center = require('../models/Center');
+const Application = require('../models/Application');
+const Appointment = require('../models/Appointment');
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -9,6 +11,82 @@ const getAdminDashboard = async (req, res) => {
       success: true,
       message: 'Welcome to admin dashboard',
       admin: req.user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getAdminDashboardSummary = async (req, res) => {
+  try {
+    // Count main dashboard data
+    const [
+      totalApplications,
+      submittedApplications,
+      underReviewApplications,
+      approvedApplications,
+      rejectedApplications,
+      totalAppointments,
+      bookedAppointments,
+      completedAppointments,
+      cancelledAppointments,
+      totalSupportTickets,
+      openSupportTickets,
+      inProgressSupportTickets,
+      resolvedSupportTickets,
+      totalCenters,
+      activeCenters,
+      inactiveCenters
+    ] = await Promise.all([
+      Application.countDocuments(),
+      Application.countDocuments({ status: 'submitted' }),
+      Application.countDocuments({ status: 'under_review' }),
+      Application.countDocuments({ status: 'approved' }),
+      Application.countDocuments({ status: 'rejected' }),
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: 'booked' }),
+      Appointment.countDocuments({ status: 'completed' }),
+      Appointment.countDocuments({ status: 'cancelled' }),
+      SupportTicket.countDocuments(),
+      SupportTicket.countDocuments({ status: 'open' }),
+      SupportTicket.countDocuments({ status: 'in_progress' }),
+      SupportTicket.countDocuments({ status: 'resolved' }),
+      Center.countDocuments(),
+      Center.countDocuments({ isActive: true }),
+      Center.countDocuments({ isActive: false })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        applications: {
+          total: totalApplications,
+          submitted: submittedApplications,
+          underReview: underReviewApplications,
+          approved: approvedApplications,
+          rejected: rejectedApplications
+        },
+        appointments: {
+          total: totalAppointments,
+          booked: bookedAppointments,
+          completed: completedAppointments,
+          cancelled: cancelledAppointments
+        },
+        supportTickets: {
+          total: totalSupportTickets,
+          open: openSupportTickets,
+          inProgress: inProgressSupportTickets,
+          resolved: resolvedSupportTickets
+        },
+        centers: {
+          total: totalCenters,
+          active: activeCenters,
+          inactive: inactiveCenters
+        }
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -420,6 +498,7 @@ const toggleCenterStatus = async (req, res) => {
 
 module.exports = {
   getAdminDashboard,
+  getAdminDashboardSummary,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
