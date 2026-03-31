@@ -729,6 +729,190 @@ const markApplicationAsDelivered = async (req, res) => {
   }
 };
 
+
+const getAllApplicationsForAdmin = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Filter by status
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    // Filter by type
+    if (req.query.applicationType) {
+      filter.applicationType = req.query.applicationType;
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone role')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getSingleApplicationForAdmin = async (req, res) => {
+  try {
+    // Check application id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role status');
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const reviewApplicationByAdmin = async (req, res) => {
+  try {
+    // Check application id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const { status, rejectionReason } = req.body;
+    const allowedStatuses = ['under_review', 'approved', 'rejected'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application review status'
+      });
+    }
+
+    const application = await Application.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    // Reject reason required
+    if (status === 'rejected' && !rejectionReason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
+
+    application.status = status;
+
+    if (status === 'approved') {
+      application.approvedAt = new Date();
+      application.rejectionReason = '';
+    }
+
+    if (status === 'rejected') {
+      application.rejectionReason = rejectionReason;
+    }
+
+    const updatedApplication = await application.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'REVIEW_APPLICATION',
+      entityType: 'Application',
+      entityId: updatedApplication._id,
+      message: `Updated application ${updatedApplication.applicationId} to ${status}`,
+      meta: {
+        status,
+        rejectionReason: rejectionReason || ''
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Application updated to '${status}'`,
+      application: updatedApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getApplicationStatsForAdmin = async (req, res) => {
+  try {
+    // Count application data
+    const [
+      totalApplications,
+      submittedApplications,
+      underReviewApplications,
+      approvedApplications,
+      rejectedApplications,
+      printedApplications,
+      deliveredApplications,
+      cancelledApplications
+    ] = await Promise.all([
+      Application.countDocuments(),
+      Application.countDocuments({ status: 'submitted' }),
+      Application.countDocuments({ status: 'under_review' }),
+      Application.countDocuments({ status: 'approved' }),
+      Application.countDocuments({ status: 'rejected' }),
+      Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'delivered' }),
+      Application.countDocuments({ status: 'cancelled' })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalApplications,
+        submittedApplications,
+        underReviewApplications,
+        approvedApplications,
+        rejectedApplications,
+        printedApplications,
+        deliveredApplications,
+        cancelledApplications
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 const bulkMarkApplicationsAsPrinted = async (req, res) => {
   try {
     const { applicationIds } = req.body;
@@ -1038,5 +1222,9 @@ module.exports = {
   getDeliveryStats,
   getAuditStats,
   bulkMarkApplicationsAsPrinted,
-  bulkMarkApplicationsAsDelivered
+  bulkMarkApplicationsAsDelivered,
+  getAllApplicationsForAdmin,
+  getSingleApplicationForAdmin,
+  reviewApplicationByAdmin,
+  getApplicationStatsForAdmin
 };
