@@ -569,6 +569,79 @@ const markApplicationAsPrinted = async (req, res) => {
   }
 };
 
+const getDeliveryQueue = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Default queue
+    if (req.query.status) {
+      filter.status = req.query.status;
+    } else {
+      filter.status = { $in: ['printed', 'delivered'] };
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone role')
+      .sort({ printedAt: 1, createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const markApplicationAsDelivered = async (req, res) => {
+  try {
+    // Check application id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    // Only printed application can be delivered
+    if (application.status !== 'printed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only printed applications can be marked as delivered'
+      });
+    }
+
+    application.status = 'delivered';
+    application.deliveredAt = new Date();
+
+    const updatedApplication = await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Application marked as delivered successfully',
+      application: updatedApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
@@ -582,5 +655,7 @@ module.exports = {
   updateCenter,
   toggleCenterStatus,
   getPrintingQueue,
-  markApplicationAsPrinted
+  markApplicationAsPrinted,
+  getDeliveryQueue,
+  markApplicationAsDelivered
 };

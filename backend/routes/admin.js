@@ -10,7 +10,9 @@ const {
   getAllCenters,
   getSingleCenter,
   updateCenter,
-  toggleCenterStatus
+  toggleCenterStatus,
+  getDeliveryQueue,
+  markApplicationAsDelivered
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -94,6 +96,21 @@ router.patch(
   protect,
   authorize('admin', 'super_admin'),
   toggleCenterStatus
+);
+
+// Delivery routes
+router.get(
+  '/delivery/queue',
+  protect,
+  authorize('admin', 'super_admin'),
+  getDeliveryQueue
+);
+
+router.patch(
+  '/delivery/:id/mark-delivered',
+  protect,
+  authorize('admin', 'super_admin'),
+  markApplicationAsDelivered
 );
 
 module.exports = router;
