@@ -22,7 +22,7 @@ const getAdminDashboard = async (req, res) => {
 
 const getAdminDashboardSummary = async (req, res) => {
   try {
-    // Count main dashboard data
+    // Count main data
     const [
       totalApplications,
       submittedApplications,
@@ -208,7 +208,7 @@ const assignSupportTicket = async (req, res) => {
 
     ticket.assignedTo = assigneeId;
 
-    // Move open ticket to in progress
+    // Move open ticket
     if (ticket.status === 'open') {
       ticket.status = 'in_progress';
     }
@@ -496,6 +496,79 @@ const toggleCenterStatus = async (req, res) => {
   }
 };
 
+const getPrintingQueue = async (req, res) => {
+  try {
+    const filter = {};
+
+    // Default queue
+    if (req.query.status) {
+      filter.status = req.query.status;
+    } else {
+      filter.status = { $in: ['approved', 'printed'] };
+    }
+
+    const applications = await Application.find(filter)
+      .populate('applicant', 'fullName email phone role')
+      .sort({ approvedAt: 1, createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const markApplicationAsPrinted = async (req, res) => {
+  try {
+    // Check application id
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    // Only approved application can move to printed
+    if (application.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved applications can be marked as printed'
+      });
+    }
+
+    application.status = 'printed';
+    application.printedAt = new Date();
+
+    const updatedApplication = await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Application marked as printed successfully',
+      application: updatedApplication
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
@@ -507,5 +580,7 @@ module.exports = {
   getAllCenters,
   getSingleCenter,
   updateCenter,
-  toggleCenterStatus
+  toggleCenterStatus,
+  getPrintingQueue,
+  markApplicationAsPrinted
 };

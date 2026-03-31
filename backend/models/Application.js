@@ -184,6 +184,9 @@ const applicationSchema = new mongoose.Schema(
     approvedAt: {
       type: Date
     },
+    printedAt: {
+      type: Date
+    },
     deliveredAt: {
       type: Date
     },
