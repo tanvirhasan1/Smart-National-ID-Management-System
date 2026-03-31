@@ -13,7 +13,10 @@ const {
   toggleCenterStatus,
   getDeliveryQueue,
   markApplicationAsDelivered,
-  getRecentAuditLogs
+  getRecentAuditLogs,
+  getPrintingStats,
+  getDeliveryStats,
+  getAuditStats
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -120,6 +123,30 @@ router.get(
   protect,
   authorize('admin', 'super_admin'),
   getRecentAuditLogs
+);
+
+// Printing stats
+router.get(
+  '/printing/stats',
+  protect,
+  authorize('admin', 'super_admin'),
+  getPrintingStats
+);
+
+// Delivery stats
+router.get(
+  '/delivery/stats',
+  protect,
+  authorize('admin', 'super_admin'),
+  getDeliveryStats
+);
+
+// Audit stats
+router.get(
+  '/audit/stats',
+  protect,
+  authorize('admin', 'super_admin'),
+  getAuditStats
 );
 
 module.exports = router;
