@@ -13,7 +13,6 @@ require('./models/SupportTicket');
 require('./models/Center');
 require('./models/AuditLog');
 
-
 const appointmentRoutes = require('./routes/appointments');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -29,11 +28,30 @@ connectDB();
 // Security
 app.use(helmet());
 
+const allowedOrigins = Array.from(
+  new Set([
+    'http://localhost:3000',
+    'http://localhost:5173',
+    ...(process.env.FRONTEND_URL || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  ])
+);
+
 // CORS
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  })
+);
 
 // Rate limit
 const limiter = rateLimit({
@@ -75,6 +93,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/support', supportRoutes);
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
