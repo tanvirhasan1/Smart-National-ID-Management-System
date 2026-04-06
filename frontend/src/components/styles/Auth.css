@@ -1,0 +1,54 @@
+/* Auth Page Common Styles */
+/* extra */
+/* =========================
+   Login Page Custom Styles
+   ========================= */
+
+.login-card-panel {
+  backdrop-filter: blur(2px);
+}
+
+.login-brand-logo {
+  display: block;
+}
+
+.login-form-input.error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08);
+}
+
+.login-form-input.error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+}
+
+.login-password-toggle {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.login-submit-button:focus-visible,
+.login-password-toggle:focus-visible,
+.login-forgot-link:focus-visible,
+.login-register-link:focus-visible,
+.login-admin-link a:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .login-card-panel {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .login-title-text {
+    font-size: 1.5rem;
+  }
+
+  .login-subtitle-text {
+    font-size: 0.9rem;
+  }
+}
