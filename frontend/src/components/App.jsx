@@ -15,6 +15,7 @@ import Footer from './common/Footer';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import OTPVerification from './pages/OTPVerification';
 import AdminLogin from './admin/AdminLogin';
 import NotFound from './pages/NotFound';
 
@@ -46,13 +47,12 @@ const AppShell = () => {
 
       <main className={isAdminRoute ? '' : 'main-content'}>
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-otp" element={<OTPVerification />} />
           <Route path="/admin/login" element={<AdminLogin />} />
 
-          {/* Citizen Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -110,7 +110,6 @@ const AppShell = () => {
             }
           />
 
-          {/* Admin Protected Routes */}
           <Route
             path="/admin/dashboard"
             element={

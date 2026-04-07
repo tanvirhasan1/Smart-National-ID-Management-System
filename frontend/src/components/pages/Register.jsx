@@ -42,26 +42,23 @@ const Register = () => {
   const password = watch('password');
 
   const getInputClass = (hasError = false) =>
-    `register-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `register-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const getSelectClass = (hasError = false) =>
-    `register-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `register-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const getStepClass = (stepNumber) => {
     const isActive = currentStep >= stepNumber;
     const isCompleted = currentStep > stepNumber;
 
-    return `register-step-item flex flex-1 items-center gap-3 rounded-xl border px-3 py-3 transition ${
-      isActive ? 'border-[#16A34A] bg-[#F0FDF4]' : 'border-[#E5E7EB] bg-white'
-    } ${isCompleted ? 'register-step-completed' : ''}`;
+    return `register-step-item flex flex-1 items-center gap-3 rounded-xl border px-3 py-3 transition ${isActive ? 'border-[#16A34A] bg-[#F0FDF4]' : 'border-[#E5E7EB] bg-white'
+      } ${isCompleted ? 'register-step-completed' : ''}`;
   };
 
   const handleSameAddress = (e) => {
@@ -98,21 +95,21 @@ const Register = () => {
         },
         permanentAddress: sameAddress
           ? {
-              division: data.presentAddress.division,
-              district: data.presentAddress.district,
-              upazila: data.presentAddress.upazila,
-              union: data.presentAddress.union || '',
-              village: data.presentAddress.village || '',
-              postCode: data.presentAddress.postCode || ''
-            }
+            division: data.presentAddress.division,
+            district: data.presentAddress.district,
+            upazila: data.presentAddress.upazila,
+            union: data.presentAddress.union || '',
+            village: data.presentAddress.village || '',
+            postCode: data.presentAddress.postCode || ''
+          }
           : {
-              division: data.permanentAddress.division,
-              district: data.permanentAddress.district,
-              upazila: data.permanentAddress.upazila,
-              union: data.permanentAddress.union || '',
-              village: data.permanentAddress.village || '',
-              postCode: data.permanentAddress.postCode || ''
-            }
+            division: data.permanentAddress.division,
+            district: data.permanentAddress.district,
+            upazila: data.permanentAddress.upazila,
+            union: data.permanentAddress.union || '',
+            village: data.permanentAddress.village || '',
+            postCode: data.permanentAddress.postCode || ''
+          }
       };
 
       const result = await registerUser(formattedData);

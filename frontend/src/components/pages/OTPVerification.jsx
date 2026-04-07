@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaMobileAlt, FaRedo, FaSpinner, FaShieldAlt } from 'react-icons/fa';
+import { FaRedo, FaSpinner, FaShieldAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Auth.css';
 
@@ -10,7 +10,12 @@ const OTPVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const phone = location.state?.phone || location.state?.mobile || '';
+  const identifier =
+    location.state?.email ||
+    location.state?.phone ||
+    location.state?.mobile ||
+    '';
+
   const verificationToken = location.state?.verificationToken || '';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -22,10 +27,10 @@ const OTPVerification = () => {
   const inputRefs = useRef([]);
 
   useEffect(() => {
-    if (!phone || !verificationToken) {
+    if (!identifier || !verificationToken) {
       navigate('/register');
     }
-  }, [phone, verificationToken, navigate]);
+  }, [identifier, verificationToken, navigate]);
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -81,18 +86,18 @@ const OTPVerification = () => {
     const otpCode = otp.join('');
 
     if (otpCode.length !== 6) {
-      toast.error('Please enter the complete 6-digit OTP');
+      toast.error('Please enter the complete 6-digit code');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await verifyOTP(phone, otpCode, verificationToken);
-      toast.success('Phone number verified successfully!');
+      await verifyOTP(identifier, otpCode, verificationToken);
+      toast.success('Email verified successfully!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.message || 'Invalid OTP. Please try again.');
+      toast.error(error.message || 'Invalid code. Please try again.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -106,14 +111,14 @@ const OTPVerification = () => {
     setIsResending(true);
 
     try {
-      await resendOTP(phone, verificationToken);
-      toast.success('OTP resent successfully!');
+      await resendOTP(identifier, verificationToken);
+      toast.success('Verification code sent again!');
       setCountdown(60);
       setCanResend(false);
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } catch (error) {
-      toast.error(error.message || 'Failed to resend OTP');
+      toast.error(error.message || 'Failed to resend code');
     } finally {
       setIsResending(false);
     }
@@ -131,14 +136,14 @@ const OTPVerification = () => {
             </div>
 
             <h1 className="otp-title-text mb-2 text-[1.75rem] font-bold text-[#1F2937]">
-              Verify Your Phone
+              Verify Your Email
             </h1>
 
             <p className="otp-subtitle-text text-[0.95rem] leading-7 text-[#6B7280]">
               We sent a 6-digit verification code to
               <br />
               <span className="otp-phone-text font-semibold text-[#1F2937]">
-                {phone}
+                {identifier}
               </span>
             </p>
           </div>
@@ -147,7 +152,10 @@ const OTPVerification = () => {
             className="otp-form-wrapper space-y-6"
             onSubmit={handleSubmit}
           >
-            <div className="otp-inputs-row flex items-center justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
+            <div
+              className="otp-inputs-row flex items-center justify-center gap-2 sm:gap-3"
+              onPaste={handleOtpPaste}
+            >
               {otp.map((digit, index) => (
                 <input
                   key={index}
@@ -177,10 +185,7 @@ const OTPVerification = () => {
                   <span>Verifying...</span>
                 </>
               ) : (
-                <>
-                  <FaMobileAlt />
-                  <span>Verify OTP</span>
-                </>
+                <span>Verify Code</span>
               )}
             </button>
           </form>
@@ -201,13 +206,13 @@ const OTPVerification = () => {
                 ) : (
                   <>
                     <FaRedo />
-                    <span>Resend OTP</span>
+                    <span>Resend Code</span>
                   </>
                 )}
               </button>
             ) : (
               <p className="otp-countdown-text text-sm text-[#6B7280]">
-                Resend OTP in <strong>{countdown}s</strong>
+                Resend code in <strong>{countdown}s</strong>
               </p>
             )}
           </div>
@@ -218,8 +223,8 @@ const OTPVerification = () => {
             </p>
 
             <ul className="otp-help-list list-inside list-disc space-y-1 text-sm text-[#6B7280]">
-              <li>Check your message inbox</li>
-              <li>Make sure the phone number is correct</li>
+              <li>Check your inbox</li>
+              <li>Check your spam folder</li>
               <li>Wait for the resend timer to finish</li>
             </ul>
           </div>
