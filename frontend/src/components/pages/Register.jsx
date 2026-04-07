@@ -60,9 +60,7 @@ const Register = () => {
     const isCompleted = currentStep > stepNumber;
 
     return `register-step-item flex flex-1 items-center gap-3 rounded-xl border px-3 py-3 transition ${
-      isActive
-        ? 'border-[#16A34A] bg-[#F0FDF4]'
-        : 'border-[#E5E7EB] bg-white'
+      isActive ? 'border-[#16A34A] bg-[#F0FDF4]' : 'border-[#E5E7EB] bg-white'
     } ${isCompleted ? 'register-step-completed' : ''}`;
   };
 
@@ -117,9 +115,23 @@ const Register = () => {
             }
       };
 
-      await registerUser(formattedData);
+      const result = await registerUser(formattedData);
+      const verificationToken =
+        result?.verificationToken || result?.data?.verificationToken;
+
+      if (!verificationToken) {
+        throw new Error('Verification token not found. Please try again.');
+      }
+
       toast.success('Registration successful! Please verify your mobile number.');
-      navigate('/verify-otp', { state: { mobile: data.mobile } });
+
+      navigate('/verify-otp', {
+        state: {
+          phone: data.mobile,
+          mobile: data.mobile,
+          verificationToken
+        }
+      });
     } catch (error) {
       toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
@@ -134,7 +146,6 @@ const Register = () => {
     <div className="register-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8 flex items-center justify-center">
       <div className="register-container w-full max-w-[860px]">
         <div className="register-card-panel rounded-2xl bg-white p-6 shadow-[0_10px_40px_rgba(0,0,0,0.1)] sm:p-8 lg:p-10">
-          {/* Header */}
           <div className="register-header-block mb-8 text-center">
             <div className="register-logo-wrap mb-4 flex justify-center">
               <img
@@ -153,7 +164,6 @@ const Register = () => {
             </p>
           </div>
 
-          {/* Progress Steps */}
           <div className="register-steps-wrap mb-8 grid gap-3 sm:grid-cols-3">
             <div className={getStepClass(1)}>
               <span className="register-step-number flex h-9 w-9 items-center justify-center rounded-full bg-[#16A34A] text-sm font-semibold text-white">
@@ -183,9 +193,7 @@ const Register = () => {
             </div>
           </div>
 
-          {/* Form */}
           <form className="register-form-wrapper space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            {/* Step 1 */}
             {currentStep === 1 && (
               <div className="register-step-panel space-y-5">
                 <h3 className="register-step-title text-lg font-semibold text-[#1F2937]">
@@ -385,7 +393,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Step 2 */}
             {currentStep === 2 && (
               <div className="register-step-panel space-y-5">
                 <h3 className="register-step-title text-lg font-semibold text-[#1F2937]">
@@ -639,7 +646,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Step 3 */}
             {currentStep === 3 && (
               <div className="register-step-panel space-y-5">
                 <h3 className="register-step-title text-lg font-semibold text-[#1F2937]">
@@ -710,8 +716,7 @@ const Register = () => {
                       placeholder="Confirm your password"
                       {...register('confirmPassword', {
                         required: 'Please confirm your password',
-                        validate: (value) =>
-                          value === password || 'Passwords do not match'
+                        validate: (value) => value === password || 'Passwords do not match'
                       })}
                     />
                     <button
@@ -740,8 +745,14 @@ const Register = () => {
                       className="mt-1 h-4 w-4 rounded border-[#D1D5DB] text-[#16A34A] focus:ring-[#16A34A]"
                     />
                     <span>
-                      I agree to the <a href="#" className="text-[#16A34A] hover:text-[#15803D]">Terms and Conditions</a> and{' '}
-                      <a href="#" className="text-[#16A34A] hover:text-[#15803D]">Privacy Policy</a>
+                      I agree to the{' '}
+                      <a href="#" className="text-[#16A34A] hover:text-[#15803D]">
+                        Terms and Conditions
+                      </a>{' '}
+                      and{' '}
+                      <a href="#" className="text-[#16A34A] hover:text-[#15803D]">
+                        Privacy Policy
+                      </a>
                     </span>
                   </label>
 
@@ -780,7 +791,6 @@ const Register = () => {
             )}
           </form>
 
-          {/* Footer */}
           <div className="register-footer-block mt-8 border-t border-[#E5E7EB] pt-6 text-center">
             <p className="register-footer-text text-[#6B7280]">
               Already have an account?{' '}

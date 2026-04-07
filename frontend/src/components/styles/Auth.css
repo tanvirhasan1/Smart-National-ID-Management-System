@@ -135,3 +135,37 @@
     font-size: 0.9rem;
   }
 }
+/* =========================
+   OTP Verification Page Custom Styles
+   ========================= */
+
+.otp-card-panel {
+  backdrop-filter: blur(2px);
+}
+
+.otp-resend-button,
+.otp-submit-button {
+  border: none;
+}
+
+.otp-submit-button:focus-visible,
+.otp-resend-button:focus-visible,
+.otp-digit-input:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .otp-card-panel {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .otp-title-text {
+    font-size: 1.5rem;
+  }
+
+  .otp-subtitle-text {
+    font-size: 0.9rem;
+  }
+}
