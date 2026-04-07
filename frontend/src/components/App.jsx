@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -15,7 +15,6 @@ import Footer from './common/Footer';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import OTPVerification from './pages/OTPVerification';
 import AdminLogin from './admin/AdminLogin';
 import NotFound from './pages/NotFound';
 
@@ -37,116 +36,165 @@ import DeliveryTracking from './admin/DeliveryTracking';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
 
-// Styles
-// import './styles/globals.css';
+const AppShell = () => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  return (
+    <div className="app">
+      {!isAdminRoute && <Navbar />}
+
+      <main className={isAdminRoute ? '' : 'main-content'}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+
+          {/* Citizen Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <CitizenDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/apply"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <ApplicationForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/book-appointment/:applicationId"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <AppointmentBooking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/track-application"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <ApplicationTracker />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/digital-nid/:id"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <DigitalNID />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/support"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <SupportTicket />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Protected Routes */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/applications"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <ApplicationReview />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/appointments"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <AppointmentManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/printing"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <PrintingQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/delivery"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <DeliveryTracking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/support"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <SupportManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/audit-logs"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <AuditLogs />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+
+      {!isAdminRoute && <Footer />}
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+    </div>
+  );
+};
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="app">
-          <Navbar />
-          <main className="main-content">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/verify-otp" element={<OTPVerification />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              
-              {/* Citizen Protected Routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <CitizenDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute allowedRoles={['citizen', 'admin']}>
-                  <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/apply" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <ApplicationForm />
-                </ProtectedRoute>
-              } />
-              <Route path="/book-appointment/:applicationId" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <AppointmentBooking />
-                </ProtectedRoute>
-              } />
-              <Route path="/track-application" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <ApplicationTracker />
-                </ProtectedRoute>
-              } />
-              <Route path="/digital-nid/:id" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <DigitalNID />
-                </ProtectedRoute>
-              } />
-              <Route path="/support" element={
-                <ProtectedRoute allowedRoles={['citizen']}>
-                  <SupportTicket />
-                </ProtectedRoute>
-              } />
-              
-              {/* Admin Protected Routes */}
-              <Route path="/admin/dashboard" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/applications" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <ApplicationReview />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/appointments" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AppointmentManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/printing" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <PrintingQueue />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/delivery" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <DeliveryTracking />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/support" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <SupportManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/audit-logs" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AuditLogs />
-                </ProtectedRoute>
-              } />
-              
-              {/* 404 Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
-          <ToastContainer 
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-          />
-        </div>
+        <AppShell />
       </Router>
     </AuthProvider>
   );
