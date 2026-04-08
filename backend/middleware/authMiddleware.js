@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { verifyAccessToken } = require('../utils/token');
 
 const protect = async (req, res, next) => {
   try {
@@ -19,14 +19,20 @@ const protect = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
+    const decoded = verifyAccessToken(token);
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    if (user.status === 'blocked') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is blocked'
       });
     }
 
@@ -49,7 +55,7 @@ const authorize = (...roles) => {
       });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (roles.length > 0 && !roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: `Access denied. Role '${req.user.role}' is not allowed`
@@ -60,4 +66,39 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize };
+const authorizePermissions = (...permissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    if (permissions.length === 0) {
+      return next();
+    }
+
+    const userPermissions = Array.isArray(req.user.permissions)
+      ? req.user.permissions
+      : [];
+
+    if (
+      userPermissions.includes('*') ||
+      permissions.every((permission) => userPermissions.includes(permission))
+    ) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Permission denied'
+    });
+  };
+};
+
+module.exports = {
+  protect,
+  authorize,
+  authorizePermissions
+};
