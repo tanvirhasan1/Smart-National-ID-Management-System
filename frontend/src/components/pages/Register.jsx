@@ -120,12 +120,11 @@ const Register = () => {
         throw new Error('Verification token not found. Please try again.');
       }
 
-      toast.success('Registration successful! Please verify your mobile number.');
+      toast.success('Registration successful! Please verify your email.');
 
       navigate('/verify-otp', {
         state: {
-          phone: data.mobile,
-          mobile: data.mobile,
+          email: result?.recipientEmail || data.email,
           verificationToken
         }
       });
