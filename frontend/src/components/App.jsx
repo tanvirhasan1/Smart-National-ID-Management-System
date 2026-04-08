@@ -37,6 +37,7 @@ import PrintingQueue from './admin/PrintingQueue';
 import DeliveryTracking from './admin/DeliveryTracking';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
+import AdminUsers from './admin/AdminUsers';
 
 const AppShell = () => {
   const location = useLocation();
@@ -120,6 +121,15 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/applications"
             element={
@@ -139,7 +149,7 @@ const AppShell = () => {
           <Route
             path="/admin/printing"
             element={
-             <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <PrintingQueue />
               </ProtectedRoute>
             }
@@ -163,7 +173,7 @@ const AppShell = () => {
           <Route
             path="/admin/audit-logs"
             element={
-             <ProtectedRoute allowedRoles={['admin', 'system_supervisor']}>
+              <ProtectedRoute allowedRoles={['admin', 'system_supervisor']}>
                 <AuditLogs />
               </ProtectedRoute>
             }

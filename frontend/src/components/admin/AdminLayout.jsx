@@ -11,7 +11,8 @@ import {
   FaSignOutAlt,
   FaBars,
   FaTimes,
-  FaUserShield
+  FaUserShield,
+  FaUserCog
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import '../styles/AdminLayout.css';
@@ -29,69 +30,86 @@ const AdminLayout = ({ children }) => {
     navigate('/admin/login');
   };
 
-const allMenuItems = [
-  {
-    path: '/admin/dashboard',
-    label: 'Dashboard',
-    icon: FaHome,
-    roles: ['admin', 'system_supervisor', 'support_staff']
-  },
-  {
-    path: '/admin/applications',
-    label: 'Applications',
-    icon: FaFileAlt,
-    roles: ['admin']
-  },
-  {
-    path: '/admin/appointments',
-    label: 'Appointments',
-    icon: FaCalendarAlt,
-    roles: ['admin']
-  },
-  {
-    path: '/admin/printing',
-    label: 'Printing Queue',
-    icon: FaPrint,
-    roles: ['admin']
-  },
-  {
-    path: '/admin/delivery',
-    label: 'Delivery',
-    icon: FaTruck,
-    roles: ['admin']
-  },
-  {
-    path: '/admin/support',
-    label: 'Support Tickets',
-    icon: FaTicketAlt,
-    roles: ['admin', 'support_staff']
-  },
-  {
-    path: '/admin/audit-logs',
-    label: 'Audit Logs',
-    icon: FaHistory,
-    roles: ['admin', 'system_supervisor']
+  const allMenuItems = [
+    {
+      path: '/admin/dashboard',
+      label: 'Dashboard',
+      icon: FaHome,
+      roles: ['admin', 'system_supervisor', 'support_staff']
+    },
+    {
+      path: '/admin/users',
+      label: 'Users',
+      icon: FaUserCog,
+      roles: ['admin'],
+      mainAdminOnly: true
+    },
+    {
+      path: '/admin/applications',
+      label: 'Applications',
+      icon: FaFileAlt,
+      roles: ['admin']
+    },
+    {
+      path: '/admin/appointments',
+      label: 'Appointments',
+      icon: FaCalendarAlt,
+      roles: ['admin']
+    },
+    {
+      path: '/admin/printing',
+      label: 'Printing Queue',
+      icon: FaPrint,
+      roles: ['admin']
+    },
+    {
+      path: '/admin/delivery',
+      label: 'Delivery',
+      icon: FaTruck,
+      roles: ['admin']
+    },
+    {
+      path: '/admin/support',
+      label: 'Support Tickets',
+      icon: FaTicketAlt,
+      roles: ['admin', 'support_staff']
+    },
+    {
+      path: '/admin/audit-logs',
+      label: 'Audit Logs',
+      icon: FaHistory,
+      roles: ['admin', 'system_supervisor']
+    }
+  ];
+
+  const menuItems = allMenuItems.filter((item) => {
+  const roleMatched = item.roles.includes(user?.role);
+
+  if (!roleMatched) {
+    return false;
   }
-];
 
-const menuItems = allMenuItems.filter((item) => item.roles.includes(user?.role));
+  if (item.mainAdminOnly) {
+    return Boolean(user?.isMainAdmin);
+  }
 
-const roleLabelMap = {
-  admin: 'Administrator',
-  system_supervisor: 'System Supervisor',
-  support_staff: 'Support Staff'
-};
+  return true;
+});
+
+  const roleLabelMap = {
+    admin: 'Administrator',
+    system_supervisor: 'System Supervisor',
+    support_staff: 'Support Staff'
+  };
 
   return (
     <div
-      className={`admin-layout-wrapper flex min-h-screen bg-[#F3F4F6] ${
-        sidebarOpen ? '' : 'admin-layout-collapsed'
-      }`}
+      className={`admin-layout-wrapper flex min-h-screen bg-[#F3F4F6] ${sidebarOpen ? '' : 'admin-layout-collapsed'
+        }`}
     >
       <aside
-        className={`admin-sidebar-panel fixed inset-y-0 left-0 z-[100] flex w-[260px] flex-col bg-[#1F2937] text-white transition-all duration-300 lg:translate-x-0 ${
-          sidebarOpen ? 'lg:w-[260px]' : 'lg:w-[80px]'
-        } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} `}
+        className={`admin-sidebar-panel fixed inset-y-0 left-0 z-[100] flex w-[260px] flex-col bg-[#1F2937] text-white transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'lg:w-[260px]' : 'lg:w-[80px]'
+          } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} `}
       >
         <div className="admin-sidebar-header flex items-center justify-between border-b border-[#374151] px-4 py-4">
           <Link
@@ -134,11 +152,10 @@ const roleLabelMap = {
                   <Link
                     to={item.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`admin-sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                      isActive
-                        ? 'border-l-[3px] border-[#16A34A] bg-[rgba(22,163,74,0.10)] text-[#16A34A]'
-                        : 'border-l-[3px] border-transparent text-[#9CA3AF] hover:bg-[#374151] hover:text-white'
-                    } ${sidebarOpen ? 'justify-start' : 'justify-center lg:px-3'}`}
+                    className={`admin-sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${isActive
+                      ? 'border-l-[3px] border-[#16A34A] bg-[rgba(22,163,74,0.10)] text-[#16A34A]'
+                      : 'border-l-[3px] border-transparent text-[#9CA3AF] hover:bg-[#374151] hover:text-white'
+                      } ${sidebarOpen ? 'justify-start' : 'justify-center lg:px-3'}`}
                   >
                     <Icon className="admin-sidebar-link-icon min-w-6 text-lg" />
                     {sidebarOpen && <span>{item.label}</span>}
@@ -152,9 +169,8 @@ const roleLabelMap = {
         <div className="admin-sidebar-footer border-t border-[#374151] p-4">
           <button
             type="button"
-            className={`admin-logout-button flex w-full items-center gap-3 rounded-xl bg-[#374151] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4B5563] ${
-              sidebarOpen ? 'justify-start' : 'justify-center'
-            }`}
+            className={`admin-logout-button flex w-full items-center gap-3 rounded-xl bg-[#374151] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4B5563] ${sidebarOpen ? 'justify-start' : 'justify-center'
+              }`}
             onClick={handleLogout}
           >
             <FaSignOutAlt className="text-base" />
@@ -171,9 +187,8 @@ const roleLabelMap = {
       )}
 
       <div
-        className={`admin-main-wrapper flex min-h-screen flex-1 flex-col transition-all duration-300 ${
-          sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[80px]'
-        }`}
+        className={`admin-main-wrapper flex min-h-screen flex-1 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[80px]'
+          }`}
       >
         <header className="admin-topbar sticky top-0 z-50 flex items-center justify-between bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.1)] sm:px-6">
           <button
