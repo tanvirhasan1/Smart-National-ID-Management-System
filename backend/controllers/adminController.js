@@ -1,11 +1,45 @@
 const mongoose = require('mongoose');
 const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
+const AdminUser = require('../models/AdminUser');
 const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
 const AuditLog = require('../models/AuditLog');
 const { createAuditLog } = require('../utils/auditLogger');
+const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
+const { syncUserBuckets } = require('../utils/userBuckets');
+
+// Allowed internal roles for manually created staff users.
+const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
+
+// Keep response shape clean for internal users.
+const mapInternalUserResponse = (user) => ({
+  _id: user._id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  permissions: user.permissions || [],
+  status: user.status,
+  isVerified: user.isVerified,
+  createdBy: user.createdBy,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt
+});
+
+// Only the first admin account should manage internal users.
+const ensureMainAdminAccess = (req, res) => {
+  if (!isMainAdminUser(req.user)) {
+    res.status(403).json({
+      success: false,
+      message: 'Only main admin can manage internal users'
+    });
+    return false;
+  }
+
+  return true;
+};
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -24,7 +58,7 @@ const getAdminDashboard = async (req, res) => {
 
 const getAdminDashboardSummary = async (req, res) => {
   try {
-    // Count main data
+    // Count dashboard summary data.
     const [
       totalApplications,
       submittedApplications,
@@ -88,6 +122,126 @@ const getAdminDashboardSummary = async (req, res) => {
           active: activeCenters,
           inactive: inactiveCenters
         }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getInternalUsers = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    const users = await User.find({
+      role: { $in: INTERNAL_USER_ROLES }
+    })
+      .select('-password')
+      .populate('createdBy', 'fullName email')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users.map(mapInternalUserResponse)
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const createInternalUser = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    const fullName = String(req.body.fullName || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const phone = String(req.body.phone || '').trim();
+    const password = String(req.body.password || '');
+    const role = String(req.body.role || '').trim();
+
+    if (!fullName || !email || !phone || !password || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Full name, email, phone, password and role are required'
+      });
+    }
+
+    if (!INTERNAL_USER_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user role'
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters'
+      });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use'
+      });
+    }
+
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone already in use'
+      });
+    }
+
+    const user = await User.create({
+      fullName,
+      email,
+      phone,
+      password,
+      role,
+      permissions: getDefaultPermissions(role),
+      isVerified: true,
+      status: 'active',
+      createdBy: req.user._id
+    });
+
+    await syncUserBuckets(user);
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'CREATE_INTERNAL_USER',
+      entityType: 'User',
+      entityId: user._id,
+      message: `Created internal user ${user.fullName}`,
+      meta: {
+        createdUserRole: user.role,
+        createdUserEmail: user.email
+      }
+    });
+
+    const bucketUser = await AdminUser.findOne({ userId: user._id });
+
+    res.status(201).json({
+      success: true,
+      message: 'Internal user created successfully',
+      data: {
+        ...mapInternalUserResponse(user),
+        bucketId: bucketUser ? bucketUser._id : null
       }
     });
   } catch (error) {
@@ -170,7 +324,7 @@ const getSupportStats = async (req, res) => {
 
 const assignSupportTicket = async (req, res) => {
   try {
-    // Check ticket id
+    // Validate ticket id before query.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -199,18 +353,18 @@ const assignSupportTicket = async (req, res) => {
         });
       }
 
-      // Only admin can be assigned
-      if (!['admin', 'super_admin'].includes(assignee.role)) {
+      // Only admin or support staff can take support tickets.
+      if (!['admin', 'support_staff'].includes(assignee.role)) {
         return res.status(400).json({
           success: false,
-          message: 'Ticket can only be assigned to admin or super_admin'
+          message: 'Ticket can only be assigned to admin or support staff'
         });
       }
     }
 
     ticket.assignedTo = assigneeId;
 
-    // Move open ticket
+    // Move open ticket into progress once assigned.
     if (ticket.status === 'open') {
       ticket.status = 'in_progress';
     }
@@ -248,7 +402,7 @@ const assignSupportTicket = async (req, res) => {
 
 const updateSupportTicketStatus = async (req, res) => {
   try {
-    // Check ticket id
+    // Validate ticket id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -333,7 +487,7 @@ const createCenter = async (req, res) => {
       dailyCapacity
     } = req.body;
 
-    // Check required fields
+    // Check required fields first.
     if (!name || !district || !address) {
       return res.status(400).json({
         success: false,
@@ -341,7 +495,7 @@ const createCenter = async (req, res) => {
       });
     }
 
-    // Stop duplicate center
+    // Stop duplicate center creation.
     const existingCenter = await Center.findOne({
       name: name.trim(),
       district: district.trim()
@@ -392,12 +546,10 @@ const getAllCenters = async (req, res) => {
   try {
     const filter = {};
 
-    // Filter by active status
     if (req.query.isActive !== undefined) {
       filter.isActive = req.query.isActive === 'true';
     }
 
-    // Filter by district
     if (req.query.district) {
       filter.district = req.query.district;
     }
@@ -419,7 +571,7 @@ const getAllCenters = async (req, res) => {
 
 const getSingleCenter = async (req, res) => {
   try {
-    // Check center id
+    // Validate center id before query.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -450,7 +602,7 @@ const getSingleCenter = async (req, res) => {
 
 const updateCenter = async (req, res) => {
   try {
-    // Check center id
+    // Validate center id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -476,7 +628,6 @@ const updateCenter = async (req, res) => {
       dailyCapacity
     } = req.body;
 
-    // Update fields
     if (name !== undefined) center.name = name;
     if (district !== undefined) center.district = district;
     if (address !== undefined) center.address = address;
@@ -513,7 +664,7 @@ const updateCenter = async (req, res) => {
 
 const toggleCenterStatus = async (req, res) => {
   try {
-    // Check center id
+    // Validate center id before status toggle.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -530,7 +681,6 @@ const toggleCenterStatus = async (req, res) => {
       });
     }
 
-    // Toggle status
     center.isActive = !center.isActive;
     await center.save();
 
@@ -563,7 +713,6 @@ const getPrintingQueue = async (req, res) => {
   try {
     const filter = {};
 
-    // Default queue
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
@@ -589,7 +738,7 @@ const getPrintingQueue = async (req, res) => {
 
 const markApplicationAsPrinted = async (req, res) => {
   try {
-    // Check application id
+    // Validate application id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -606,7 +755,6 @@ const markApplicationAsPrinted = async (req, res) => {
       });
     }
 
-    // Only approved application can move to printed
     if (application.status !== 'approved') {
       return res.status(400).json({
         success: false,
@@ -648,7 +796,6 @@ const getDeliveryQueue = async (req, res) => {
   try {
     const filter = {};
 
-    // Default queue
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
@@ -674,7 +821,7 @@ const getDeliveryQueue = async (req, res) => {
 
 const markApplicationAsDelivered = async (req, res) => {
   try {
-    // Check application id
+    // Validate application id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -691,7 +838,6 @@ const markApplicationAsDelivered = async (req, res) => {
       });
     }
 
-    // Only printed application can be delivered
     if (application.status !== 'printed') {
       return res.status(400).json({
         success: false,
@@ -729,17 +875,14 @@ const markApplicationAsDelivered = async (req, res) => {
   }
 };
 
-
 const getAllApplicationsForAdmin = async (req, res) => {
   try {
     const filter = {};
 
-    // Filter by status
     if (req.query.status) {
       filter.status = req.query.status;
     }
 
-    // Filter by type
     if (req.query.applicationType) {
       filter.applicationType = req.query.applicationType;
     }
@@ -763,7 +906,7 @@ const getAllApplicationsForAdmin = async (req, res) => {
 
 const getSingleApplicationForAdmin = async (req, res) => {
   try {
-    // Check application id
+    // Validate application id before query.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -795,7 +938,7 @@ const getSingleApplicationForAdmin = async (req, res) => {
 
 const reviewApplicationByAdmin = async (req, res) => {
   try {
-    // Check application id
+    // Validate application id before review.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -822,7 +965,6 @@ const reviewApplicationByAdmin = async (req, res) => {
       });
     }
 
-    // Reject reason required
     if (status === 'rejected' && !rejectionReason) {
       return res.status(400).json({
         success: false,
@@ -871,7 +1013,6 @@ const reviewApplicationByAdmin = async (req, res) => {
 
 const getApplicationStatsForAdmin = async (req, res) => {
   try {
-    // Count application data
     const [
       totalApplications,
       submittedApplications,
@@ -917,7 +1058,6 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
   try {
     const { applicationIds } = req.body;
 
-    // Check input
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return res.status(400).json({
         success: false,
@@ -944,7 +1084,6 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
     const skipped = [];
 
     for (const application of applications) {
-      // Only approved applications can be printed
       if (application.status !== 'approved') {
         skipped.push({
           id: application._id,
@@ -993,7 +1132,6 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
   try {
     const { applicationIds } = req.body;
 
-    // Check input
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return res.status(400).json({
         success: false,
@@ -1020,7 +1158,6 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
     const skipped = [];
 
     for (const application of applications) {
-      // Only printed applications can be delivered
       if (application.status !== 'printed') {
         skipped.push({
           id: application._id,
@@ -1065,8 +1202,6 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
   }
 };
 
-
-
 const getRecentAuditLogs = async (req, res) => {
   try {
     const limit = Number(req.query.limit) || 20;
@@ -1094,7 +1229,6 @@ const getPrintingStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Count printing data
     const [
       approvedForPrint,
       printedCount,
@@ -1131,7 +1265,6 @@ const getDeliveryStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Count delivery data
     const [
       readyForDelivery,
       deliveredCount,
@@ -1168,7 +1301,6 @@ const getAuditStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Count audit data
     const [
       totalLogs,
       todayLogs,
@@ -1201,12 +1333,10 @@ const getAuditStats = async (req, res) => {
   }
 };
 
-
 const exportPrintingReport = async (req, res) => {
   try {
     const filter = {};
 
-    // Filter by status
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
@@ -1248,7 +1378,6 @@ const exportDeliveryReport = async (req, res) => {
   try {
     const filter = {};
 
-    // Filter by status
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
@@ -1289,12 +1418,10 @@ const exportAuditReport = async (req, res) => {
   try {
     const filter = {};
 
-    // Filter by entity type
     if (req.query.entityType) {
       filter.entityType = req.query.entityType;
     }
 
-    // Filter by action
     if (req.query.action) {
       filter.action = req.query.action;
     }
@@ -1330,6 +1457,8 @@ const exportAuditReport = async (req, res) => {
 module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
+  getInternalUsers,
+  createInternalUser,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
