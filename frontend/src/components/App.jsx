@@ -66,7 +66,7 @@ const AppShell = () => {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}>
                 <Profile />
               </ProtectedRoute>
             }
@@ -115,7 +115,7 @@ const AppShell = () => {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'system_supervisor', 'support_staff']}>
                 <AdminDashboard />
               </ProtectedRoute>
             }
@@ -123,7 +123,7 @@ const AppShell = () => {
           <Route
             path="/admin/applications"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <ApplicationReview />
               </ProtectedRoute>
             }
@@ -131,7 +131,7 @@ const AppShell = () => {
           <Route
             path="/admin/appointments"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <AppointmentManagement />
               </ProtectedRoute>
             }
@@ -139,7 +139,7 @@ const AppShell = () => {
           <Route
             path="/admin/printing"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+             <ProtectedRoute allowedRoles={['admin']}>
                 <PrintingQueue />
               </ProtectedRoute>
             }
@@ -147,7 +147,7 @@ const AppShell = () => {
           <Route
             path="/admin/delivery"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <DeliveryTracking />
               </ProtectedRoute>
             }
@@ -155,7 +155,7 @@ const AppShell = () => {
           <Route
             path="/admin/support"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'support_staff']}>
                 <SupportManagement />
               </ProtectedRoute>
             }
@@ -163,7 +163,7 @@ const AppShell = () => {
           <Route
             path="/admin/audit-logs"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+             <ProtectedRoute allowedRoles={['admin', 'system_supervisor']}>
                 <AuditLogs />
               </ProtectedRoute>
             }

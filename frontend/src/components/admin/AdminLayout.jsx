@@ -29,15 +29,58 @@ const AdminLayout = ({ children }) => {
     navigate('/admin/login');
   };
 
-  const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: FaHome },
-    { path: '/admin/applications', label: 'Applications', icon: FaFileAlt },
-    { path: '/admin/appointments', label: 'Appointments', icon: FaCalendarAlt },
-    { path: '/admin/printing', label: 'Printing Queue', icon: FaPrint },
-    { path: '/admin/delivery', label: 'Delivery', icon: FaTruck },
-    { path: '/admin/support', label: 'Support Tickets', icon: FaTicketAlt },
-    { path: '/admin/audit-logs', label: 'Audit Logs', icon: FaHistory }
-  ];
+const allMenuItems = [
+  {
+    path: '/admin/dashboard',
+    label: 'Dashboard',
+    icon: FaHome,
+    roles: ['admin', 'system_supervisor', 'support_staff']
+  },
+  {
+    path: '/admin/applications',
+    label: 'Applications',
+    icon: FaFileAlt,
+    roles: ['admin']
+  },
+  {
+    path: '/admin/appointments',
+    label: 'Appointments',
+    icon: FaCalendarAlt,
+    roles: ['admin']
+  },
+  {
+    path: '/admin/printing',
+    label: 'Printing Queue',
+    icon: FaPrint,
+    roles: ['admin']
+  },
+  {
+    path: '/admin/delivery',
+    label: 'Delivery',
+    icon: FaTruck,
+    roles: ['admin']
+  },
+  {
+    path: '/admin/support',
+    label: 'Support Tickets',
+    icon: FaTicketAlt,
+    roles: ['admin', 'support_staff']
+  },
+  {
+    path: '/admin/audit-logs',
+    label: 'Audit Logs',
+    icon: FaHistory,
+    roles: ['admin', 'system_supervisor']
+  }
+];
+
+const menuItems = allMenuItems.filter((item) => item.roles.includes(user?.role));
+
+const roleLabelMap = {
+  admin: 'Administrator',
+  system_supervisor: 'System Supervisor',
+  support_staff: 'Support Staff'
+};
 
   return (
     <div
@@ -153,7 +196,7 @@ const AdminLayout = ({ children }) => {
                 {user?.fullName || 'Admin User'}
               </span>
               <span className="admin-profile-role text-xs text-[#6B7280]">
-                {user?.role === 'super_admin' ? 'Super Admin' : 'Administrator'}
+                {roleLabelMap[user?.role] || 'Administrator'}
               </span>
             </div>
           </div>
