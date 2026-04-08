@@ -4,6 +4,7 @@ import api from '../api/axios';
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'token';
 const PENDING_VERIFICATION_KEY = 'pendingVerification';
+const PASSWORD_RESET_KEY = 'pendingPasswordReset';
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
@@ -167,6 +168,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (identifier) => {
+  try {
+    const response = await api.post('/auth/forgot-password', { identifier });
+    const payload = response.data || {};
+
+    sessionStorage.setItem(
+      PASSWORD_RESET_KEY,
+      JSON.stringify({
+        email: payload.recipientEmail,
+        resetToken: payload.resetToken
+      })
+    );
+
+    return payload;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to send reset code' };
+  }
+};
+
+const resetPassword = async ({ otp, password, resetToken }) => {
+  try {
+    const response = await api.post('/auth/reset-password', {
+      otp,
+      password,
+      resetToken
+    });
+
+    sessionStorage.removeItem(PASSWORD_RESET_KEY);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to reset password' };
+  }
+};
+
   const resendOTP = async (verificationToken) => {
     try {
       const response = await api.post('/auth/resend-otp', {
@@ -192,20 +227,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
-    user,
-    token,
-    loading,
-    isAuthenticated,
-    register,
-    verifyOTP,
-    login,
-    adminLogin,
-    logout,
-    updateProfile,
-    resendOTP,
-    pendingVerificationKey: PENDING_VERIFICATION_KEY
-  };
+const value = {
+  user,
+  token,
+  loading,
+  isAuthenticated,
+  register,
+  verifyOTP,
+  login,
+  adminLogin,
+  logout,
+  updateProfile,
+  resendOTP,
+  forgotPassword,
+  resetPassword,
+  pendingVerificationKey: PENDING_VERIFICATION_KEY,
+  passwordResetKey: PASSWORD_RESET_KEY
+};
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
