@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaRedo, FaSpinner, FaShieldAlt } from 'react-icons/fa';
@@ -6,17 +6,25 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/Auth.css';
 
 const OTPVerification = () => {
-  const { verifyOTP, resendOTP } = useAuth();
+  const { verifyOTP, resendOTP, pendingVerificationKey } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const identifier =
-    location.state?.email ||
-    location.state?.phone ||
-    location.state?.mobile ||
-    '';
+  const storedVerification = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(pendingVerificationKey) || '{}');
+    } catch (error) {
+      return {};
+    }
+  }, [pendingVerificationKey]);
 
-  const verificationToken = location.state?.verificationToken || '';
+  const pendingVerification = {
+    ...(storedVerification || {}),
+    ...(location.state || {})
+  };
+
+  const identifier = pendingVerification.email || '';
+  const verificationToken = pendingVerification.verificationToken || '';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,9 +36,18 @@ const OTPVerification = () => {
 
   useEffect(() => {
     if (!identifier || !verificationToken) {
-      navigate('/register');
+      navigate('/register', { replace: true });
+      return;
     }
-  }, [identifier, verificationToken, navigate]);
+
+    sessionStorage.setItem(
+      pendingVerificationKey,
+      JSON.stringify({
+        email: identifier,
+        verificationToken
+      })
+    );
+  }, [identifier, verificationToken, navigate, pendingVerificationKey]);
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -93,7 +110,7 @@ const OTPVerification = () => {
     setIsLoading(true);
 
     try {
-      await verifyOTP(identifier, otpCode, verificationToken);
+      await verifyOTP(otpCode, verificationToken);
       toast.success('Email verified successfully!');
       navigate('/dashboard');
     } catch (error) {
@@ -111,7 +128,7 @@ const OTPVerification = () => {
     setIsResending(true);
 
     try {
-      await resendOTP(identifier, verificationToken);
+      await resendOTP(verificationToken);
       toast.success('Verification code sent again!');
       setCountdown(60);
       setCanResend(false);

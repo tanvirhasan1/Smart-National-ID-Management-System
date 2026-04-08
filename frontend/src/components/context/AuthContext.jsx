@@ -2,7 +2,8 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../api/axios';
 
 const AuthContext = createContext(null);
-
+const TOKEN_KEY = 'token';
+const PENDING_VERIFICATION_KEY = 'pendingVerification';
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
@@ -12,12 +13,32 @@ export const useAuth = () => {
 
   return context;
 };
+const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+
+const storeTokenAndUser = (setters, token, user) => {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }
+
+  setters.setToken(token || null);
+  setters.setUser(user || null);
+  setters.setIsAuthenticated(Boolean(token));
+};
+
+const clearAuthState = (setters) => {
+  localStorage.removeItem(TOKEN_KEY);
+  delete api.defaults.headers.common.Authorization;
+  setters.setToken(null);
+  setters.setUser(null);
+  setters.setIsAuthenticated(false);
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(getStoredToken());
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getStoredToken()));
 
   useEffect(() => {
     const loadUser = async () => {
@@ -36,7 +57,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Failed to load user:', error);
-        logout();
+        clearAuthState({ setToken, setUser, setIsAuthenticated });
       } finally {
         setLoading(false);
       }
@@ -48,33 +69,45 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
-      return response.data;
+      const payload = response.data || {};
+
+      sessionStorage.setItem(
+        PENDING_VERIFICATION_KEY,
+        JSON.stringify({
+          email: payload.recipientEmail || userData.email,
+          verificationToken: payload.verificationToken
+        })
+      );
+
+      return payload;
     } catch (error) {
       throw error.response?.data || { message: 'Registration failed' };
     }
   };
 
-  const verifyOTP = async (phone, otp, verificationToken) => {
-  try {
-    const response = await api.post('/auth/verify-otp', {
-      phone,
-      otp,
-      verificationToken
-    });
+  const verifyOTP = async (otp, verificationToken) => {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        otp,
+        verificationToken
+      });
 
-    const { token: newToken, user: userData } = response.data;
+      const newToken = response.data?.accessToken || response.data?.token;
+      const userData = response.data?.user || null;
 
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setUser(userData);
-    setIsAuthenticated(true);
-    api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+      storeTokenAndUser(
+        { setToken, setUser, setIsAuthenticated },
+        newToken,
+        userData
+      );
 
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'OTP verification failed' };
-  }
-};
+      sessionStorage.removeItem(PENDING_VERIFICATION_KEY);
+
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'OTP verification failed' };
+    }
+  };
 
   const login = async (email, password) => {
     try {
@@ -83,13 +116,14 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      const { token: newToken, user: userData } = response.data;
+      const newToken = response.data?.accessToken || response.data?.token;
+      const userData = response.data?.user || null;
 
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setUser(userData);
-      setIsAuthenticated(true);
-      api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+      storeTokenAndUser(
+        { setToken, setUser, setIsAuthenticated },
+        newToken,
+        userData
+      );
 
       return { success: true, user: userData };
     } catch (error) {
@@ -99,35 +133,22 @@ export const AuthProvider = ({ children }) => {
 
   const adminLogin = async (email, password) => {
     try {
-      const response = await api.post('/auth/login', {
-        email,
-        password
-      });
+      const result = await login(email, password);
+      const role = result.user?.role;
 
-      const { token: newToken, user: userData } = response.data;
-
-      if (!['admin', 'super_admin'].includes(userData.role)) {
+      if (!['admin', 'system_supervisor', 'support_staff'].includes(role)) {
+        clearAuthState({ setToken, setUser, setIsAuthenticated });
         throw { message: 'Unauthorized access' };
       }
 
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setUser(userData);
-      setIsAuthenticated(true);
-      api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-
-      return { success: true, user: userData };
+      return result;
     } catch (error) {
-      throw error.response?.data || { message: 'Admin login failed' };
+      throw error.response?.data || error || { message: 'Admin login failed' };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    delete api.defaults.headers.common.Authorization;
+    clearAuthState({ setToken, setUser, setIsAuthenticated });
   };
 
   const updateProfile = async (profileData) => {
@@ -146,18 +167,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const resendOTP = async (phone, verificationToken) => {
-  try {
-    const response = await api.post('/auth/resend-otp', {
-      phone,
-      verificationToken
-    });
+  const resendOTP = async (verificationToken) => {
+    try {
+      const response = await api.post('/auth/resend-otp', {
+        verificationToken
+      });
 
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Failed to resend OTP' };
-  }
-};
+      const stored = JSON.parse(
+        sessionStorage.getItem(PENDING_VERIFICATION_KEY) || '{}'
+      );
+
+      sessionStorage.setItem(
+        PENDING_VERIFICATION_KEY,
+        JSON.stringify({
+          ...stored,
+          email: response.data?.recipientEmail || stored.email,
+          verificationToken
+        })
+      );
+
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to resend OTP' };
+    }
+  };
 
   const value = {
     user,
@@ -170,7 +203,8 @@ export const AuthProvider = ({ children }) => {
     adminLogin,
     logout,
     updateProfile,
-    resendOTP
+    resendOTP,
+    pendingVerificationKey: PENDING_VERIFICATION_KEY
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
