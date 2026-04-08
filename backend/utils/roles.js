@@ -1,13 +1,10 @@
 // Role setup for internal access control.
-// super_admin is kept commented for future use.
 // For now, admin holds the highest level permissions.
 
 const FULL_ADMIN_ROLES = ['admin'];
-// const FULL_ADMIN_ROLES = ['admin', 'super_admin'];
 
 const INTERNAL_USER_ROLES = [
   'admin',
-  // 'super_admin',
   'system_supervisor',
   'support_staff'
 ];
@@ -26,10 +23,7 @@ const ROLE_PERMISSIONS = {
   ],
 
   // Admin currently has full system access.
-  // Later, if you enable super_admin, reduce admin permissions as needed.
   admin: ['*'],
-
-  // super_admin: ['*'],
 
   system_supervisor: [
     'dashboard:read',

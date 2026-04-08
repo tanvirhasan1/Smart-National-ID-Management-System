@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
 const SupportTicket = require('../models/SupportTicket');
+const { syncUserBuckets } = require('../utils/userBuckets');
 
 const getUserProfile = async (req, res) => {
   try {
@@ -34,12 +35,30 @@ const updateUserProfile = async (req, res) => {
 
     // Check duplicate email
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: user._id }
+      });
 
       if (existingUser) {
         return res.status(400).json({
           success: false,
           message: 'Email already in use'
+        });
+      }
+    }
+
+    // Check duplicate phone
+    if (phone && phone !== user.phone) {
+      const existingPhoneUser = await User.findOne({
+        phone,
+        _id: { $ne: user._id }
+      });
+
+      if (existingPhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone already in use'
         });
       }
     }
@@ -55,6 +74,7 @@ const updateUserProfile = async (req, res) => {
     }
 
     const updatedUser = await user.save();
+    await syncUserBuckets(updatedUser);
 
     res.status(200).json({
       success: true,

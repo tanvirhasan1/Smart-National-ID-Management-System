@@ -28,7 +28,6 @@ const adminUserSchema = new mongoose.Schema(
       type: String,
       enum: [
         'admin',
-        // 'super_admin',
         'system_supervisor',
         'support_staff'
       ],

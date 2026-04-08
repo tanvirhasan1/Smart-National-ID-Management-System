@@ -90,7 +90,6 @@ const userSchema = new mongoose.Schema(
       enum: [
         'citizen',
         'admin',
-        // 'super_admin',
         'system_supervisor',
         'support_staff'
       ],

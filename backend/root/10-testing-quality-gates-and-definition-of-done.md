@@ -76,7 +76,7 @@ Ensure response shapes and important error contracts do not drift unexpectedly.
 
 - citizen can create own ticket
 - citizen cannot access another citizen’s ticket
-- admin can assign ticket only to admin/super_admin
+- admin can assign ticket only to admin
 - closed ticket rejects responses unless reopened by policy
 - status changes follow workflow
 

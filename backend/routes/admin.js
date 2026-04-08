@@ -59,28 +59,28 @@ router.get(
 router.get(
   '/applications/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getApplicationStatsForAdmin
 );
 
 router.get(
   '/applications',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/applications/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleApplicationForAdmin
 );
 
 router.patch(
   '/applications/:id/review',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   reviewApplicationByAdmin
 );
 // Internal user management
@@ -130,35 +130,35 @@ router.put(
 router.post(
   '/centers',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   createCenter
 );
 
 router.get(
   '/centers',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllCenters
 );
 
 router.get(
   '/centers/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleCenter
 );
 
 router.put(
   '/centers/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   updateCenter
 );
 
 router.patch(
   '/centers/:id/toggle-status',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   toggleCenterStatus
 );
 
@@ -166,14 +166,14 @@ router.patch(
 router.get(
   '/delivery/queue',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getDeliveryQueue
 );
 
 router.patch(
   '/delivery/:id/mark-delivered',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   markApplicationAsDelivered
 );
 
@@ -189,7 +189,7 @@ router.get(
 router.get(
   '/printing/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getPrintingStats
 );
 
@@ -197,7 +197,7 @@ router.get(
 router.get(
   '/delivery/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getDeliveryStats
 );
 
@@ -213,7 +213,7 @@ router.get(
 router.patch(
   '/printing/bulk-mark-printed',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   bulkMarkApplicationsAsPrinted
 );
 
@@ -221,7 +221,7 @@ router.patch(
 router.patch(
   '/delivery/bulk-mark-delivered',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   bulkMarkApplicationsAsDelivered
 );
 
@@ -230,14 +230,14 @@ router.patch(
 router.get(
   '/printing/export',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   exportPrintingReport
 );
 
 router.get(
   '/delivery/export',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   exportDeliveryReport
 );
 

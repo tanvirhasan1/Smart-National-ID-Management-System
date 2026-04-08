@@ -18,28 +18,28 @@ const router = express.Router();
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAdminDashboardStats
 );
 
 router.get(
   '/admin/all',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleApplicationForAdmin
 );
 
 router.patch(
   '/admin/:id/review',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   reviewApplicationByAdmin
 );
 

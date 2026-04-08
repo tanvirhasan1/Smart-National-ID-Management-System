@@ -19,7 +19,7 @@ router.get('/centers', protect, getAvailableCenters);
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAppointmentStatsForAdmin
 );
 
@@ -27,7 +27,7 @@ router.get(
 router.get(
   '/admin/all',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllAppointmentsForAdmin
 );
 
@@ -35,7 +35,7 @@ router.get(
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleAppointmentForAdmin
 );
 
@@ -43,7 +43,7 @@ router.get(
 router.patch(
   '/admin/:id/status',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   updateAppointmentStatusByAdmin
 );
 
