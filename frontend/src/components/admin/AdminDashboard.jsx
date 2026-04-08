@@ -1,449 +1,373 @@
-// Admin Dashboard Page Start
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  FaUsers,
-  FaFileAlt,
+import { 
+  FaUsers, 
+  FaFileAlt, 
+  FaCheckCircle, 
   FaClock,
-  FaCheckCircle,
   FaTimesCircle,
   FaPrint,
   FaTruck,
   FaTicketAlt,
-  FaSyncAlt,
-  FaExclamationTriangle
+  FaCalendarAlt,
+  FaChartLine,
+  FaArrowUp,
+  FaArrowDown
 } from 'react-icons/fa';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar
+} from 'recharts';
 import api from '../api/axios';
+import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
-import { useAuth } from '../context/AuthContext';
-import { formatDate, formatStatus, getStatusColor } from '../utils/helpers';
+import { formatDate } from '../utils/helpers';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [recentApplications, setRecentApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
 
-  const canViewRecentApplications = user?.role === 'admin';
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const fetchDashboardSummary = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Fetch dashboard stats
+      const statsResponse = await api.get('/admin/dashboard/stats');
+      setStats(statsResponse.data.data);
 
-      const response = await api.get('/admin/dashboard/summary');
-      const summary =
-        response?.data?.data ||
-        response?.data?.summary ||
-        response?.data ||
-        {};
+      // Fetch recent applications
+      const appsResponse = await api.get('/admin/applications?limit=5&sort=-createdAt');
+      setRecentApplications(appsResponse.data.data || []);
 
-      setDashboardData(summary);
     } catch (error) {
-      console.error('Error fetching admin dashboard summary:', error);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load dashboard summary after authenticated role is available.
-  useEffect(() => {
-    if (user?.role) {
-      fetchDashboardSummary();
-    }
-  }, [user?.role]);
+  // Sample chart data (in production, this would come from API)
+  const applicationTrendData = [
+    { name: 'Jan', applications: 120, approved: 100 },
+    { name: 'Feb', applications: 150, approved: 130 },
+    { name: 'Mar', applications: 180, approved: 160 },
+    { name: 'Apr', applications: 200, approved: 175 },
+    { name: 'May', applications: 250, approved: 220 },
+    { name: 'Jun', applications: 280, approved: 250 },
+  ];
 
-  // Make response shape flexible so backend mismatch na hoy
-  const normalizedData = useMemo(() => {
-    const source = dashboardData || {};
-
-    return {
-      totals: {
-        users:
-          source?.totals?.users ??
-          source?.users?.total ??
-          source?.stats?.users ??
-          0,
-        applications:
-          source?.totals?.applications ??
-          source?.applications?.total ??
-          source?.stats?.applications ??
-          0,
-        pendingApplications:
-          source?.totals?.pendingApplications ??
-          source?.applications?.submitted ??
-          source?.applications?.under_review ??
-          0,
-        approvedApplications:
-          source?.totals?.approvedApplications ??
-          source?.applications?.approved ??
-          0,
-        rejectedApplications:
-          source?.totals?.rejectedApplications ??
-          source?.applications?.rejected ??
-          0,
-        printing:
-          source?.totals?.printing ??
-          source?.printing?.pending ??
-          source?.printing?.total ??
-          0,
-        delivery:
-          source?.totals?.delivery ??
-          source?.delivery?.pending ??
-          source?.delivery?.total ??
-          0,
-        supportTickets:
-          source?.totals?.supportTickets ??
-          source?.supportTickets?.total ??
-          source?.support?.total ??
-          0
-      },
-      applications: source?.applications || {},
-      appointments: source?.appointments || {},
-      supportTickets: source?.supportTickets || source?.support || {},
-      printing: source?.printing || {},
-      delivery: source?.delivery || {},
-      recentApplications:
-        canViewRecentApplications
-          ? source?.recentApplications ||
-            source?.latestApplications ||
-            source?.applications?.recent ||
-            []
-          : []
-    };
-  }, [dashboardData, canViewRecentApplications]);
-
-  const statCards = [
-    {
-      key: 'users',
-      title: 'Total Users',
-      value: normalizedData.totals.users,
-      icon: FaUsers,
-      colorClass: 'admin-dashboard-stat-users'
-    },
-    {
-      key: 'applications',
-      title: 'Total Applications',
-      value: normalizedData.totals.applications,
-      icon: FaFileAlt,
-      colorClass: 'admin-dashboard-stat-applications'
-    },
-    {
-      key: 'pendingApplications',
-      title: 'Pending Review',
-      value: normalizedData.totals.pendingApplications,
-      icon: FaClock,
-      colorClass: 'admin-dashboard-stat-pending'
-    },
-    {
-      key: 'approvedApplications',
-      title: 'Approved',
-      value: normalizedData.totals.approvedApplications,
-      icon: FaCheckCircle,
-      colorClass: 'admin-dashboard-stat-approved'
-    },
-    {
-      key: 'printing',
-      title: 'Printing Queue',
-      value: normalizedData.totals.printing,
-      icon: FaPrint,
-      colorClass: 'admin-dashboard-stat-printing'
-    },
-    {
-      key: 'delivery',
-      title: 'Delivery Queue',
-      value: normalizedData.totals.delivery,
-      icon: FaTruck,
-      colorClass: 'admin-dashboard-stat-delivery'
-    },
-    {
-      key: 'supportTickets',
-      title: 'Support Tickets',
-      value: normalizedData.totals.supportTickets,
-      icon: FaTicketAlt,
-      colorClass: 'admin-dashboard-stat-support'
-    },
-    {
-      key: 'rejectedApplications',
-      title: 'Rejected',
-      value: normalizedData.totals.rejectedApplications,
-      icon: FaTimesCircle,
-      colorClass: 'admin-dashboard-stat-rejected'
-    }
+  const statusDistribution = [
+    { name: 'Submitted', value: stats?.submitted || 45, color: '#3B82F6' },
+    { name: 'Under Review', value: stats?.underReview || 30, color: '#F59E0B' },
+    { name: 'Approved', value: stats?.approved || 80, color: '#10B981' },
+    { name: 'Rejected', value: stats?.rejected || 15, color: '#EF4444' },
   ];
 
   if (loading) {
     return (
-      <div className="admin-dashboard-loading-wrapper flex min-h-[60vh] items-center justify-center">
-        <Loader size="large" text="Loading admin dashboard..." />
-      </div>
+      <AdminLayout>
+        <div className="admin-loading">
+          <Loader size="large" text="Loading dashboard..." />
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="admin-dashboard-page-wrapper">
-      {/* Dashboard top header */}
-      <div className="admin-dashboard-header-panel mb-8 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="admin-dashboard-title mb-1 text-[1.9rem] font-bold text-[#1F2937]">
-              Admin Dashboard
-            </h1>
-            <p className="admin-dashboard-subtitle text-[#6B7280]">
-              Overview of applications, printing, delivery and support activity.
-            </p>
+    <AdminLayout>
+      <div className="admin-dashboard">
+        {/* Page Header */}
+        <div className="page-header">
+          <div className="header-content">
+            <h1>Dashboard</h1>
+            <p>Overview of Smart NID Management System</p>
           </div>
-
-          <div className="header-actions flex flex-wrap items-center gap-3">
-            {user?.role === 'admin' && user?.isMainAdmin && (
-              <Link
-                to="/admin/users"
-                className="inline-flex items-center rounded-lg bg-[#16A34A] px-4 py-2 text-sm font-medium text-white no-underline transition hover:bg-[#15803D]"
-              >
-                Manage Users
-              </Link>
-            )}
-
-            <button
-              type="button"
-              className="admin-dashboard-refresh-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-              onClick={fetchDashboardSummary}
-            >
-              <FaSyncAlt />
-              <span>Refresh Data</span>
-            </button>
+          <div className="header-actions">
+            <span className="last-updated">Last updated: {formatDate(new Date())}</span>
           </div>
         </div>
-      </div>
 
-      {/* Summary cards */}
-      <div className="admin-dashboard-stats-grid mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <div
-              key={card.key}
-              className="admin-dashboard-stat-card rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition hover:-translate-y-[2px] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-[#6B7280]">
-                    {card.title}
-                  </p>
-                  <h3 className="text-[2rem] font-bold text-[#1F2937]">
-                    {card.value}
-                  </h3>
-                </div>
-
-                <div
-                  className={`admin-dashboard-stat-icon ${card.colorClass} flex h-[56px] w-[56px] items-center justify-center rounded-2xl text-2xl text-white`}
-                >
-                  <Icon />
-                </div>
-              </div>
+        {/* Stats Cards */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon bg-blue">
+              <FaFileAlt />
             </div>
-          );
-        })}
-      </div>
-
-      <div className="admin-dashboard-content-grid grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        {/* Status overview */}
-        <div className="admin-dashboard-overview-panel rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-          <h2 className="mb-5 text-xl font-semibold text-[#1F2937]">
-            Status Overview
-          </h2>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Applications
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Submitted</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.submitted || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Under Review</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.under_review || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Approved</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.approved || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Rejected</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.rejected || 0}
-                  </span>
-                </div>
-              </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.totalApplications || 0}</span>
+              <span className="stat-label">Total Applications</span>
             </div>
-
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Appointments
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Booked</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.booked || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Completed</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.completed || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Cancelled</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.cancelled || 0}
-                  </span>
-                </div>
-              </div>
+            <div className="stat-trend up">
+              <FaArrowUp /> 12%
             </div>
+          </div>
 
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Support Tickets
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Open</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.open || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">In Progress</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.in_progress || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Resolved</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.resolved || 0}
-                  </span>
-                </div>
-              </div>
+          <div className="stat-card">
+            <div className="stat-icon bg-yellow">
+              <FaClock />
             </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.pending || 0}</span>
+              <span className="stat-label">Pending Review</span>
+            </div>
+            <div className="stat-trend down">
+              <FaArrowDown /> 5%
+            </div>
+          </div>
 
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Printing & Delivery
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Printed</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.printing.completed ||
-                      normalizedData.applications.printed ||
-                      0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Pending Delivery</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.delivery.pending || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Delivered</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.delivery.completed ||
-                      normalizedData.applications.delivered ||
-                      0}
-                  </span>
-                </div>
-              </div>
+          <div className="stat-card">
+            <div className="stat-icon bg-green">
+              <FaCheckCircle />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.approved || 0}</span>
+              <span className="stat-label">Approved</span>
+            </div>
+            <div className="stat-trend up">
+              <FaArrowUp /> 18%
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-red">
+              <FaTimesCircle />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.rejected || 0}</span>
+              <span className="stat-label">Rejected</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-purple">
+              <FaPrint />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.printing || 0}</span>
+              <span className="stat-label">In Printing</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-indigo">
+              <FaTruck />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.dispatched || 0}</span>
+              <span className="stat-label">Dispatched</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-teal">
+              <FaUsers />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.totalUsers || 0}</span>
+              <span className="stat-label">Registered Users</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-orange">
+              <FaTicketAlt />
+            </div>
+            <div className="stat-content">
+              <span className="stat-value">{stats?.openTickets || 0}</span>
+              <span className="stat-label">Open Tickets</span>
             </div>
           </div>
         </div>
 
-        {/* Recent applications */}
-        <div className="admin-dashboard-recent-panel rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-          <h2 className="mb-5 text-xl font-semibold text-[#1F2937]">
-            Recent Applications
-          </h2>
-
-          {!canViewRecentApplications ? (
-            <div className="admin-dashboard-empty-state flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 text-center">
-              <FaExclamationTriangle className="mb-4 text-4xl text-[#D1D5DB]" />
-              <h3 className="mb-2 text-lg font-semibold text-[#374151]">
-                Limited access
-              </h3>
-              <p className="text-sm text-[#6B7280]">
-                Recent application details are available for admin only.
-              </p>
+        {/* Charts Section */}
+        <div className="charts-section">
+          {/* Application Trends */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <h3><FaChartLine /> Application Trends</h3>
+              <select className="chart-filter">
+                <option value="6months">Last 6 Months</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+              </select>
             </div>
-          ) : normalizedData.recentApplications.length === 0 ? (
-            <div className="admin-dashboard-empty-state flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 text-center">
-              <FaExclamationTriangle className="mb-4 text-4xl text-[#D1D5DB]" />
-              <h3 className="mb-2 text-lg font-semibold text-[#374151]">
-                No recent applications
-              </h3>
-              <p className="text-sm text-[#6B7280]">
-                Recent application activity will appear here.
-              </p>
+            <div className="chart-body">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={applicationTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="name" stroke="#6B7280" />
+                  <YAxis stroke="#6B7280" />
+                  <Tooltip />
+                  <Line 
+                    type="monotone" 
+                    dataKey="applications" 
+                    stroke="#3B82F6" 
+                    strokeWidth={2}
+                    dot={{ fill: '#3B82F6' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="approved" 
+                    stroke="#10B981" 
+                    strokeWidth={2}
+                    dot={{ fill: '#10B981' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="admin-dashboard-recent-list flex flex-col gap-4">
-              {normalizedData.recentApplications.slice(0, 6).map((application) => (
-                <div
-                  key={application._id || application.applicationId}
-                  className="admin-dashboard-recent-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-base font-semibold text-[#1F2937]">
-                        {application.fullNameEnglish || 'Unnamed Applicant'}
-                      </h4>
-                      <p className="text-sm text-[#6B7280]">
-                        {application.applicationId || 'N/A'}
-                      </p>
-                    </div>
+          </div>
 
-                    <span
-                      className={`badge badge-${getStatusColor(application.status)}`}
-                    >
-                      {formatStatus(application.status)}
-                    </span>
+          {/* Status Distribution */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <h3>Status Distribution</h3>
+            </div>
+            <div className="chart-body">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={statusDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {statusDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="chart-legend">
+                {statusDistribution.map((item, index) => (
+                  <div key={index} className="legend-item">
+                    <span className="legend-color" style={{ backgroundColor: item.color }}></span>
+                    <span className="legend-label">{item.name}</span>
+                    <span className="legend-value">{item.value}</span>
                   </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-[#6B7280]">Type</p>
-                      <p className="text-sm font-medium text-[#1F2937]">
-                        {formatStatus(application.applicationType || 'new')}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[#6B7280]">Created</p>
-                      <p className="text-sm font-medium text-[#1F2937]">
-                        {application.createdAt
-                          ? formatDate(application.createdAt)
-                          : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Recent Applications & Quick Actions */}
+        <div className="dashboard-grid">
+          {/* Recent Applications */}
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3>Recent Applications</h3>
+              <Link to="/admin/applications" className="view-all">View All →</Link>
+            </div>
+            <div className="card-body">
+              {recentApplications.length === 0 ? (
+                <div className="empty-state">
+                  <p>No recent applications</p>
+                </div>
+              ) : (
+                <table className="mini-table">
+                  <thead>
+                    <tr>
+                      <th>Application #</th>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentApplications.map(app => (
+                      <tr key={app._id}>
+                        <td>
+                          <Link to={`/admin/applications?id=${app._id}`}>
+                            #{app.applicationNumber}
+                          </Link>
+                        </td>
+                        <td>{app.userId?.fullName || 'N/A'}</td>
+                        <td>
+                          <span className={`status-badge ${app.status}`}>
+                            {app.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td>{formatDate(app.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3>Quick Actions</h3>
+            </div>
+            <div className="card-body">
+              <div className="quick-actions">
+                <Link to="/admin/applications?status=submitted" className="quick-action">
+                  <div className="action-icon bg-blue">
+                    <FaFileAlt />
+                  </div>
+                  <div className="action-info">
+                    <h4>Review Applications</h4>
+                    <p>{stats?.submitted || 0} pending</p>
+                  </div>
+                </Link>
+
+                <Link to="/admin/appointments" className="quick-action">
+                  <div className="action-icon bg-green">
+                    <FaCalendarAlt />
+                  </div>
+                  <div className="action-info">
+                    <h4>Manage Appointments</h4>
+                    <p>Today's schedule</p>
+                  </div>
+                </Link>
+
+                <Link to="/admin/printing" className="quick-action">
+                  <div className="action-icon bg-purple">
+                    <FaPrint />
+                  </div>
+                  <div className="action-info">
+                    <h4>Printing Queue</h4>
+                    <p>{stats?.printing || 0} cards ready</p>
+                  </div>
+                </Link>
+
+                <Link to="/admin/support" className="quick-action">
+                  <div className="action-icon bg-orange">
+                    <FaTicketAlt />
+                  </div>
+                  <div className="action-info">
+                    <h4>Support Tickets</h4>
+                    <p>{stats?.openTickets || 0} open</p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

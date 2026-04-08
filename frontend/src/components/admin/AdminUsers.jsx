@@ -3,7 +3,6 @@ import { toast } from 'react-toastify';
 import { FaSpinner, FaUserCog, FaUsers } from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
-import { useAuth } from '../context/AuthContext';
 
 const defaultForm = {
   fullName: '',
@@ -26,7 +25,6 @@ const roleBadgeMap = {
 };
 
 const AdminUsers = () => {
-  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState(defaultForm);
   const [loading, setLoading] = useState(true);
@@ -45,15 +43,12 @@ const AdminUsers = () => {
   };
 
   useEffect(() => {
-    if (user?.isMainAdmin) {
-      fetchUsers();
-    } else {
-      setLoading(false);
-    }
-  }, [user?.isMainAdmin]);
+    fetchUsers();
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value
@@ -90,6 +85,7 @@ const AdminUsers = () => {
       });
 
       const createdUser = response.data?.data;
+
       if (createdUser) {
         setUsers((prev) => [createdUser, ...prev]);
       }
@@ -103,39 +99,20 @@ const AdminUsers = () => {
     }
   };
 
-  if (!user?.isMainAdmin) {
-    return (
-      <AdminLayout>
-        <div className="rounded-2xl bg-white p-8 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-3 text-[#1F2937]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
-              <FaUserCog />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">Users Management</h1>
-              <p className="text-sm text-[#6B7280]">
-                Only the main admin can access this page.
-              </p>
-            </div>
-          </div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="admin-users-page space-y-6">
         <div className="rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-[#1F2937]">Users Management</h1>
               <p className="mt-1 text-sm text-[#6B7280]">
-                Create and manage internal system users.
+                Create and view internal system users.
               </p>
             </div>
-            <div className="rounded-full bg-[#DCFCE7] px-4 py-2 text-sm font-medium text-[#166534]">
-              Main Admin Access
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ECFDF5] text-[#16A34A]">
+              <FaUserCog />
             </div>
           </div>
 
@@ -241,6 +218,7 @@ const AdminUsers = () => {
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ECFDF5] text-[#16A34A]">
               <FaUsers />
             </div>
+
             <div>
               <h2 className="text-lg font-bold text-[#1F2937]">Internal Users</h2>
               <p className="text-sm text-[#6B7280]">

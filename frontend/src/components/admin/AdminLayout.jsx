@@ -24,6 +24,9 @@ const AdminLayout = ({ children }) => {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMainAdmin =
+  Boolean(user?.isMainAdmin) ||
+  (user?.role === 'admin' && !user?.createdBy);
 
   const handleLogout = () => {
     logout();
@@ -82,7 +85,7 @@ const AdminLayout = ({ children }) => {
     }
   ];
 
-  const menuItems = allMenuItems.filter((item) => {
+const menuItems = allMenuItems.filter((item) => {
   const roleMatched = item.roles.includes(user?.role);
 
   if (!roleMatched) {
@@ -90,7 +93,7 @@ const AdminLayout = ({ children }) => {
   }
 
   if (item.mainAdminOnly) {
-    return Boolean(user?.isMainAdmin);
+    return isMainAdmin;
   }
 
   return true;
