@@ -16,8 +16,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     );
   }
 
-  const isAdminArea =
-    allowedRoles.includes('admin') || allowedRoles.includes('super_admin');
+const isAdminArea =
+  allowedRoles.includes('admin') ||
+  allowedRoles.includes('system_supervisor') ||
+  allowedRoles.includes('support_staff');
 
   if (!isAuthenticated) {
     return (
@@ -30,10 +32,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    const redirectPath =
-      user?.role === 'admin' || user?.role === 'super_admin'
-        ? '/admin/dashboard'
-        : '/dashboard';
+const redirectPath =
+  ['admin', 'system_supervisor', 'support_staff'].includes(user?.role)
+    ? '/admin/dashboard'
+    : '/dashboard';
 
     return <Navigate to={redirectPath} replace />;
   }
