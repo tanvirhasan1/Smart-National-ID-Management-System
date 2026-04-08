@@ -2,6 +2,8 @@ const express = require('express');
 const {
   getAdminDashboard,
   getAdminDashboardSummary,
+  getInternalUsers,
+  createInternalUser,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
@@ -35,17 +37,23 @@ const router = express.Router();
 router.get(
   '/dashboard',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor', 'support_staff'),
   getAdminDashboard
 );
 
 router.get(
   '/dashboard/summary',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor', 'support_staff'),
   getAdminDashboardSummary
 );
 
+router.get(
+  '/dashboard/stats',
+  protect,
+  authorize('admin', 'system_supervisor', 'support_staff'),
+  getAdminDashboardSummary
+);
 
 // Application routes
 router.get(
@@ -75,33 +83,46 @@ router.patch(
   authorize('admin', 'super_admin'),
   reviewApplicationByAdmin
 );
+// Internal user management
+router.get(
+  '/users',
+  protect,
+  authorize('admin'),
+  getInternalUsers
+);
 
+router.post(
+  '/users',
+  protect,
+  authorize('admin'),
+  createInternalUser
+);
 // Support routes
 router.get(
   '/support/tickets',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'support_staff'),
   getAllSupportTickets
 );
 
 router.get(
   '/support/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'support_staff'),
   getSupportStats
 );
 
 router.put(
   '/support/tickets/:id/assign',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'support_staff'),
   assignSupportTicket
 );
 
 router.put(
   '/support/tickets/:id/status',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'support_staff'),
   updateSupportTicketStatus
 );
 
@@ -160,7 +181,7 @@ router.patch(
 router.get(
   '/audit/recent',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   getRecentAuditLogs
 );
 
@@ -184,7 +205,7 @@ router.get(
 router.get(
   '/audit/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   getAuditStats
 );
 
@@ -223,8 +244,7 @@ router.get(
 router.get(
   '/audit/export',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   exportAuditReport
 );
-
 module.exports = router;

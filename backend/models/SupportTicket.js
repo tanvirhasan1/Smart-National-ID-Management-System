@@ -13,7 +13,7 @@ const responseSchema = new mongoose.Schema(
     },
     responderRole: {
       type: String,
-      enum: ['citizen', 'admin', 'super_admin'],
+      enum: ['citizen', 'admin', 'system_supervisor', 'support_staff'],
       required: true
     },
     createdAt: {

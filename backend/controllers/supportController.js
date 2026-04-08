@@ -157,7 +157,7 @@ const respondToSupportTicket = async (req, res) => {
       responderRole: req.user.role
     });
 
-    if (['admin', 'super_admin'].includes(req.user.role)) {
+    if (['admin', 'support_staff'].includes(req.user.role)) {
       if (ticket.status === 'open') {
         ticket.status = 'in_progress';
       }
