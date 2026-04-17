@@ -1,0 +1,49 @@
+/* Admin Application Review Page Start */
+
+.application-review-search-box:focus-within,
+.application-review-filter-group:focus-within {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.application-review-table-card table th,
+.application-review-table-card table td {
+  white-space: nowrap;
+}
+
+.application-review-details-card {
+  min-height: 520px;
+}
+
+.application-review-search-box input,
+.application-review-filter-group select {
+  outline: none;
+}
+
+.application-review-search-box,
+.application-review-filter-group,
+.application-review-refresh-button,
+.application-review-table-card button,
+.application-review-details-card button,
+.application-review-details-card textarea {
+  outline: none;
+}
+
+.application-review-table-card button:focus-visible,
+.application-review-details-card button:focus-visible,
+.application-review-details-card textarea:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .application-review-title {
+    font-size: 1.55rem;
+  }
+
+  .application-review-details-card {
+    min-height: auto;
+  }
+}
+
+/* Admin Application Review Page End */
