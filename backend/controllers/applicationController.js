@@ -1,3 +1,4 @@
+const User = require('../models/User');
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
 const Application = require('../models/Application');
@@ -445,6 +446,85 @@ const getAdminDashboardStats = async (req, res) => {
   }
 };
 
+const getApplicationPrefill = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    let birthCertificate = null;
+
+    if (user.birthRegNumber) {
+      const db = mongoose.connection.db;
+      const collection = db.collection('birthcertificates');
+
+      birthCertificate = await collection.findOne({
+        $or: [
+          { birthRegNumber: user.birthRegNumber },
+          { birthRegistrationNumber: user.birthRegNumber }
+        ]
+      });
+    }
+
+    const prefill = {
+      fullNameEnglish:
+        birthCertificate?.fullName || user.fullName || '',
+      fullNameBangla:
+        birthCertificate?.fullNameBangla || user.fullNameBangla || '',
+      fatherName: birthCertificate?.fatherName || '',
+      motherName: birthCertificate?.motherName || '',
+      placeOfBirth:
+        birthCertificate?.placeOfBirth || user.placeOfBirth || '',
+      dateOfBirth: birthCertificate?.dateOfBirth
+        ? new Date(birthCertificate.dateOfBirth).toISOString().split('T')[0]
+        : user.dateOfBirth
+          ? new Date(user.dateOfBirth).toISOString().split('T')[0]
+          : '',
+      gender: birthCertificate?.gender || user.gender || '',
+      birthRegistrationNumber:
+        birthCertificate?.birthRegNumber ||
+        birthCertificate?.birthRegistrationNumber ||
+        user.birthRegNumber ||
+        '',
+      phone: user.phone || '',
+      email: user.email || '',
+      presentAddress: {
+        division: user.presentAddress?.division || '',
+        district: user.presentAddress?.district || '',
+        upazila: user.presentAddress?.upazila || '',
+        unionOrWard: user.presentAddress?.union || '',
+        villageOrArea: user.presentAddress?.village || '',
+        postOffice: '',
+        postalCode: user.presentAddress?.postCode || ''
+      },
+      permanentAddress: {
+        division: user.permanentAddress?.division || '',
+        district: user.permanentAddress?.district || '',
+        upazila: user.permanentAddress?.upazila || '',
+        unionOrWard: user.permanentAddress?.union || '',
+        villageOrArea: user.permanentAddress?.village || '',
+        postOffice: '',
+        postalCode: user.permanentAddress?.postCode || ''
+      }
+    };
+
+    return res.status(200).json({
+      success: true,
+      prefill
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createApplication,
   getMyApplications,
@@ -454,5 +534,6 @@ module.exports = {
   getAllApplicationsForAdmin,
   getSingleApplicationForAdmin,
   reviewApplicationByAdmin,
-  getAdminDashboardStats
+  getAdminDashboardStats,
+  getApplicationPrefill
 };

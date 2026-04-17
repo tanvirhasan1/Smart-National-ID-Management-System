@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
+  getApplicationPrefill,
   getMyApplications,
   getSingleApplication,
   updateApplication,
@@ -18,28 +19,28 @@ const router = express.Router();
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'super_admin'),
   getAdminDashboardStats
 );
 
 router.get(
   '/admin/all',
   protect,
-  authorize('admin'),
+  authorize('admin', 'super_admin'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'super_admin'),
   getSingleApplicationForAdmin
 );
 
 router.patch(
   '/admin/:id/review',
   protect,
-  authorize('admin'),
+  authorize('admin', 'super_admin'),
   reviewApplicationByAdmin
 );
 
@@ -71,9 +72,10 @@ router.post(
   createApplication
 );
 
+router.put('/:id', protect, updateApplication);
+router.get('/prefill', protect, getApplicationPrefill);
+router.patch('/:id/cancel', protect, cancelApplication);
 router.get('/my', protect, getMyApplications);
 router.get('/:id', protect, getSingleApplication);
-router.put('/:id', protect, updateApplication);
-router.patch('/:id/cancel', protect, cancelApplication);
 
 module.exports = router;
