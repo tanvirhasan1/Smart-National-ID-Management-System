@@ -540,6 +540,17 @@
   min-width: 150px;
 }
 
+.locked-input {
+  background-color: rgb(249, 250, 251);
+  cursor: not-allowed;
+	width: 100%;
+	padding: 0.625rem 0.875rem;
+	border: 1px solid #D1D5DB;
+	border-radius: 0.5rem;
+	font-size: 0.875rem;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .application-types {

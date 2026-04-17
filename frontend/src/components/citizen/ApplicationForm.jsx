@@ -90,25 +90,106 @@ const ApplicationForm = () => {
   const applicationType = watch('applicationType');
 
   useEffect(() => {
+    const loadPrefillData = async () => {
+      try {
+        const response = await api.get('/applications/prefill');
+        const prefill = response?.data?.prefill;
+
+        if (!prefill) return;
+
+        setValue('fullNameEnglish', prefill.fullNameEnglish || '');
+        setValue('fullNameBangla', prefill.fullNameBangla || '');
+        setValue('fatherName', prefill.fatherName || '');
+        setValue('motherName', prefill.motherName || '');
+        setValue('dateOfBirth', prefill.dateOfBirth || '');
+        setValue('gender', prefill.gender || '');
+        setValue(
+          'birthRegistrationNumber',
+          prefill.birthRegistrationNumber || ''
+        );
+        setValue('phone', prefill.phone || '');
+        setValue('email', prefill.email || '');
+
+        setValue(
+          'presentAddress.division',
+          prefill.presentAddress?.division || ''
+        );
+        setValue(
+          'presentAddress.district',
+          prefill.presentAddress?.district || ''
+        );
+        setValue(
+          'presentAddress.upazila',
+          prefill.presentAddress?.upazila || ''
+        );
+        setValue(
+          'presentAddress.unionOrWard',
+          prefill.presentAddress?.unionOrWard || ''
+        );
+        setValue(
+          'presentAddress.villageOrArea',
+          prefill.presentAddress?.villageOrArea || ''
+        );
+        setValue(
+          'presentAddress.postOffice',
+          prefill.presentAddress?.postOffice || ''
+        );
+        setValue(
+          'presentAddress.postalCode',
+          prefill.presentAddress?.postalCode || ''
+        );
+
+        setValue(
+          'permanentAddress.division',
+          prefill.permanentAddress?.division || ''
+        );
+        setValue(
+          'permanentAddress.district',
+          prefill.permanentAddress?.district || ''
+        );
+        setValue(
+          'permanentAddress.upazila',
+          prefill.permanentAddress?.upazila || ''
+        );
+        setValue(
+          'permanentAddress.unionOrWard',
+          prefill.permanentAddress?.unionOrWard || ''
+        );
+        setValue(
+          'permanentAddress.villageOrArea',
+          prefill.permanentAddress?.villageOrArea || ''
+        );
+        setValue(
+          'permanentAddress.postOffice',
+          prefill.permanentAddress?.postOffice || ''
+        );
+        setValue(
+          'permanentAddress.postalCode',
+          prefill.permanentAddress?.postalCode || ''
+        );
+
+        setSelectedPresentDivision(prefill.presentAddress?.division || '');
+        setSelectedPermanentDivision(prefill.permanentAddress?.division || '');
+      } catch (error) {
+        console.error('Failed to load application prefill data:', error);
+      }
+    };
+
     if (user) {
-      setValue('fullNameEnglish', user.fullName || '');
-      setValue('phone', user.phone || '');
-      setValue('email', user.email || '');
+      loadPrefillData();
     }
   }, [user, setValue]);
 
   const getInputClass = (hasError = false) =>
-    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const getSelectClass = (hasError = false) =>
-    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const handlePhotoChange = (event) => {
@@ -207,14 +288,14 @@ const ApplicationForm = () => {
       const permanentAddressPayload = sameAddress
         ? { ...presentAddressPayload }
         : {
-            division: data.permanentAddress.division,
-            district: data.permanentAddress.district,
-            upazila: data.permanentAddress.upazila,
-            unionOrWard: data.permanentAddress.unionOrWard || '',
-            villageOrArea: data.permanentAddress.villageOrArea || '',
-            postOffice: data.permanentAddress.postOffice || '',
-            postalCode: data.permanentAddress.postalCode || ''
-          };
+          division: data.permanentAddress.division,
+          district: data.permanentAddress.district,
+          upazila: data.permanentAddress.upazila,
+          unionOrWard: data.permanentAddress.unionOrWard || '',
+          villageOrArea: data.permanentAddress.villageOrArea || '',
+          postOffice: data.permanentAddress.postOffice || '',
+          postalCode: data.permanentAddress.postalCode || ''
+        };
 
       const payload = {
         applicationType: data.applicationType,
@@ -253,8 +334,8 @@ const ApplicationForm = () => {
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          'Failed to create application'
+        error?.response?.data?.errors?.[0]?.msg ||
+        'Failed to create application'
       );
     } finally {
       setIsSubmitting(false);
@@ -348,7 +429,8 @@ const ApplicationForm = () => {
                     <label className="form-label">Full Name (English) *</label>
                     <input
                       type="text"
-                      className={getInputClass(!!errors.fullNameEnglish)}
+                      readOnly={applicationType === 'new'}
+                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
                       placeholder="Enter full name in English"
                       {...register('fullNameEnglish', {
                         required: 'Full name in English is required'
@@ -363,7 +445,8 @@ const ApplicationForm = () => {
                     <label className="form-label">Full Name (বাংলা)</label>
                     <input
                       type="text"
-                      className={getInputClass(!!errors.fullNameBangla)}
+                      readOnly={applicationType === 'new'}
+                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
                       placeholder="পূর্ণ নাম লিখুন"
                       {...register('fullNameBangla')}
                     />
@@ -380,7 +463,8 @@ const ApplicationForm = () => {
                     </label>
                     <input
                       type="date"
-                      className={getInputClass(!!errors.dateOfBirth)}
+                      readOnly={applicationType === 'new'}
+                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
                       {...register('dateOfBirth', {
                         required: 'Date of birth is required'
                       })}
@@ -398,7 +482,8 @@ const ApplicationForm = () => {
                       </span>
                     </label>
                     <select
-                      className={getSelectClass(!!errors.gender)}
+                      disabled={applicationType === 'new'}
+                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
                       {...register('gender', {
                         required: 'Gender is required'
                       })}
@@ -419,7 +504,8 @@ const ApplicationForm = () => {
                     <label className="form-label">Birth Registration Number</label>
                     <input
                       type="text"
-                      className={getInputClass(!!errors.birthRegistrationNumber)}
+                      readOnly={applicationType === 'new'}
+                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
                       placeholder="17 digit birth registration number"
                       {...register('birthRegistrationNumber', {
                         pattern: {
