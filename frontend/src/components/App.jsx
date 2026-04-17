@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 
 // Common Components
 import ProtectedRoute from './common/ProtectedRoute';
+import PublicRoute from './common/PublicRoute';
 import Navbar from './common/Navbar';
 import Footer from './common/Footer';
 
@@ -49,13 +50,55 @@ const AppShell = () => {
 
       <main className={isAdminRoute ? '' : 'main-content'}>
         <Routes>
+          {/* Public Pages */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verify-otp" element={<OTPVerification />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
 
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/verify-otp"
+            element={
+              <PublicRoute>
+                <OTPVerification />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/admin/login"
+            element={
+              <PublicRoute>
+                <AdminLogin />
+              </PublicRoute>
+            }
+          />
+
+          {/* Citizen Routes */}
           <Route
             path="/dashboard"
             element={
@@ -64,6 +107,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/profile"
             element={
@@ -72,6 +116,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/apply"
             element={
@@ -80,6 +125,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/book-appointment/:applicationId"
             element={
@@ -88,6 +134,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/track-application"
             element={
@@ -96,6 +143,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/digital-nid/:id"
             element={
@@ -104,6 +152,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/support"
             element={
@@ -113,6 +162,7 @@ const AppShell = () => {
             }
           />
 
+          {/* Admin Routes */}
           <Route
             path="/admin/dashboard"
             element={
@@ -130,6 +180,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/applications"
             element={
@@ -138,6 +189,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/appointments"
             element={
@@ -146,6 +198,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/printing"
             element={
@@ -154,6 +207,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/delivery"
             element={
@@ -162,6 +216,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/support"
             element={
@@ -170,6 +225,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/audit-logs"
             element={
