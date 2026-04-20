@@ -3,7 +3,7 @@
 }
 
 /* Hero Section */
-.hero-section {
+.landing-page .hero-section {
   background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 50%, #BBF7D0 100%);
   padding: 4rem 1rem;
   min-height: 90vh;
@@ -11,7 +11,7 @@
   align-items: center;
 }
 
-.hero-container {
+.landing-page .hero-container {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
@@ -20,7 +20,7 @@
   align-items: center;
 }
 
-.hero-title {
+.landing-page .hero-title {
   font-size: 3rem;
   font-weight: 800;
   color: #1F2937;
@@ -28,95 +28,84 @@
   margin-bottom: 1.5rem;
 }
 
-.text-gradient {
-  background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-subtitle {
+.landing-page .hero-subtitle {
   font-size: 1.25rem;
   color: #4B5563;
   line-height: 1.7;
   margin-bottom: 2rem;
 }
 
-.hero-buttons {
+.landing-page .hero-buttons {
   display: flex;
   gap: 1rem;
   margin-bottom: 3rem;
 }
 
-.hero-buttons .btn {
+.landing-page .hero-buttons .btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.hero-stats {
+.landing-page .hero-stats {
   display: flex;
   gap: 3rem;
 }
 
-.stat-item {
+.landing-page .stat-item {
   text-align: center;
 }
 
-.stat-number {
+.landing-page .stat-number {
   display: block;
   font-size: 2rem;
   font-weight: 700;
   color: #16A34A;
 }
 
-.stat-label {
+.landing-page .stat-label {
   font-size: 0.875rem;
   color: #6B7280;
 }
 
-.hero-image {
+.landing-page .hero-image {
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.hero-image img {
+.landing-page .hero-image img {
   max-width: 100%;
   height: auto;
   filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.15));
-  animation: float 3s ease-in-out infinite;
+  animation: landing-float 3s ease-in-out infinite;
 }
 
-@keyframes float {
-  0%, 100% {
+@keyframes landing-float {
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-20px);
   }
 }
 
 /* Section Common Styles */
-.section-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.section-header {
+.landing-page .section-header {
   text-align: center;
   margin-bottom: 3rem;
 }
 
-.section-title {
+.landing-page .section-title {
   font-size: 2.5rem;
   font-weight: 700;
   color: #1F2937;
   margin-bottom: 1rem;
 }
 
-.section-subtitle {
+.landing-page .section-subtitle {
   font-size: 1.125rem;
   color: #6B7280;
   max-width: 600px;
@@ -124,18 +113,18 @@
 }
 
 /* Features Section */
-.features-section {
+.landing-page .features-section {
   padding: 5rem 1rem;
   background-color: #ffffff;
 }
 
-.features-grid {
+.landing-page .features-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
 }
 
-.feature-card {
+.landing-page .feature-card {
   background-color: #ffffff;
   border: 1px solid #E5E7EB;
   border-radius: 1rem;
@@ -144,13 +133,13 @@
   transition: all 0.3s ease;
 }
 
-.feature-card:hover {
+.landing-page .feature-card:hover {
   border-color: #16A34A;
   box-shadow: 0 10px 40px rgba(22, 163, 74, 0.1);
   transform: translateY(-5px);
 }
 
-.feature-icon {
+.landing-page .feature-icon {
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
@@ -163,39 +152,39 @@
   color: #ffffff;
 }
 
-.feature-title {
+.landing-page .feature-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.75rem;
 }
 
-.feature-description {
+.landing-page .feature-description {
   color: #6B7280;
   line-height: 1.6;
 }
 
 /* Process Section */
-.process-section {
+.landing-page .process-section {
   padding: 5rem 1rem;
   background-color: #F9FAFB;
 }
 
-.process-steps {
+.landing-page .process-steps {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   position: relative;
 }
 
-.process-step {
+.landing-page .process-step {
   flex: 1;
   text-align: center;
   padding: 0 1rem;
   position: relative;
 }
 
-.step-number {
+.landing-page .step-number {
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
@@ -209,19 +198,19 @@
   margin: 0 auto 1.5rem;
 }
 
-.step-title {
+.landing-page .step-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.75rem;
 }
 
-.step-description {
+.landing-page .step-description {
   color: #6B7280;
   line-height: 1.6;
 }
 
-.step-connector {
+.landing-page .step-connector {
   position: absolute;
   right: -10%;
   top: 30px;
@@ -229,73 +218,73 @@
   font-size: 1.5rem;
 }
 
-.step-connector-extra {
+.landing-page .step-connector-extra {
   top: 50%;
   right: 0;
 }
 
 /* CTA Section */
-.cta-section {
+.landing-page .cta-section {
   padding: 5rem 1rem;
   background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
 }
 
-.cta-content {
+.landing-page .cta-content {
   text-align: center;
   color: #ffffff;
 }
 
-.cta-content h2 {
+.landing-page .cta-content h2 {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 1rem;
   color: #ffffff;
 }
 
-.cta-content p {
+.landing-page .cta-content p {
   font-size: 1.25rem;
   opacity: 0.9;
   margin-bottom: 2rem;
 }
 
-.cta-buttons {
+.landing-page .cta-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
 }
 
-.cta-buttons .btn-primary {
+.landing-page .cta-buttons .btn-primary {
   background-color: #ffffff;
   color: #16A34A;
 }
 
-.cta-buttons .btn-primary:hover {
+.landing-page .cta-buttons .btn-primary:hover {
   background-color: #F0FDF4;
 }
 
-.cta-buttons .btn-outline {
+.landing-page .cta-buttons .btn-outline {
   border-color: #ffffff;
   color: #ffffff;
 }
 
-.cta-buttons .btn-outline:hover {
+.landing-page .cta-buttons .btn-outline:hover {
   background-color: #ffffff;
   color: #16A34A;
 }
 
 /* Requirements Section */
-.requirements-section {
+.landing-page .requirements-section {
   padding: 5rem 1rem;
   background-color: #ffffff;
 }
 
-.requirements-grid {
+.landing-page .requirements-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
 }
 
-.requirement-card {
+.landing-page .requirement-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -306,25 +295,25 @@
   transition: all 0.3s ease;
 }
 
-.requirement-card:hover {
+.landing-page .requirement-card:hover {
   border-color: #16A34A;
   background-color: #F0FDF4;
 }
 
-.requirement-icon {
+.landing-page .requirement-icon {
   font-size: 2rem;
   color: #16A34A;
   margin-bottom: 1rem;
 }
 
-.requirement-card h4 {
+.landing-page .requirement-card h4 {
   font-size: 1rem;
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.5rem;
 }
 
-.requirement-card p {
+.landing-page .requirement-card p {
   font-size: 0.875rem;
   color: #6B7280;
   margin: 0;
@@ -332,69 +321,69 @@
 
 /* Responsive Styles */
 @media (max-width: 992px) {
-  .hero-container {
+  .landing-page .hero-container {
     grid-template-columns: 1fr;
     text-align: center;
   }
 
-  .hero-title {
+  .landing-page .hero-title {
     font-size: 2.5rem;
   }
 
-  .hero-buttons {
+  .landing-page .hero-buttons {
     justify-content: center;
   }
 
-  .hero-stats {
+  .landing-page .hero-stats {
     justify-content: center;
   }
 
-  .hero-image {
+  .landing-page .hero-image {
     order: -1;
   }
 
-  .features-grid {
+  .landing-page .features-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .process-steps {
+  .landing-page .process-steps {
     flex-direction: column;
     gap: 2rem;
   }
 
-  .step-connector {
+  .landing-page .step-connector {
     display: none;
   }
 
-  .requirements-grid {
+  .landing-page .requirements-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 576px) {
-  .hero-title {
+  .landing-page .hero-title {
     font-size: 2rem;
   }
 
-  .hero-buttons {
+  .landing-page .hero-buttons {
     flex-direction: column;
   }
 
-  .hero-stats {
+  .landing-page .hero-stats {
     flex-direction: column;
     gap: 1.5rem;
   }
 
-  .section-title {
+  .landing-page .section-title {
     font-size: 1.75rem;
   }
 
-  .features-grid,
-  .requirements-grid {
+  .landing-page .features-grid,
+  .landing-page .requirements-grid {
     grid-template-columns: 1fr;
   }
 
-  .cta-buttons {
+  .landing-page .cta-buttons {
     flex-direction: column;
   }
 }

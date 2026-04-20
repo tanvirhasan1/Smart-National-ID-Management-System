@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { 
-  FaUsers, 
-  FaFileAlt, 
-  FaCheckCircle, 
+import {
+  FaUsers,
+  FaFileAlt,
+  FaCheckCircle,
   FaClock,
   FaTimesCircle,
   FaPrint,
@@ -14,13 +15,13 @@ import {
   FaArrowUp,
   FaArrowDown
 } from 'react-icons/fa';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -34,27 +35,60 @@ import Loader from '../common/Loader';
 import { formatDate } from '../utils/helpers';
 import '../styles/AdminDashboard.css';
 
+// Convert backend summary response into a flat object for easier UI use.
+const flattenDashboardStats = (summaryData = {}) => ({
+  totalApplications: summaryData?.applications?.total || 0,
+  submitted: summaryData?.applications?.submitted || 0,
+  underReview: summaryData?.applications?.underReview || 0,
+  approved: summaryData?.applications?.approved || 0,
+  rejected: summaryData?.applications?.rejected || 0,
+
+  totalAppointments: summaryData?.appointments?.total || 0,
+  bookedAppointments: summaryData?.appointments?.booked || 0,
+  completedAppointments: summaryData?.appointments?.completed || 0,
+  cancelledAppointments: summaryData?.appointments?.cancelled || 0,
+
+  totalSupportTickets: summaryData?.supportTickets?.total || 0,
+  openTickets: summaryData?.supportTickets?.open || 0,
+  inProgressTickets: summaryData?.supportTickets?.inProgress || 0,
+  resolvedTickets: summaryData?.supportTickets?.resolved || 0,
+
+  totalCenters: summaryData?.centers?.total || 0,
+  activeCenters: summaryData?.centers?.active || 0,
+  inactiveCenters: summaryData?.centers?.inactive || 0,
+
+  totalUsers: summaryData?.users?.total || 0,
+
+  // Derived shortcut values for dashboard cards
+  pending: summaryData?.applications?.submitted || 0,
+  printing: summaryData?.applications?.approved || 0,
+  dispatched: summaryData?.appointments?.completed || 0
+});
+
 const AdminDashboard = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentApplications, setRecentApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
+  // Load dashboard summary.
+  // Only full admin loads recent applications list.
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch dashboard stats
-      const statsResponse = await api.get('/admin/dashboard/stats');
-      setStats(statsResponse.data.data);
 
-      // Fetch recent applications
-      const appsResponse = await api.get('/admin/applications?limit=5&sort=-createdAt');
-      setRecentApplications(appsResponse.data.data || []);
+      const statsResponse = await api.get('/admin/dashboard/summary');
+      const summaryData = statsResponse.data?.data || {};
+      const flatStats = flattenDashboardStats(summaryData);
 
+      setStats(flatStats);
+
+      if (user?.role === 'admin') {
+        const appsResponse = await api.get('/admin/applications?limit=5&sort=-createdAt');
+        setRecentApplications(appsResponse.data?.data || []);
+      } else {
+        setRecentApplications([]);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -62,21 +96,38 @@ const AdminDashboard = () => {
     }
   };
 
-  // Sample chart data (in production, this would come from API)
+  useEffect(() => {
+    if (user?.role) {
+      fetchDashboardData();
+    }
+  }, [user?.role]);
+
+  // Current backend summary endpoint does not return monthly trend data.
+  // Keep this chart as placeholder until a dedicated trend API is added.
   const applicationTrendData = [
     { name: 'Jan', applications: 120, approved: 100 },
     { name: 'Feb', applications: 150, approved: 130 },
     { name: 'Mar', applications: 180, approved: 160 },
     { name: 'Apr', applications: 200, approved: 175 },
     { name: 'May', applications: 250, approved: 220 },
-    { name: 'Jun', applications: 280, approved: 250 },
+    { name: 'Jun', applications: 280, approved: 250 }
   ];
 
+  // Pie chart uses live backend summary data.
   const statusDistribution = [
-    { name: 'Submitted', value: stats?.submitted || 45, color: '#3B82F6' },
-    { name: 'Under Review', value: stats?.underReview || 30, color: '#F59E0B' },
-    { name: 'Approved', value: stats?.approved || 80, color: '#10B981' },
-    { name: 'Rejected', value: stats?.rejected || 15, color: '#EF4444' },
+    { name: 'Submitted', value: stats?.submitted || 0, color: '#3B82F6' },
+    { name: 'Under Review', value: stats?.underReview || 0, color: '#F59E0B' },
+    { name: 'Approved', value: stats?.approved || 0, color: '#10B981' },
+    { name: 'Rejected', value: stats?.rejected || 0, color: '#EF4444' }
+  ];
+
+  // Bar chart uses live backend summary data.
+  const servicePerformanceData = [
+    { name: 'Applications', total: stats?.totalApplications || 0 },
+    { name: 'Approved', total: stats?.approved || 0 },
+    { name: 'Appointments', total: stats?.totalAppointments || 0 },
+    { name: 'Tickets', total: stats?.totalSupportTickets || 0 },
+    { name: 'Centers', total: stats?.totalCenters || 0 }
   ];
 
   if (loading) {
@@ -197,10 +248,12 @@ const AdminDashboard = () => {
 
         {/* Charts Section */}
         <div className="charts-section">
-          {/* Application Trends */}
+          {/* Trend chart is currently placeholder data until backend provides monthly history */}
           <div className="chart-card">
             <div className="chart-header">
-              <h3><FaChartLine /> Application Trends</h3>
+              <h3>
+                <FaChartLine /> Application Trends
+              </h3>
               <select className="chart-filter">
                 <option value="6months">Last 6 Months</option>
                 <option value="year">This Year</option>
@@ -214,17 +267,17 @@ const AdminDashboard = () => {
                   <XAxis dataKey="name" stroke="#6B7280" />
                   <YAxis stroke="#6B7280" />
                   <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="applications" 
-                    stroke="#3B82F6" 
+                  <Line
+                    type="monotone"
+                    dataKey="applications"
+                    stroke="#3B82F6"
                     strokeWidth={2}
                     dot={{ fill: '#3B82F6' }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="approved" 
-                    stroke="#10B981" 
+                  <Line
+                    type="monotone"
+                    dataKey="approved"
+                    stroke="#10B981"
                     strokeWidth={2}
                     dot={{ fill: '#10B981' }}
                   />
@@ -233,7 +286,7 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {/* Status Distribution */}
+          {/* Pie chart from backend summary */}
           <div className="chart-card">
             <div className="chart-header">
               <h3>Status Distribution</h3>
@@ -257,10 +310,14 @@ const AdminDashboard = () => {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
+
               <div className="chart-legend">
                 {statusDistribution.map((item, index) => (
                   <div key={index} className="legend-item">
-                    <span className="legend-color" style={{ backgroundColor: item.color }}></span>
+                    <span
+                      className="legend-color"
+                      style={{ backgroundColor: item.color }}
+                    ></span>
                     <span className="legend-label">{item.name}</span>
                     <span className="legend-value">{item.value}</span>
                   </div>
@@ -268,15 +325,35 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+
+          {/* Bar chart from backend summary */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <h3>Service Performance</h3>
+            </div>
+            <div className="chart-body">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={servicePerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="name" stroke="#6B7280" />
+                  <YAxis stroke="#6B7280" />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         {/* Recent Applications & Quick Actions */}
         <div className="dashboard-grid">
-          {/* Recent Applications */}
+          {/* Only admin will usually see real recent applications data */}
           <div className="dashboard-card">
             <div className="card-header">
               <h3>Recent Applications</h3>
-              <Link to="/admin/applications" className="view-all">View All →</Link>
+              <Link to="/admin/applications" className="view-all">
+                View All →
+              </Link>
             </div>
             <div className="card-body">
               {recentApplications.length === 0 ? (
@@ -294,7 +371,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentApplications.map(app => (
+                    {recentApplications.map((app) => (
                       <tr key={app._id}>
                         <td>
                           <Link to={`/admin/applications?id=${app._id}`}>

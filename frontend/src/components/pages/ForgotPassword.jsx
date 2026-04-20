@@ -10,7 +10,7 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import '../styles/Auth.css';
+import '../styles/ForgotPassword.css';
 
 const ForgotPassword = () => {
   const { forgotPassword, resetPassword, passwordResetKey } = useAuth();
@@ -200,7 +200,7 @@ const ForgotPassword = () => {
 
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
+                    className="forgot-password-toggle-button absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -225,7 +225,7 @@ const ForgotPassword = () => {
 
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
+                    className="forgot-password-toggle-button absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                   >
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
@@ -263,7 +263,7 @@ const ForgotPassword = () => {
               Back to{' '}
               <Link
                 to="/login"
-                className="font-semibold text-[#16A34A] transition hover:text-[#15803D]"
+                className="forgot-password-back-link font-semibold text-[#16A34A] transition hover:text-[#15803D]"
               >
                 Login
               </Link>

@@ -1,32 +1,32 @@
-.application-form-page {
+.application-form-page-wrapper.application-form-page {
   min-height: calc(100vh - 140px);
   background-color: #F9FAFB;
   padding: 2rem 1rem;
 }
 
-.form-container {
+.application-form-page-wrapper .form-container {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.form-header {
+.application-form-page-wrapper .form-header {
   text-align: center;
   margin-bottom: 2rem;
 }
 
-.form-header h1 {
+.application-form-page-wrapper .form-header h1 {
   font-size: 2rem;
   font-weight: 700;
   color: #1F2937;
   margin-bottom: 0.5rem;
 }
 
-.form-header p {
+.application-form-page-wrapper .form-header p {
   color: #6B7280;
 }
 
 /* Progress Steps */
-.progress-steps {
+.application-form-page-wrapper .progress-steps {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,14 +34,14 @@
   padding: 0 2rem;
 }
 
-.progress-step {
+.application-form-page-wrapper .progress-step {
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
 }
 
-.step-circle {
+.application-form-page-wrapper .step-circle {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -55,28 +55,28 @@
   transition: all 0.3s ease;
 }
 
-.progress-step.active .step-circle {
+.application-form-page-wrapper .progress-step.active .step-circle {
   background-color: #16A34A;
   color: #ffffff;
 }
 
-.progress-step.completed .step-circle {
+.application-form-page-wrapper .progress-step.completed .step-circle {
   background-color: #16A34A;
   color: #ffffff;
 }
 
-.progress-step span {
+.application-form-page-wrapper .progress-step span {
   font-size: 0.75rem;
   color: #6B7280;
   white-space: nowrap;
 }
 
-.progress-step.active span {
+.application-form-page-wrapper .progress-step.active span {
   color: #16A34A;
   font-weight: 600;
 }
 
-.step-line {
+.application-form-page-wrapper .step-line {
   flex: 1;
   height: 2px;
   background-color: #E5E7EB;
@@ -87,14 +87,14 @@
 }
 
 /* Application Form */
-.application-form {
+.application-form-page-wrapper .application-form {
   background-color: #ffffff;
   border-radius: 1rem;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
-.step-title {
+.application-form-page-wrapper .step-title {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -104,35 +104,35 @@
   margin-bottom: 0.5rem;
 }
 
-.step-title svg {
+.application-form-page-wrapper .step-title svg {
   color: #16A34A;
 }
 
-.step-description {
+.application-form-page-wrapper .step-description {
   color: #6B7280;
   margin-bottom: 2rem;
 }
 
 /* Application Types */
-.application-types {
+.application-form-page-wrapper .application-types {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.type-card {
+.application-form-page-wrapper .type-card {
   cursor: pointer;
   position: relative;
 }
 
-.type-card input {
+.application-form-page-wrapper .type-card input {
   position: absolute;
   opacity: 0;
   cursor: pointer;
 }
 
-.type-content {
+.application-form-page-wrapper .type-content {
   border: 2px solid #E5E7EB;
   border-radius: 0.75rem;
   padding: 1.5rem;
@@ -140,13 +140,13 @@
   transition: all 0.3s ease;
 }
 
-.type-card.selected .type-content,
-.type-card:hover .type-content {
+.application-form-page-wrapper .type-card.selected .type-content,
+.application-form-page-wrapper .type-card:hover .type-content {
   border-color: #16A34A;
   background-color: #F0FDF4;
 }
 
-.type-icon {
+.application-form-page-wrapper .type-icon {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -157,43 +157,43 @@
   font-size: 1.5rem;
 }
 
-.type-icon.new-icon {
+.application-form-page-wrapper .type-icon.new-icon {
   background-color: #DBEAFE;
   color: #2563EB;
 }
 
-.type-icon.correction-icon {
+.application-form-page-wrapper .type-icon.correction-icon {
   background-color: #FEF3C7;
   color: #D97706;
 }
 
-.type-icon.renewal-icon {
+.application-form-page-wrapper .type-icon.renewal-icon {
   background-color: #D1FAE5;
   color: #059669;
 }
 
-.type-content h4 {
+.application-form-page-wrapper .type-content h4 {
   font-size: 1.125rem;
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.25rem;
 }
 
-.type-content p {
+.application-form-page-wrapper .type-content p {
   font-size: 0.875rem;
   color: #6B7280;
   margin: 0;
 }
 
 /* User Info Card */
-.user-info-card {
+.application-form-page-wrapper .user-info-card {
   background-color: #F9FAFB;
   border-radius: 0.75rem;
   padding: 1.5rem;
   margin-top: 2rem;
 }
 
-.user-info-card h4 {
+.application-form-page-wrapper .user-info-card h4 {
   font-size: 1rem;
   font-weight: 600;
   color: #374151;
@@ -202,20 +202,20 @@
   border-bottom: 1px solid #E5E7EB;
 }
 
-.info-grid {
+.application-form-page-wrapper .info-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
-.info-item label {
+.application-form-page-wrapper .info-item label {
   display: block;
   font-size: 0.75rem;
   color: #6B7280;
   margin-bottom: 0.25rem;
 }
 
-.info-item p {
+.application-form-page-wrapper .info-item p {
   font-size: 0.95rem;
   font-weight: 500;
   color: #1F2937;
@@ -223,18 +223,18 @@
 }
 
 /* Info Sections */
-.info-section {
+.application-form-page-wrapper .info-section {
   margin-bottom: 2rem;
   padding-bottom: 2rem;
   border-bottom: 1px solid #E5E7EB;
 }
 
-.info-section:last-of-type {
+.application-form-page-wrapper .info-section:last-of-type {
   border-bottom: none;
   padding-bottom: 0;
 }
 
-.info-section h3 {
+.application-form-page-wrapper .info-section h3 {
   font-size: 1.125rem;
   font-weight: 600;
   color: #374151;
@@ -242,49 +242,49 @@
 }
 
 /* Upload Section */
-.upload-section {
+.application-form-page-wrapper .upload-section {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.upload-card {
+.application-form-page-wrapper .upload-card {
   border: 1px solid #E5E7EB;
   border-radius: 0.75rem;
   padding: 1.25rem;
 }
 
-.upload-card:first-child {
+.application-form-page-wrapper .upload-card:first-child {
   grid-column: span 2;
 }
 
-.upload-header {
+.application-form-page-wrapper .upload-header {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.upload-icon {
+.application-form-page-wrapper .upload-icon {
   font-size: 1.5rem;
   color: #16A34A;
 }
 
-.upload-header h4 {
+.application-form-page-wrapper .upload-header h4 {
   font-size: 1rem;
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.125rem;
 }
 
-.upload-header p {
+.application-form-page-wrapper .upload-header p {
   font-size: 0.8rem;
   color: #6B7280;
   margin: 0;
 }
 
-.upload-area {
+.application-form-page-wrapper .upload-area {
   border: 2px dashed #D1D5DB;
   border-radius: 0.5rem;
   padding: 2rem;
@@ -297,12 +297,12 @@
   justify-content: center;
 }
 
-.upload-area:hover {
+.application-form-page-wrapper .upload-area:hover {
   border-color: #16A34A;
   background-color: #F0FDF4;
 }
 
-.upload-placeholder {
+.application-form-page-wrapper .upload-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -310,34 +310,34 @@
   color: #6B7280;
 }
 
-.upload-placeholder svg {
+.application-form-page-wrapper .upload-placeholder svg {
   font-size: 2rem;
   color: #9CA3AF;
 }
 
-.upload-placeholder small {
+.application-form-page-wrapper .upload-placeholder small {
   font-size: 0.75rem;
   color: #9CA3AF;
 }
 
-.preview-container {
+.application-form-page-wrapper .preview-container {
   position: relative;
 }
 
-.photo-preview {
+.application-form-page-wrapper .photo-preview {
   width: 150px;
   height: 180px;
   object-fit: cover;
   border-radius: 0.5rem;
 }
 
-.signature-preview {
+.application-form-page-wrapper .signature-preview {
   max-width: 200px;
   max-height: 80px;
   object-fit: contain;
 }
 
-.change-btn {
+.application-form-page-wrapper .change-btn {
   position: absolute;
   bottom: -10px;
   left: 50%;
@@ -351,18 +351,18 @@
   cursor: pointer;
 }
 
-.file-uploaded {
+.application-form-page-wrapper .file-uploaded {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   color: #16A34A;
 }
 
-.success-icon {
+.application-form-page-wrapper .success-icon {
   font-size: 1.25rem;
 }
 
-.remove-btn {
+.application-form-page-wrapper .remove-btn {
   background-color: #FEE2E2;
   color: #DC2626;
   border: none;
@@ -373,14 +373,14 @@
   margin-left: auto;
 }
 
-.upload-guidelines {
+.application-form-page-wrapper .upload-guidelines {
   background-color: #FEF3C7;
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 2rem;
 }
 
-.upload-guidelines h4 {
+.application-form-page-wrapper .upload-guidelines h4 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -389,32 +389,32 @@
   margin-bottom: 0.5rem;
 }
 
-.upload-guidelines ul {
+.application-form-page-wrapper .upload-guidelines ul {
   margin: 0;
   padding-left: 1.25rem;
   color: #78350F;
   font-size: 0.875rem;
 }
 
-.upload-guidelines li {
+.application-form-page-wrapper .upload-guidelines li {
   margin-bottom: 0.25rem;
 }
 
 /* Review Section */
-.review-section {
+.application-form-page-wrapper .review-section {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.review-card {
+.application-form-page-wrapper .review-card {
   background-color: #F9FAFB;
   border-radius: 0.75rem;
   padding: 1.25rem;
 }
 
-.review-card h4 {
+.application-form-page-wrapper .review-card h4 {
   font-size: 0.875rem;
   font-weight: 600;
   color: #6B7280;
@@ -423,51 +423,51 @@
   margin-bottom: 0.75rem;
 }
 
-.review-value {
+.application-form-page-wrapper .review-value {
   font-size: 1.125rem;
   font-weight: 600;
   color: #16A34A;
   margin: 0;
 }
 
-.review-grid {
+.application-form-page-wrapper .review-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
-.review-item label {
+.application-form-page-wrapper .review-item label {
   display: block;
   font-size: 0.75rem;
   color: #6B7280;
   margin-bottom: 0.125rem;
 }
 
-.review-item p {
+.application-form-page-wrapper .review-item p {
   font-size: 0.95rem;
   font-weight: 500;
   color: #1F2937;
   margin: 0;
 }
 
-.documents-preview {
+.application-form-page-wrapper .documents-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 1.5rem;
 }
 
-.doc-item {
+.application-form-page-wrapper .doc-item {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.doc-item span {
+.application-form-page-wrapper .doc-item span {
   font-size: 0.875rem;
   color: #4B5563;
 }
 
-.doc-thumb {
+.application-form-page-wrapper .doc-thumb {
   width: 80px;
   height: 100px;
   object-fit: cover;
@@ -475,22 +475,22 @@
   border: 1px solid #E5E7EB;
 }
 
-.signature-thumb {
+.application-form-page-wrapper .signature-thumb {
   width: 120px;
   height: 50px;
 }
 
-.doc-missing {
+.application-form-page-wrapper .doc-missing {
   color: #DC2626 !important;
   font-size: 0.8rem !important;
 }
 
-.doc-optional {
+.application-form-page-wrapper .doc-optional {
   color: #9CA3AF !important;
   font-size: 0.8rem !important;
 }
 
-.doc-uploaded {
+.application-form-page-wrapper .doc-uploaded {
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -499,35 +499,35 @@
 }
 
 /* Declaration */
-.declaration {
+.application-form-page-wrapper .declaration {
   background-color: #FEF3C7;
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 2rem;
 }
 
-.declaration .checkbox-label {
+.application-form-page-wrapper .declaration .checkbox-label {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   cursor: pointer;
 }
 
-.declaration input[type="checkbox"] {
+.application-form-page-wrapper .declaration input[type="checkbox"] {
   margin-top: 0.25rem;
   width: 18px;
   height: 18px;
   accent-color: #16A34A;
 }
 
-.declaration span {
+.application-form-page-wrapper .declaration span {
   font-size: 0.875rem;
   color: #78350F;
   line-height: 1.5;
 }
 
 /* Form Actions */
-.form-actions {
+.application-form-page-wrapper .form-actions {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -536,70 +536,70 @@
   border-top: 1px solid #E5E7EB;
 }
 
-.form-actions .btn {
+.application-form-page-wrapper .form-actions .btn {
   min-width: 150px;
 }
 
-.locked-input {
+.application-form-page-wrapper .locked-input {
   background-color: rgb(249, 250, 251);
   cursor: not-allowed;
-	width: 100%;
-	padding: 0.625rem 0.875rem;
-	border: 1px solid #D1D5DB;
-	border-radius: 0.5rem;
-	font-size: 0.875rem;
-	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .application-types {
+  .application-form-page-wrapper .application-types {
     grid-template-columns: 1fr;
   }
 
-  .info-grid {
+  .application-form-page-wrapper .info-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .upload-section {
+  .application-form-page-wrapper .upload-section {
     grid-template-columns: 1fr;
   }
 
-  .upload-card:first-child {
+  .application-form-page-wrapper .upload-card:first-child {
     grid-column: span 1;
   }
 
-  .review-grid {
+  .application-form-page-wrapper .review-grid {
     grid-template-columns: 1fr;
   }
 
-  .progress-steps {
+  .application-form-page-wrapper .progress-steps {
     padding: 0;
   }
 
-  .progress-step span {
+  .application-form-page-wrapper .progress-step span {
     display: none;
   }
 
-  .step-line {
+  .application-form-page-wrapper .step-line {
     min-width: 30px;
   }
 }
 
 @media (max-width: 576px) {
-  .application-form {
+  .application-form-page-wrapper .application-form {
     padding: 1.5rem;
   }
 
-  .info-grid {
+  .application-form-page-wrapper .info-grid {
     grid-template-columns: 1fr;
   }
 
-  .form-actions {
+  .application-form-page-wrapper .form-actions {
     flex-direction: column;
   }
 
-  .form-actions .btn {
+  .application-form-page-wrapper .form-actions .btn {
     width: 100%;
   }
 }

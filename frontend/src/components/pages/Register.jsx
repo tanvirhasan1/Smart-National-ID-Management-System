@@ -17,7 +17,7 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { bangladeshLocations } from '../utils/helpers';
-import '../styles/Auth.css';
+import '../styles/Register.css';
 
 const Register = () => {
   const { register: registerUser } = useAuth();

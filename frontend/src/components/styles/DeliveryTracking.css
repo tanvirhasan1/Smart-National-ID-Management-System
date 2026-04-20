@@ -1,5 +1,5 @@
 /* Delivery Tracking Page Styles */
-.delivery-tracking-page {
+.delivery-tracking-page{
   animation: fadeIn 0.3s ease;
 }
 
@@ -9,14 +9,14 @@
 }
 
 /* Page Header */
-.page-header {
+.delivery-tracking-page .page-header{
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
 }
 
-.header-content h1 {
+.delivery-tracking-page .header-content h1{
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -26,29 +26,29 @@
   margin-bottom: 0.25rem;
 }
 
-.header-content h1 svg {
+.delivery-tracking-page .header-content h1 svg{
   color: #16A34A;
 }
 
-.header-content p {
+.delivery-tracking-page .header-content p{
   color: #6B7280;
   margin: 0;
 }
 
-.header-actions {
+.delivery-tracking-page .header-actions{
   display: flex;
   gap: 0.75rem;
 }
 
 /* Stats Row */
-.stats-row {
+.delivery-tracking-page .stats-row{
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.stat-card {
+.delivery-tracking-page .stat-card{
   background-color: #ffffff;
   border-radius: 0.75rem;
   padding: 1.25rem;
@@ -60,32 +60,32 @@
   border-left: 4px solid transparent;
 }
 
-.stat-card:hover {
+.delivery-tracking-page .stat-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.stat-card.stat-approved {
+.delivery-tracking-page .stat-card.stat-approved{
   border-left-color: #10B981;
 }
 
-.stat-card.stat-printing {
+.delivery-tracking-page .stat-card.stat-printing{
   border-left-color: #8B5CF6;
 }
 
-.stat-card.stat-dispatched {
+.delivery-tracking-page .stat-card.stat-dispatched{
   border-left-color: #3B82F6;
 }
 
-.stat-card.stat-transit {
+.delivery-tracking-page .stat-card.stat-transit{
   border-left-color: #F59E0B;
 }
 
-.stat-card.stat-delivered {
+.delivery-tracking-page .stat-card.stat-delivered{
   border-left-color: #059669;
 }
 
-.stat-icon-wrapper {
+.delivery-tracking-page .stat-icon-wrapper{
   width: 48px;
   height: 48px;
   border-radius: 0.75rem;
@@ -96,31 +96,31 @@
   color: #ffffff;
 }
 
-.stat-approved .stat-icon-wrapper { background: linear-gradient(135deg, #10B981, #059669); }
-.stat-printing .stat-icon-wrapper { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
-.stat-dispatched .stat-icon-wrapper { background: linear-gradient(135deg, #3B82F6, #2563EB); }
-.stat-transit .stat-icon-wrapper { background: linear-gradient(135deg, #F59E0B, #D97706); }
-.stat-delivered .stat-icon-wrapper { background: linear-gradient(135deg, #059669, #047857); }
+.delivery-tracking-page .stat-approved .stat-icon-wrapper{ background: linear-gradient(135deg, #10B981, #059669); }
+.delivery-tracking-page .stat-printing .stat-icon-wrapper{ background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+.delivery-tracking-page .stat-dispatched .stat-icon-wrapper{ background: linear-gradient(135deg, #3B82F6, #2563EB); }
+.delivery-tracking-page .stat-transit .stat-icon-wrapper{ background: linear-gradient(135deg, #F59E0B, #D97706); }
+.delivery-tracking-page .stat-delivered .stat-icon-wrapper{ background: linear-gradient(135deg, #059669, #047857); }
 
-.stat-card .stat-info {
+.delivery-tracking-page .stat-card .stat-info{
   display: flex;
   flex-direction: column;
 }
 
-.stat-card .stat-value {
+.delivery-tracking-page .stat-card .stat-value{
   font-size: 1.5rem;
   font-weight: 700;
   color: #1F2937;
   line-height: 1.2;
 }
 
-.stat-card .stat-label {
+.delivery-tracking-page .stat-card .stat-label{
   font-size: 0.8rem;
   color: #6B7280;
 }
 
 /* Filters Card */
-.filters-card {
+.delivery-tracking-page .filters-card{
   background-color: #ffffff;
   border-radius: 0.75rem;
   padding: 1.25rem;
@@ -128,7 +128,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.filters-header {
+.delivery-tracking-page .filters-header{
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -137,7 +137,7 @@
   border-bottom: 1px solid #E5E7EB;
 }
 
-.filters-header h3 {
+.delivery-tracking-page .filters-header h3{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -147,11 +147,11 @@
   margin: 0;
 }
 
-.filters-header h3 svg {
+.delivery-tracking-page .filters-header h3 svg{
   color: #6B7280;
 }
 
-.clear-filters-btn {
+.delivery-tracking-page .clear-filters-btn{
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -166,23 +166,23 @@
   transition: background-color 0.2s ease;
 }
 
-.clear-filters-btn:hover {
+.delivery-tracking-page .clear-filters-btn:hover{
   background-color: #FECACA;
 }
 
-.filters-grid {
+.delivery-tracking-page .filters-grid{
   display: grid;
   grid-template-columns: 2fr repeat(4, 1fr);
   gap: 1rem;
 }
 
-.filter-item {
+.delivery-tracking-page .filter-item{
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
 }
 
-.filter-item label {
+.delivery-tracking-page .filter-item label{
   font-size: 0.75rem;
   font-weight: 600;
   color: #6B7280;
@@ -190,8 +190,8 @@
   letter-spacing: 0.3px;
 }
 
-.filter-item select,
-.filter-item input[type="date"] {
+.delivery-tracking-page .filter-item select,
+.delivery-tracking-page .filter-item input[type="date"]{
   padding: 0.5rem 0.75rem;
   border: 1px solid #E5E7EB;
   border-radius: 0.375rem;
@@ -202,13 +202,13 @@
   transition: border-color 0.2s ease;
 }
 
-.filter-item select:focus,
-.filter-item input[type="date"]:focus {
+.delivery-tracking-page .filter-item select:focus,
+.delivery-tracking-page .filter-item input[type="date"]:focus{
   outline: none;
   border-color: #16A34A;
 }
 
-.search-input {
+.delivery-tracking-page .search-input{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -219,16 +219,16 @@
   transition: border-color 0.2s ease;
 }
 
-.search-input:focus-within {
+.delivery-tracking-page .search-input:focus-within{
   border-color: #16A34A;
 }
 
-.search-input svg {
+.delivery-tracking-page .search-input svg{
   color: #9CA3AF;
   font-size: 0.875rem;
 }
 
-.search-input input {
+.delivery-tracking-page .search-input input{
   border: none;
   outline: none;
   width: 100%;
@@ -236,19 +236,19 @@
   color: #374151;
 }
 
-.search-input input::placeholder {
+.delivery-tracking-page .search-input input::placeholder{
   color: #9CA3AF;
 }
 
 /* Deliveries Card */
-.deliveries-card {
+.delivery-tracking-page .deliveries-card{
   background-color: #ffffff;
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.card-header {
+.delivery-tracking-page .card-header{
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -257,7 +257,7 @@
   background-color: #F9FAFB;
 }
 
-.card-header h3 {
+.delivery-tracking-page .card-header h3{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -267,11 +267,11 @@
   margin: 0;
 }
 
-.card-header h3 svg {
+.delivery-tracking-page .card-header h3 svg{
   color: #16A34A;
 }
 
-.deliveries-count {
+.delivery-tracking-page .deliveries-count{
   font-size: 0.8rem;
   color: #6B7280;
   background-color: #E5E7EB;
@@ -280,27 +280,27 @@
 }
 
 /* Table Container */
-.table-container {
+.delivery-tracking-page .table-container{
   overflow-x: auto;
   max-height: calc(100vh - 450px);
   overflow-y: auto;
 }
 
 /* Deliveries Table */
-.deliveries-table {
+.delivery-tracking-page .deliveries-table{
   width: 100%;
   border-collapse: collapse;
   min-width: 1000px;
 }
 
-.deliveries-table thead {
+.delivery-tracking-page .deliveries-table thead{
   position: sticky;
   top: 0;
   background-color: #F9FAFB;
   z-index: 10;
 }
 
-.deliveries-table th {
+.delivery-tracking-page .deliveries-table th{
   padding: 0.875rem 1rem;
   text-align: left;
   font-size: 0.7rem;
@@ -312,7 +312,7 @@
   white-space: nowrap;
 }
 
-.deliveries-table td {
+.delivery-tracking-page .deliveries-table td{
   padding: 0.875rem 1rem;
   font-size: 0.875rem;
   color: #374151;
@@ -320,61 +320,61 @@
   vertical-align: middle;
 }
 
-.deliveries-table tbody tr {
+.delivery-tracking-page .deliveries-table tbody tr{
   transition: background-color 0.15s ease;
 }
 
-.deliveries-table tbody tr:hover {
+.delivery-tracking-page .deliveries-table tbody tr:hover{
   background-color: #F9FAFB;
 }
 
-.loading-row,
-.empty-row {
+.delivery-tracking-page .loading-row,
+.delivery-tracking-page .empty-row{
   text-align: center;
   padding: 3rem !important;
 }
 
-.empty-row .empty-icon {
+.delivery-tracking-page .empty-row .empty-icon{
   font-size: 2.5rem;
   color: #D1D5DB;
   margin-bottom: 1rem;
 }
 
-.empty-row p {
+.delivery-tracking-page .empty-row p{
   color: #6B7280;
   margin-bottom: 1rem;
 }
 
 /* Application Cell */
-.application-cell {
+.delivery-tracking-page .application-cell{
   display: flex;
   flex-direction: column;
 }
 
-.app-number {
+.delivery-tracking-page .app-number{
   font-weight: 600;
   color: #16A34A;
   font-size: 0.85rem;
 }
 
-.app-type {
+.delivery-tracking-page .app-type{
   font-size: 0.7rem;
   color: #9CA3AF;
   text-transform: uppercase;
 }
 
 /* Recipient Cell */
-.recipient-cell {
+.delivery-tracking-page .recipient-cell{
   display: flex;
   flex-direction: column;
 }
 
-.recipient-name {
+.delivery-tracking-page .recipient-name{
   font-weight: 500;
   color: #1F2937;
 }
 
-.recipient-phone {
+.delivery-tracking-page .recipient-phone{
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -382,13 +382,13 @@
   color: #6B7280;
 }
 
-.recipient-phone svg {
+.delivery-tracking-page .recipient-phone svg{
   font-size: 0.625rem;
 }
 
 /* NID Number */
-.nid-number {
-  font-family: 'Consolas', 'Monaco', monospace;
+.delivery-tracking-page .nid-number{
+  font-family: "Consolas", "Monaco", monospace;
   font-size: 0.85rem;
   font-weight: 600;
   color: #1F2937;
@@ -398,35 +398,35 @@
 }
 
 /* Status Cell */
-.status-cell {
+.delivery-tracking-page .status-cell{
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.status-icon {
+.delivery-tracking-page .status-icon{
   font-size: 1rem;
 }
 
-.status-icon.approved { color: #10B981; }
-.status-icon.printing { color: #8B5CF6; }
-.status-icon.dispatched { color: #3B82F6; }
-.status-icon.delivered { color: #059669; }
-.status-icon.pending { color: #6B7280; }
+.delivery-tracking-page .status-icon.approved{ color: #10B981; }
+.delivery-tracking-page .status-icon.printing{ color: #8B5CF6; }
+.delivery-tracking-page .status-icon.dispatched{ color: #3B82F6; }
+.delivery-tracking-page .status-icon.delivered{ color: #059669; }
+.delivery-tracking-page .status-icon.pending{ color: #6B7280; }
 
-.status-text {
+.delivery-tracking-page .status-text{
   font-size: 0.85rem;
   font-weight: 500;
   text-transform: capitalize;
 }
 
-.status-text.approved { color: #059669; }
-.status-text.printing { color: #7C3AED; }
-.status-text.dispatched { color: #2563EB; }
-.status-text.delivered { color: #047857; }
+.delivery-tracking-page .status-text.approved{ color: #059669; }
+.delivery-tracking-page .status-text.printing{ color: #7C3AED; }
+.delivery-tracking-page .status-text.dispatched{ color: #2563EB; }
+.delivery-tracking-page .status-text.delivered{ color: #047857; }
 
 /* Delivery Badge */
-.delivery-badge {
+.delivery-tracking-page .delivery-badge{
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -436,52 +436,52 @@
   font-weight: 600;
 }
 
-.delivery-badge svg {
+.delivery-tracking-page .delivery-badge svg{
   font-size: 0.625rem;
 }
 
-.delivery-badge.pending {
+.delivery-tracking-page .delivery-badge.pending{
   background-color: #F3F4F6;
   color: #6B7280;
 }
 
-.delivery-badge.in-transit {
+.delivery-tracking-page .delivery-badge.in-transit{
   background-color: #FEF3C7;
   color: #92400E;
 }
 
-.delivery-badge.delivered {
+.delivery-tracking-page .delivery-badge.delivered{
   background-color: #D1FAE5;
   color: #065F46;
 }
 
-.delivery-badge.failed {
+.delivery-tracking-page .delivery-badge.failed{
   background-color: #FEE2E2;
   color: #991B1B;
 }
 
 /* Tracking Cell */
-.tracking-cell {
+.delivery-tracking-page .tracking-cell{
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: "Consolas", "Monaco", monospace;
   font-size: 0.8rem;
   color: #374151;
 }
 
-.tracking-cell svg {
+.delivery-tracking-page .tracking-cell svg{
   color: #6B7280;
 }
 
-.no-tracking {
+.delivery-tracking-page .no-tracking{
   font-family: inherit;
   color: #9CA3AF;
   font-style: italic;
 }
 
 /* Address Cell */
-.address-cell {
+.delivery-tracking-page .address-cell{
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -490,25 +490,25 @@
   max-width: 200px;
 }
 
-.address-cell svg {
+.delivery-tracking-page .address-cell svg{
   color: #DC2626;
   font-size: 0.75rem;
   flex-shrink: 0;
 }
 
-.address-cell span {
+.delivery-tracking-page .address-cell span{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* Action Buttons */
-.action-buttons {
+.delivery-tracking-page .action-buttons{
   display: flex;
   gap: 0.375rem;
 }
 
-.btn-action {
+.delivery-tracking-page .btn-action{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -521,63 +521,63 @@
   font-size: 0.75rem;
 }
 
-.btn-action.btn-view {
+.delivery-tracking-page .btn-action.btn-view{
   background-color: #DBEAFE;
   color: #2563EB;
 }
 
-.btn-action.btn-view:hover:not(:disabled) {
+.delivery-tracking-page .btn-action.btn-view:hover:not(:disabled){
   background-color: #3B82F6;
   color: #ffffff;
 }
 
-.btn-action.btn-print {
+.delivery-tracking-page .btn-action.btn-print{
   background-color: #E9D5FF;
   color: #7C3AED;
 }
 
-.btn-action.btn-print:hover:not(:disabled) {
+.delivery-tracking-page .btn-action.btn-print:hover:not(:disabled){
   background-color: #8B5CF6;
   color: #ffffff;
 }
 
-.btn-action.btn-dispatch {
+.delivery-tracking-page .btn-action.btn-dispatch{
   background-color: #DBEAFE;
   color: #2563EB;
 }
 
-.btn-action.btn-dispatch:hover:not(:disabled) {
+.delivery-tracking-page .btn-action.btn-dispatch:hover:not(:disabled){
   background-color: #3B82F6;
   color: #ffffff;
 }
 
-.btn-action.btn-deliver {
+.delivery-tracking-page .btn-action.btn-deliver{
   background-color: #D1FAE5;
   color: #059669;
 }
 
-.btn-action.btn-deliver:hover:not(:disabled) {
+.delivery-tracking-page .btn-action.btn-deliver:hover:not(:disabled){
   background-color: #10B981;
   color: #ffffff;
 }
 
-.btn-action.btn-edit {
+.delivery-tracking-page .btn-action.btn-edit{
   background-color: #FEF3C7;
   color: #D97706;
 }
 
-.btn-action.btn-edit:hover:not(:disabled) {
+.delivery-tracking-page .btn-action.btn-edit:hover:not(:disabled){
   background-color: #F59E0B;
   color: #ffffff;
 }
 
-.btn-action:disabled {
+.delivery-tracking-page .btn-action:disabled{
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Pagination */
-.pagination {
+.delivery-tracking-page .pagination{
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -586,18 +586,18 @@
   background-color: #F9FAFB;
 }
 
-.pagination-info {
+.delivery-tracking-page .pagination-info{
   font-size: 0.8rem;
   color: #6B7280;
 }
 
-.pagination-controls {
+.delivery-tracking-page .pagination-controls{
   display: flex;
   align-items: center;
   gap: 0.375rem;
 }
 
-.pagination-btn {
+.delivery-tracking-page .pagination-btn{
   display: flex;
   align-items: center;
   justify-content: center;
@@ -611,22 +611,22 @@
   transition: all 0.2s ease;
 }
 
-.pagination-btn:hover:not(:disabled) {
+.delivery-tracking-page .pagination-btn:hover:not(:disabled){
   background-color: #F3F4F6;
   border-color: #D1D5DB;
 }
 
-.pagination-btn:disabled {
+.delivery-tracking-page .pagination-btn:disabled{
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.page-numbers {
+.delivery-tracking-page .page-numbers{
   display: flex;
   gap: 0.25rem;
 }
 
-.page-btn {
+.delivery-tracking-page .page-btn{
   display: flex;
   align-items: center;
   justify-content: center;
@@ -642,18 +642,18 @@
   transition: all 0.2s ease;
 }
 
-.page-btn:hover {
+.delivery-tracking-page .page-btn:hover{
   background-color: #F3F4F6;
 }
 
-.page-btn.active {
+.delivery-tracking-page .page-btn.active{
   background-color: #16A34A;
   border-color: #16A34A;
   color: #ffffff;
 }
 
 /* Modal Styles */
-.modal-overlay {
+.delivery-tracking-page .modal-overlay{
   position: fixed;
   top: 0;
   left: 0;
@@ -668,7 +668,7 @@
   animation: fadeIn 0.2s ease;
 }
 
-.modal {
+.delivery-tracking-page .modal{
   background-color: #ffffff;
   border-radius: 0.75rem;
   width: 100%;
@@ -679,7 +679,7 @@
   animation: slideUp 0.3s ease;
 }
 
-.modal.modal-lg {
+.delivery-tracking-page .modal.modal-lg{
   max-width: 700px;
 }
 
@@ -694,7 +694,7 @@
   }
 }
 
-.modal-header {
+.delivery-tracking-page .modal-header{
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -706,7 +706,7 @@
   z-index: 10;
 }
 
-.modal-header h3 {
+.delivery-tracking-page .modal-header h3{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -716,11 +716,11 @@
   margin: 0;
 }
 
-.modal-header h3 svg {
+.delivery-tracking-page .modal-header h3 svg{
   color: #16A34A;
 }
 
-.modal-close {
+.delivery-tracking-page .modal-close{
   display: flex;
   align-items: center;
   justify-content: center;
@@ -734,16 +734,16 @@
   transition: all 0.2s ease;
 }
 
-.modal-close:hover {
+.delivery-tracking-page .modal-close:hover{
   background-color: #F3F4F6;
   color: #1F2937;
 }
 
-.modal-body {
+.delivery-tracking-page .modal-body{
   padding: 1.25rem;
 }
 
-.modal-footer {
+.delivery-tracking-page .modal-footer{
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
@@ -755,14 +755,14 @@
 }
 
 /* Delivery Details */
-.delivery-details {
+.delivery-tracking-page .delivery-details{
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
 /* Status Banner */
-.status-banner {
+.delivery-tracking-page .status-banner{
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -771,23 +771,23 @@
   background-color: #F3F4F6;
 }
 
-.status-banner.status-approved {
+.delivery-tracking-page .status-banner.status-approved{
   background-color: #D1FAE5;
 }
 
-.status-banner.status-printing {
+.delivery-tracking-page .status-banner.status-printing{
   background-color: #EDE9FE;
 }
 
-.status-banner.status-dispatched {
+.delivery-tracking-page .status-banner.status-dispatched{
   background-color: #DBEAFE;
 }
 
-.status-banner.status-delivered {
+.delivery-tracking-page .status-banner.status-delivered{
   background-color: #ECFDF5;
 }
 
-.status-icon-large {
+.delivery-tracking-page .status-icon-large{
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -798,58 +798,58 @@
   font-size: 1.5rem;
 }
 
-.status-banner.status-approved .status-icon-large { color: #059669; }
-.status-banner.status-printing .status-icon-large { color: #7C3AED; }
-.status-banner.status-dispatched .status-icon-large { color: #2563EB; }
-.status-banner.status-delivered .status-icon-large { color: #047857; }
+.delivery-tracking-page .status-banner.status-approved .status-icon-large{ color: #059669; }
+.delivery-tracking-page .status-banner.status-printing .status-icon-large{ color: #7C3AED; }
+.delivery-tracking-page .status-banner.status-dispatched .status-icon-large{ color: #2563EB; }
+.delivery-tracking-page .status-banner.status-delivered .status-icon-large{ color: #047857; }
 
-.status-info {
+.delivery-tracking-page .status-info{
   flex: 1;
 }
 
-.status-info h4 {
+.delivery-tracking-page .status-info h4{
   font-size: 1rem;
   font-weight: 600;
   color: #1F2937;
   margin: 0 0 0.25rem 0;
 }
 
-.status-info span {
+.delivery-tracking-page .status-info span{
   font-size: 0.85rem;
   color: #6B7280;
 }
 
-.delivery-status-badge {
+.delivery-tracking-page .delivery-status-badge{
   margin-left: auto;
 }
 
 /* Tracking Timeline */
-.tracking-timeline {
+.delivery-tracking-page .tracking-timeline{
   position: relative;
   padding-left: 2rem;
 }
 
-.timeline-item {
+.delivery-tracking-page .timeline-item{
   position: relative;
   padding-bottom: 1.5rem;
   padding-left: 1.5rem;
   opacity: 0.5;
 }
 
-.timeline-item:last-child {
+.delivery-tracking-page .timeline-item:last-child{
   padding-bottom: 0;
 }
 
-.timeline-item.completed {
+.delivery-tracking-page .timeline-item.completed{
   opacity: 1;
 }
 
-.timeline-item.current {
+.delivery-tracking-page .timeline-item.current{
   opacity: 1;
 }
 
-.timeline-item::before {
-  content: '';
+.delivery-tracking-page .timeline-item::before{
+  content: "";
   position: absolute;
   left: -2rem;
   top: 28px;
@@ -858,15 +858,15 @@
   background-color: #E5E7EB;
 }
 
-.timeline-item:last-child::before {
+.delivery-tracking-page .timeline-item:last-child::before{
   display: none;
 }
 
-.timeline-item.completed::before {
+.delivery-tracking-page .timeline-item.completed::before{
   background-color: #16A34A;
 }
 
-.timeline-icon {
+.delivery-tracking-page .timeline-icon{
   position: absolute;
   left: -2.625rem;
   top: 0;
@@ -882,12 +882,12 @@
   z-index: 1;
 }
 
-.timeline-item.completed .timeline-icon {
+.delivery-tracking-page .timeline-item.completed .timeline-icon{
   background-color: #16A34A;
   color: #ffffff;
 }
 
-.timeline-item.current .timeline-icon {
+.delivery-tracking-page .timeline-item.current .timeline-icon{
   background-color: #F59E0B;
   color: #ffffff;
   animation: pulse 2s infinite;
@@ -902,36 +902,36 @@
   }
 }
 
-.timeline-content h5 {
+.delivery-tracking-page .timeline-content h5{
   font-size: 0.9rem;
   font-weight: 600;
   color: #1F2937;
   margin: 0 0 0.25rem 0;
 }
 
-.timeline-content p {
+.delivery-tracking-page .timeline-content p{
   font-size: 0.8rem;
   color: #6B7280;
   margin: 0 0 0.25rem 0;
 }
 
-.timeline-date {
+.delivery-tracking-page .timeline-date{
   font-size: 0.75rem;
   color: #9CA3AF;
 }
 
 /* Detail Section */
-.detail-section {
+.delivery-tracking-page .detail-section{
   border-bottom: 1px solid #F3F4F6;
   padding-bottom: 1.25rem;
 }
 
-.detail-section:last-child {
+.delivery-tracking-page .detail-section:last-child{
   border-bottom: none;
   padding-bottom: 0;
 }
 
-.detail-section h4 {
+.delivery-tracking-page .detail-section h4{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -941,22 +941,22 @@
   margin: 0 0 1rem 0;
 }
 
-.detail-section h4 svg {
+.delivery-tracking-page .detail-section h4 svg{
   color: #16A34A;
 }
 
-.detail-grid {
+.delivery-tracking-page .detail-grid{
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
-.detail-item {
+.delivery-tracking-page .detail-item{
   display: flex;
   flex-direction: column;
 }
 
-.detail-item label {
+.delivery-tracking-page .detail-item label{
   font-size: 0.7rem;
   font-weight: 600;
   color: #9CA3AF;
@@ -965,29 +965,29 @@
   margin-bottom: 0.25rem;
 }
 
-.detail-item p {
+.delivery-tracking-page .detail-item p{
   font-size: 0.875rem;
   color: #1F2937;
   margin: 0;
 }
 
-.nid-number-large {
-  font-family: 'Consolas', 'Monaco', monospace;
+.delivery-tracking-page .nid-number-large{
+  font-family: "Consolas", "Monaco", monospace;
   font-size: 1rem !important;
   font-weight: 700 !important;
   color: #16A34A !important;
   letter-spacing: 1px;
 }
 
-.tracking-number {
+.delivery-tracking-page .tracking-number{
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: "Consolas", "Monaco", monospace;
 }
 
 /* Address Card */
-.address-card {
+.delivery-tracking-page .address-card{
   display: flex;
   gap: 1rem;
   padding: 1rem;
@@ -996,7 +996,7 @@
   border: 1px solid #E5E7EB;
 }
 
-.address-icon {
+.delivery-tracking-page .address-icon{
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1009,24 +1009,24 @@
   flex-shrink: 0;
 }
 
-.address-content {
+.delivery-tracking-page .address-content{
   flex: 1;
 }
 
-.address-line {
+.delivery-tracking-page .address-line{
   font-size: 0.9rem;
   color: #374151;
   margin: 0 0 0.25rem 0;
 }
 
-.address-postcode {
+.delivery-tracking-page .address-postcode{
   font-size: 0.8rem;
   color: #6B7280;
   margin: 0.5rem 0 0 0;
 }
 
 /* Update Form */
-.update-info {
+.delivery-tracking-page .update-info{
   text-align: center;
   padding: 1rem;
   background-color: #F0FDF4;
@@ -1034,28 +1034,28 @@
   margin-bottom: 1.5rem;
 }
 
-.update-info p {
+.delivery-tracking-page .update-info p{
   font-size: 0.85rem;
   color: #6B7280;
   margin: 0 0 0.25rem 0;
 }
 
-.update-info strong {
+.delivery-tracking-page .update-info strong{
   font-size: 1.125rem;
   color: #16A34A;
   display: block;
 }
 
-.update-info span {
+.delivery-tracking-page .update-info span{
   font-size: 0.85rem;
   color: #374151;
 }
 
-.form-group {
+.delivery-tracking-page .form-group{
   margin-bottom: 1rem;
 }
 
-.form-label {
+.delivery-tracking-page .form-label{
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1063,8 +1063,8 @@
   margin-bottom: 0.5rem;
 }
 
-.form-input,
-.form-select {
+.delivery-tracking-page .form-input,
+.delivery-tracking-page .form-select{
   width: 100%;
   padding: 0.625rem 0.875rem;
   border: 1px solid #D1D5DB;
@@ -1073,14 +1073,14 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-input:focus,
-.form-select:focus {
+.delivery-tracking-page .form-input:focus,
+.delivery-tracking-page .form-select:focus{
   outline: none;
   border-color: #16A34A;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
-.form-textarea {
+.delivery-tracking-page .form-textarea{
   width: 100%;
   padding: 0.625rem 0.875rem;
   border: 1px solid #D1D5DB;
@@ -1091,13 +1091,13 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-textarea:focus {
+.delivery-tracking-page .form-textarea:focus{
   outline: none;
   border-color: #16A34A;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
-.input-with-icon {
+.delivery-tracking-page .input-with-icon{
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1107,17 +1107,17 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.input-with-icon:focus-within {
+.delivery-tracking-page .input-with-icon:focus-within{
   border-color: #16A34A;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
-.input-with-icon svg {
+.delivery-tracking-page .input-with-icon svg{
   color: #6B7280;
   font-size: 1rem;
 }
 
-.input-with-icon input {
+.delivery-tracking-page .input-with-icon input{
   flex: 1;
   border: none;
   outline: none;
@@ -1126,7 +1126,7 @@
 }
 
 /* Buttons */
-.btn {
+.delivery-tracking-page .btn{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1140,46 +1140,46 @@
   transition: all 0.2s ease;
 }
 
-.btn-primary {
+.delivery-tracking-page .btn-primary{
   background-color: #16A34A;
   color: #ffffff;
 }
 
-.btn-primary:hover:not(:disabled) {
+.delivery-tracking-page .btn-primary:hover:not(:disabled){
   background-color: #15803D;
 }
 
-.btn-success {
+.delivery-tracking-page .btn-success{
   background-color: #10B981;
   color: #ffffff;
 }
 
-.btn-success:hover:not(:disabled) {
+.delivery-tracking-page .btn-success:hover:not(:disabled){
   background-color: #059669;
 }
 
-.btn-outline {
+.delivery-tracking-page .btn-outline{
   background-color: transparent;
   border: 1px solid #D1D5DB;
   color: #374151;
 }
 
-.btn-outline:hover:not(:disabled) {
+.delivery-tracking-page .btn-outline:hover:not(:disabled){
   background-color: #F3F4F6;
 }
 
-.btn:disabled {
+.delivery-tracking-page .btn:disabled{
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.btn-sm {
+.delivery-tracking-page .btn-sm{
   padding: 0.5rem 0.875rem;
   font-size: 0.8rem;
 }
 
 /* Spinner */
-.spinner {
+.delivery-tracking-page .spinner{
   animation: spin 1s linear infinite;
 }
 
@@ -1189,30 +1189,30 @@
 }
 
 /* Scrollbar */
-.table-container::-webkit-scrollbar,
-.modal::-webkit-scrollbar {
+.delivery-tracking-page .table-container::-webkit-scrollbar,
+.delivery-tracking-page .modal::-webkit-scrollbar{
   width: 6px;
   height: 6px;
 }
 
-.table-container::-webkit-scrollbar-track,
-.modal::-webkit-scrollbar-track {
+.delivery-tracking-page .table-container::-webkit-scrollbar-track,
+.delivery-tracking-page .modal::-webkit-scrollbar-track{
   background: #F3F4F6;
 }
 
-.table-container::-webkit-scrollbar-thumb,
-.modal::-webkit-scrollbar-thumb {
+.delivery-tracking-page .table-container::-webkit-scrollbar-thumb,
+.delivery-tracking-page .modal::-webkit-scrollbar-thumb{
   background: #D1D5DB;
   border-radius: 3px;
 }
 
-.table-container::-webkit-scrollbar-thumb:hover,
-.modal::-webkit-scrollbar-thumb:hover {
+.delivery-tracking-page .table-container::-webkit-scrollbar-thumb:hover,
+.delivery-tracking-page .modal::-webkit-scrollbar-thumb:hover{
   background: #9CA3AF;
 }
 
 /* Admin Loading */
-.admin-loading {
+.delivery-tracking-page .admin-loading{
   min-height: 60vh;
   display: flex;
   align-items: center;
@@ -1221,86 +1221,86 @@
 
 /* Responsive */
 @media (max-width: 1200px) {
-  .stats-row {
+  .delivery-tracking-page .stats-row{
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .filters-grid {
+  .delivery-tracking-page .filters-grid{
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .filter-search {
+  .delivery-tracking-page .filter-search{
     grid-column: span 3;
   }
 }
 
 @media (max-width: 992px) {
-  .stats-row {
+  .delivery-tracking-page .stats-row{
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .filters-grid {
+  .delivery-tracking-page .filters-grid{
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .filter-search {
+  .delivery-tracking-page .filter-search{
     grid-column: span 2;
   }
 }
 
 @media (max-width: 768px) {
-  .page-header {
+  .delivery-tracking-page .page-header{
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
 
-  .header-actions {
+  .delivery-tracking-page .header-actions{
     width: 100%;
   }
 
-  .header-actions .btn {
+  .delivery-tracking-page .header-actions .btn{
     flex: 1;
   }
 
-  .stats-row {
+  .delivery-tracking-page .stats-row{
     grid-template-columns: 1fr;
   }
 
-  .filters-grid {
+  .delivery-tracking-page .filters-grid{
     grid-template-columns: 1fr;
   }
 
-  .filter-search {
+  .delivery-tracking-page .filter-search{
     grid-column: span 1;
   }
 
-  .pagination {
+  .delivery-tracking-page .pagination{
     flex-direction: column;
     gap: 1rem;
   }
 
-  .pagination-info {
+  .delivery-tracking-page .pagination-info{
     text-align: center;
   }
 
-  .detail-grid {
+  .delivery-tracking-page .detail-grid{
     grid-template-columns: 1fr;
   }
 
-  .modal-footer {
+  .delivery-tracking-page .modal-footer{
     flex-direction: column;
   }
 
-  .modal-footer .btn {
+  .delivery-tracking-page .modal-footer .btn{
     width: 100%;
   }
 
-  .status-banner {
+  .delivery-tracking-page .status-banner{
     flex-wrap: wrap;
   }
 
-  .delivery-status-badge {
+  .delivery-tracking-page .delivery-status-badge{
     width: 100%;
     margin-top: 0.75rem;
     margin-left: 0;
@@ -1308,46 +1308,46 @@
 }
 
 @media (max-width: 576px) {
-  .filters-header {
+  .delivery-tracking-page .filters-header{
     flex-direction: column;
     gap: 0.75rem;
     align-items: flex-start;
   }
 
-  .pagination-controls {
+  .delivery-tracking-page .pagination-controls{
     flex-wrap: wrap;
     justify-content: center;
   }
 
-  .page-numbers {
+  .delivery-tracking-page .page-numbers{
     order: -1;
     width: 100%;
     justify-content: center;
   }
 
-  .action-buttons {
+  .delivery-tracking-page .action-buttons{
     flex-wrap: wrap;
   }
 
-  .address-card {
+  .delivery-tracking-page .address-card{
     flex-direction: column;
     align-items: center;
     text-align: center;
   }
 
-  .tracking-timeline {
+  .delivery-tracking-page .tracking-timeline{
     padding-left: 1.5rem;
   }
 
-  .timeline-item {
+  .delivery-tracking-page .timeline-item{
     padding-left: 1rem;
   }
 
-  .timeline-item::before {
+  .delivery-tracking-page .timeline-item::before{
     left: -1.5rem;
   }
 
-  .timeline-icon {
+  .delivery-tracking-page .timeline-icon{
     left: -2.125rem;
     width: 28px;
     height: 28px;
@@ -1356,24 +1356,24 @@
 
 /* Print Styles */
 @media print {
-  .page-header .header-actions,
-  .filters-card,
-  .pagination,
-  .action-buttons {
+  .delivery-tracking-page .page-header .header-actions,
+  .delivery-tracking-page .filters-card,
+  .delivery-tracking-page .pagination,
+  .delivery-tracking-page .action-buttons{
     display: none;
   }
 
-  .deliveries-card {
+  .delivery-tracking-page .deliveries-card{
     box-shadow: none;
     border: 1px solid #000;
   }
 
-  .deliveries-table {
+  .delivery-tracking-page .deliveries-table{
     font-size: 10px;
   }
 
-  .deliveries-table th,
-  .deliveries-table td {
+  .delivery-tracking-page .deliveries-table th,
+  .delivery-tracking-page .deliveries-table td{
     padding: 0.5rem;
   }
 }

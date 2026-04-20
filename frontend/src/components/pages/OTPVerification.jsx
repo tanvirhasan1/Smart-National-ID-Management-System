@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaRedo, FaSpinner, FaShieldAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import '../styles/Auth.css';
+import '../styles/OTPVerification.css';
 
 const OTPVerification = () => {
   const { verifyOTP, resendOTP, pendingVerificationKey } = useAuth();

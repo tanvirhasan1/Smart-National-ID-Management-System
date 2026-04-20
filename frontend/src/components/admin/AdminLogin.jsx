@@ -11,7 +11,7 @@ import {
   FaEnvelope
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import '../styles/Auth.css';
+import '../styles/AdminLogin.css';
 
 const AdminLogin = () => {
   const { adminLogin } = useAuth();

@@ -1,480 +1,9 @@
-.digital-nid-page {
-  min-height: calc(100vh - 140px);
-  background-color: #F3F4F6;
-  padding: 2rem 1rem;
-}
-
-.nid-container {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.nid-loading,
-.nid-error {
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.error-content {
-  text-align: center;
-  background-color: #ffffff;
-  padding: 3rem;
-  border-radius: 1rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.error-icon {
-  font-size: 4rem;
-  color: #DC2626;
-  margin-bottom: 1rem;
-}
-
-.error-content h2 {
-  font-size: 1.5rem;
-  color: #1F2937;
-  margin-bottom: 0.5rem;
-}
-
-.error-content p {
-  color: #6B7280;
-  margin-bottom: 1.5rem;
-}
-
-/* Header */
-.nid-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.back-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6B7280;
-  font-weight: 500;
-}
-
-.back-link:hover {
-  color: #16A34A;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-/* NID Card Wrapper */
-.nid-card-wrapper {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-/* NID Card */
-.nid-card {
-  background: linear-gradient(135deg, #1E3A5F 0%, #0F2942 100%);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  color: #ffffff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  aspect-ratio: 1.586;
+.digital-nid-page-wrapper .digital-nid-card-shell {
   position: relative;
   overflow: hidden;
 }
 
-.nid-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url('data:image/svg+xml,...') repeat; /* Pattern overlay */
-  opacity: 0.05;
-  pointer-events: none;
-}
-
-/* Front Card */
-.nid-card.front .card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.government-logo img {
-  width: 50px;
-  height: auto;
-}
-
-.card-title {
-  flex: 1;
-  text-align: center;
-}
-
-.title-bn {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.title-en {
-  display: block;
-  font-size: 0.65rem;
-  opacity: 0.9;
-}
-
-.card-type {
-  display: block;
-  font-size: 0.7rem;
-  margin-top: 0.25rem;
-  color: #FFD700;
-}
-
-.smart-chip {
-  width: 40px;
-  height: 30px;
-}
-
-.chip-graphic {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
-  border-radius: 4px;
-}
-
-.nid-card.front .card-body {
-  display: flex;
-  gap: 1rem;
-}
-
-.photo-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.photo-frame {
-  width: 80px;
-  height: 100px;
-  background-color: #ffffff;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.photo-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.photo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #D1D5DB;
-  font-size: 2rem;
-}
-
-.signature-frame {
-  width: 80px;
-  height: 30px;
-  background-color: #ffffff;
-  border-radius: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.signature-frame img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.info-section {
-  flex: 1;
-}
-
-.info-row {
-  margin-bottom: 0.5rem;
-}
-
-.info-row label {
-  display: block;
-  font-size: 0.6rem;
-  opacity: 0.7;
-  margin-bottom: 0.125rem;
-}
-
-.info-row p {
-  font-size: 0.75rem;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.name-bn {
-  font-size: 0.85rem !important;
-  font-weight: 600;
-}
-
-.name-en {
-  font-size: 0.7rem !important;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-
-.nid-card.front .card-footer {
-  position: absolute;
-  bottom: 1rem;
-  left: 1.5rem;
-  right: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.nid-number {
-  text-align: right;
-}
-
-.nid-number label {
-  font-size: 0.6rem;
-  opacity: 0.7;
-}
-
-.nid-number span {
-  display: block;
-  font-size: 1rem;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 1px;
-}
-
-/* Back Card */
-.nid-card.back {
-  background: linear-gradient(135deg, #1E3A5F 0%, #0F2942 100%);
-}
-
-.back-header {
-  text-align: center;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  margin-bottom: 1rem;
-}
-
-.back-header span {
-  font-size: 0.75rem;
-  opacity: 0.9;
-}
-
-.back-body {
-  display: flex;
-  gap: 1rem;
-}
-
-.address-section {
-  flex: 1;
-}
-
-.address-block {
-  margin-bottom: 0.75rem;
-}
-
-.address-block label {
-  display: block;
-  font-size: 0.6rem;
-  opacity: 0.7;
-  margin-bottom: 0.25rem;
-}
-
-.address-block p {
-  font-size: 0.7rem;
-  margin: 0;
-  line-height: 1.4;
-}
-
-.qr-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.qr-code {
-  background-color: #ffffff;
-  padding: 0.25rem;
-  border-radius: 4px;
-}
-
-.qr-info {
-  text-align: center;
-  margin-top: 0.5rem;
-}
-
-.qr-info p {
-  font-size: 0.65rem;
-  margin: 0;
-}
-
-.qr-info small {
-  font-size: 0.5rem;
-  opacity: 0.7;
-}
-
-.back-footer {
-  position: absolute;
-  bottom: 1rem;
-  left: 1.5rem;
-  right: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-}
-
-.brn-info,
-.issue-info {
-  font-size: 0.65rem;
-}
-
-.brn-info label,
-.issue-info label {
-  display: block;
-  opacity: 0.7;
-  font-size: 0.55rem;
-}
-
-/* Verification Badge */
-.verification-badge {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background-color: #D1FAE5;
-  border: 1px solid #A7F3D0;
-  border-radius: 0.75rem;
-  padding: 1rem 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.verification-badge svg {
-  font-size: 2rem;
-  color: #16A34A;
-}
-
-.verification-badge h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #065F46;
-  margin-bottom: 0.125rem;
-}
-
-.verification-badge p {
-  font-size: 0.875rem;
-  color: #047857;
-  margin: 0;
-}
-
-/* Info Section */
-.nid-info-section {
-  background-color: #ffffff;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.nid-info-section h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1F2937;
-  margin-bottom: 1.25rem;
-}
-
-.info-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.info-card {
-  background-color: #F9FAFB;
-  border-radius: 0.5rem;
-  padding: 1rem;
-}
-
-.info-card h4 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1F2937;
-  margin-bottom: 0.5rem;
-}
-
-.info-card p {
-  font-size: 0.875rem;
-  color: #6B7280;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Print Styles */
-@media print {
-  .nid-header,
-  .verification-badge,
-  .nid-info-section {
-    display: none;
-  }
-
-  .nid-card-wrapper {
-    display: block;
-    page-break-inside: avoid;
-  }
-
-  .nid-card {
-    margin-bottom: 2rem;
-    box-shadow: none;
-    border: 1px solid #000;
-  }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .nid-card-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .nid-header {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .info-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .header-actions {
-    width: 100%;
-  }
-
-  .header-actions .btn {
-    flex: 1;
-  }
-}
-
-/* Digital NID custom styles */
-
-.digital-nid-card-shell {
-  position: relative;
-  overflow: hidden;
-}
-
-.digital-nid-card-shell::before {
+.digital-nid-page-wrapper .digital-nid-card-shell::before {
   content: '';
   position: absolute;
   top: -60px;
@@ -485,7 +14,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-.digital-nid-card-shell::after {
+.digital-nid-page-wrapper .digital-nid-card-shell::after {
   content: '';
   position: absolute;
   bottom: -80px;
@@ -496,21 +25,44 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-.digital-nid-card-panel,
-.digital-nid-photo-box,
-.digital-nid-qr-card,
-.digital-nid-info-card,
-.digital-nid-note-card {
+.digital-nid-page-wrapper .digital-nid-card-panel,
+.digital-nid-page-wrapper .digital-nid-photo-box,
+.digital-nid-page-wrapper .digital-nid-qr-card,
+.digital-nid-page-wrapper .digital-nid-info-card,
+.digital-nid-page-wrapper .digital-nid-note-card {
   position: relative;
   z-index: 1;
 }
 
-.digital-nid-photo {
+.digital-nid-page-wrapper .digital-nid-photo {
   display: block;
 }
 
-.digital-nid-detail-value {
+.digital-nid-page-wrapper .digital-nid-detail-value {
   word-break: break-word;
+}
+
+.digital-nid-page-wrapper .digital-nid-back-button,
+.digital-nid-page-wrapper .digital-nid-back-link,
+.digital-nid-page-wrapper .digital-nid-download-button {
+  text-decoration: none;
+  outline: none;
+}
+
+.digital-nid-page-wrapper .digital-nid-back-button:focus-visible,
+.digital-nid-page-wrapper .digital-nid-back-link:focus-visible,
+.digital-nid-page-wrapper .digital-nid-download-button:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+.digital-nid-page-wrapper .digital-nid-loading-card,
+.digital-nid-page-wrapper .digital-nid-empty-card,
+.digital-nid-page-wrapper .digital-nid-main-panel,
+.digital-nid-page-wrapper .digital-nid-info-card,
+.digital-nid-page-wrapper .digital-nid-note-card,
+.digital-nid-page-wrapper .digital-nid-card-shell {
+  will-change: transform, box-shadow;
 }
 
 @media print {
@@ -535,16 +87,16 @@
     padding: 0 !important;
   }
 
-  .digital-nid-layout {
+  .digital-nid-page-wrapper .digital-nid-layout {
     display: block !important;
   }
 
-  .digital-nid-main-panel {
+  .digital-nid-page-wrapper .digital-nid-main-panel {
     box-shadow: none !important;
     padding: 0 !important;
   }
 
-  .digital-nid-card-shell {
+  .digital-nid-page-wrapper .digital-nid-card-shell {
     margin: 0 auto;
     max-width: 100%;
     box-shadow: none !important;
@@ -552,21 +104,21 @@
 }
 
 @media (max-width: 640px) {
-  .digital-nid-card-body {
+  .digital-nid-page-wrapper .digital-nid-card-body {
     grid-template-columns: 1fr !important;
     justify-items: center;
     text-align: center;
   }
 
-  .digital-nid-info-block {
+  .digital-nid-page-wrapper .digital-nid-info-block {
     width: 100%;
   }
 
-  .digital-nid-info-grid {
+  .digital-nid-page-wrapper .digital-nid-info-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .digital-nid-qr-box {
+  .digital-nid-page-wrapper .digital-nid-qr-box {
     width: 100%;
   }
 }

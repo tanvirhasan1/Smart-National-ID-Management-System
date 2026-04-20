@@ -46,31 +46,36 @@ const Navbar = () => {
 
   const isPathActive = (path) => location.pathname === path;
 
-  // Keep navbar hidden on admin area
   if (location.pathname.startsWith('/admin')) {
     return null;
   }
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        {/* Logo */}
-        <Link to="/" className="navbar-logo" onClick={handleNavClick}>
-          <img src="https://i.ibb.co.com/99gnCXfN/logo.png" alt="Logo" className="logo-img" />
+    <nav className="site-navbar">
+      <div className="site-navbar-container">
+        <Link to="/" className="site-navbar-logo" onClick={handleNavClick}>
+          <img
+            src="https://i.ibb.co.com/99gnCXfN/logo.png"
+            alt="Logo"
+            className="site-navbar-logo-image"
+          />
         </Link>
 
-        {/* Mobile Menu Toggle */}
-        <button className="mobile-menu-toggle" onClick={toggleMobileMenu}>
+        <button
+          type="button"
+          className="site-navbar-mobile-toggle"
+          onClick={toggleMobileMenu}
+          aria-label="Toggle navigation menu"
+        >
           {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
         </button>
 
-        {/* Navigation Links */}
-        <div className={`navbar-menu ${isMobileMenuOpen ? 'active' : ''}`}>
+        <div className={`site-navbar-menu ${isMobileMenuOpen ? 'is-active' : ''}`}>
           {!isAuthenticated ? (
             <>
               <Link
                 to="/"
-                className={`nav-link ${isPathActive('/') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 <FaHome /> Home
@@ -78,7 +83,7 @@ const Navbar = () => {
 
               <Link
                 to="/login"
-                className={`nav-link ${isPathActive('/login') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/login') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 Login
@@ -86,7 +91,7 @@ const Navbar = () => {
 
               <Link
                 to="/register"
-                className="btn btn-primary nav-btn"
+                className="btn btn-primary site-navbar-button"
                 onClick={handleNavClick}
               >
                 Register
@@ -96,7 +101,7 @@ const Navbar = () => {
             <>
               <Link
                 to="/dashboard"
-                className={`nav-link ${isPathActive('/dashboard') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/dashboard') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 <FaHome /> Dashboard
@@ -104,7 +109,7 @@ const Navbar = () => {
 
               <Link
                 to="/apply"
-                className={`nav-link ${isPathActive('/apply') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/apply') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 <FaIdCard /> Apply NID
@@ -112,7 +117,7 @@ const Navbar = () => {
 
               <Link
                 to="/track-application"
-                className={`nav-link ${isPathActive('/track-application') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/track-application') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 <FaSearch /> Track Status
@@ -120,29 +125,37 @@ const Navbar = () => {
 
               <Link
                 to="/support"
-                className={`nav-link ${isPathActive('/support') ? 'active' : ''}`}
+                className={`site-navbar-link ${isPathActive('/support') ? 'is-active' : ''}`}
                 onClick={handleNavClick}
               >
                 <FaHeadset /> Support
               </Link>
 
-              <div className="profile-dropdown">
-                <button className="profile-btn" onClick={toggleProfileDropdown}>
+              <div className="site-navbar-profile-dropdown">
+                <button
+                  type="button"
+                  className="site-navbar-profile-button"
+                  onClick={toggleProfileDropdown}
+                >
                   <FaUser />
                   <span>{user?.fullName?.split(' ')[0]}</span>
                 </button>
 
                 {isProfileDropdownOpen && (
-                  <div className="dropdown-menu">
+                  <div className="site-navbar-dropdown-menu">
                     <Link
                       to="/profile"
-                      className="dropdown-item"
+                      className="site-navbar-dropdown-item"
                       onClick={handleNavClick}
                     >
                       <FaUser /> Profile
                     </Link>
 
-                    <button className="dropdown-item logout" onClick={handleLogout}>
+                    <button
+                      type="button"
+                      className="site-navbar-dropdown-item is-logout"
+                      onClick={handleLogout}
+                    >
                       <FaSignOutAlt /> Logout
                     </button>
                   </div>
@@ -150,7 +163,11 @@ const Navbar = () => {
               </div>
             </>
           ) : (
-            <button className="btn btn-outline nav-btn" onClick={handleLogout}>
+            <button
+              type="button"
+              className="btn btn-outline site-navbar-button"
+              onClick={handleLogout}
+            >
               <FaSignOutAlt /> Logout
             </button>
           )}
