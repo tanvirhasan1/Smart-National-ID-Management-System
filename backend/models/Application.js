@@ -64,17 +64,75 @@ const documentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const statusHistorySchema = new mongoose.Schema(
+  {
+    fromStatus: {
+      type: String,
+      enum: [
+        'draft',
+        'submitted',
+        'under_review',
+        'approved',
+        'rejected',
+        'printed',
+        'dispatched',
+        'delivered',
+        'cancelled',
+        null
+      ],
+      default: null
+    },
+    toStatus: {
+      type: String,
+      enum: [
+        'draft',
+        'submitted',
+        'under_review',
+        'approved',
+        'rejected',
+        'printed',
+        'dispatched',
+        'delivered',
+        'cancelled'
+      ],
+      required: true
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    actorRole: {
+      type: String,
+      enum: ['citizen', 'admin', 'system_supervisor', 'support_staff', 'system'],
+      default: 'system'
+    },
+    note: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
+);
+
 const applicationSchema = new mongoose.Schema(
   {
     applicant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+      required: true,
+      index: true
     },
     applicationId: {
       type: String,
       unique: true,
-      trim: true
+      trim: true,
+      index: true
     },
     applicationType: {
       type: String,
@@ -169,35 +227,66 @@ const applicationSchema = new mongoose.Schema(
         'approved',
         'rejected',
         'printed',
+        'dispatched',
         'delivered',
         'cancelled'
       ],
-      default: 'draft'
+      default: 'draft',
+      index: true
     },
+
+    statusHistory: {
+      type: [statusHistorySchema],
+      default: []
+    },
+
+    lastStatusChangedAt: {
+      type: Date,
+      default: Date.now
+    },
+
     rejectionReason: {
       type: String,
       trim: true
     },
     submittedAt: {
-      type: Date
+      type: Date,
+      default: null
     },
     approvedAt: {
-      type: Date
+      type: Date,
+      default: null
     },
     printedAt: {
-      type: Date
+      type: Date,
+      default: null
+    },
+    dispatchedAt: {
+      type: Date,
+      default: null
     },
     deliveredAt: {
-      type: Date
+      type: Date,
+      default: null
     },
     cancelledAt: {
-      type: Date
+      type: Date,
+      default: null
     }
   },
   {
     timestamps: true
   }
 );
+
+applicationSchema.index({ applicant: 1, createdAt: -1 });
+applicationSchema.index({ applicant: 1, status: 1, createdAt: -1 });
+applicationSchema.index({ status: 1, updatedAt: -1 });
+applicationSchema.index({ submittedAt: -1 });
+applicationSchema.index({ approvedAt: -1 });
+applicationSchema.index({ printedAt: -1 });
+applicationSchema.index({ dispatchedAt: -1 });
+applicationSchema.index({ deliveredAt: -1 });
 
 module.exports =
   mongoose.models.Application ||

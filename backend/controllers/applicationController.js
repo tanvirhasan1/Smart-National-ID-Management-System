@@ -1,10 +1,62 @@
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const { randomUUID } = require('crypto');
 const { validationResult } = require('express-validator');
 const Application = require('../models/Application');
+const { createAuditLog } = require('../utils/auditLogger');
+
+const ACTIVE_APPLICATION_STATUSES = [
+  'draft',
+  'submitted',
+  'under_review',
+  'approved',
+  'printed',
+  'dispatched'
+];
 
 const generateApplicationId = () => {
-  return `APP-${Date.now()}`;
+  const shortId = randomUUID().split('-')[0].toUpperCase();
+  return `APP-${Date.now()}-${shortId}`;
+};
+
+const appendStatusHistory = ({
+  application,
+  fromStatus,
+  toStatus,
+  changedBy,
+  actorRole,
+  note
+}) => {
+  application.statusHistory.push({
+    fromStatus: fromStatus || null,
+    toStatus,
+    changedBy: changedBy || null,
+    actorRole: actorRole || 'system',
+    note: note || '',
+    changedAt: new Date()
+  });
+
+  application.lastStatusChangedAt = new Date();
+};
+
+const buildChangedFields = (application, payload, allowedFields) => {
+  const changedFields = [];
+
+  allowedFields.forEach((field) => {
+    if (payload[field] === undefined) {
+      return;
+    }
+
+    const currentValue = JSON.stringify(application[field] ?? null);
+    const incomingValue = JSON.stringify(payload[field] ?? null);
+
+    if (currentValue !== incomingValue) {
+      application[field] = payload[field];
+      changedFields.push(field);
+    }
+  });
+
+  return changedFields;
 };
 
 const createApplication = async (req, res) => {
@@ -15,6 +67,20 @@ const createApplication = async (req, res) => {
       return res.status(400).json({
         success: false,
         errors: errors.array()
+      });
+    }
+
+    const existingActiveApplication = await Application.findOne({
+      applicant: req.user._id,
+      status: { $in: ACTIVE_APPLICATION_STATUSES }
+    }).select('_id applicationId status');
+
+    if (existingActiveApplication) {
+      return res.status(409).json({
+        success: false,
+        message:
+          'You already have an active application. Please complete, cancel, or wait for the current one before creating another application.',
+        activeApplication: existingActiveApplication
       });
     }
 
@@ -61,7 +127,32 @@ const createApplication = async (req, res) => {
       permanentAddress,
       documents,
       status: 'submitted',
-      submittedAt: new Date()
+      submittedAt: new Date(),
+      lastStatusChangedAt: new Date(),
+      statusHistory: [
+        {
+          fromStatus: null,
+          toStatus: 'submitted',
+          changedBy: req.user._id,
+          actorRole: req.user.role,
+          note: 'Application submitted by citizen',
+          changedAt: new Date()
+        }
+      ]
+    });
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'application_created',
+      entityType: 'Application',
+      entityId: application._id,
+      message: `Citizen submitted application ${application.applicationId}`,
+      meta: {
+        applicationId: application.applicationId,
+        applicationType: application.applicationType,
+        status: application.status
+      }
     });
 
     res.status(201).json({
@@ -150,7 +241,7 @@ const updateApplication = async (req, res) => {
     }
 
     if (
-      ['approved', 'rejected', 'printed', 'delivered', 'cancelled'].includes(
+      ['approved', 'rejected', 'printed', 'dispatched', 'delivered', 'cancelled'].includes(
         application.status
       )
     ) {
@@ -178,22 +269,38 @@ const updateApplication = async (req, res) => {
       'occupation',
       'presentAddress',
       'permanentAddress',
-      'documents',
-      'rejectionReason'
+      'documents'
     ];
 
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        application[field] = req.body[field];
-      }
-    });
+    const changedFields = buildChangedFields(application, req.body, allowedFields);
+
+    if (changedFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid application changes were provided'
+      });
+    }
 
     const updatedApplication = await application.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'application_updated',
+      entityType: 'Application',
+      entityId: updatedApplication._id,
+      message: `Citizen updated application ${updatedApplication.applicationId}`,
+      meta: {
+        applicationId: updatedApplication.applicationId,
+        changedFields
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Application updated successfully',
-      application: updatedApplication
+      application: updatedApplication,
+      changedFields
     });
   } catch (error) {
     res.status(500).json({
@@ -224,17 +331,46 @@ const cancelApplication = async (req, res) => {
       });
     }
 
-    if (['approved', 'printed', 'delivered', 'cancelled'].includes(application.status)) {
+    if (
+      ['approved', 'printed', 'dispatched', 'delivered', 'cancelled'].includes(
+        application.status
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message: `Application cannot be cancelled when status is '${application.status}'`
       });
     }
 
+    const previousStatus = application.status;
+
     application.status = 'cancelled';
     application.cancelledAt = new Date();
 
+    appendStatusHistory({
+      application,
+      fromStatus: previousStatus,
+      toStatus: 'cancelled',
+      changedBy: req.user._id,
+      actorRole: req.user.role,
+      note: 'Application cancelled by citizen'
+    });
+
     const cancelledApplication = await application.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'application_cancelled',
+      entityType: 'Application',
+      entityId: cancelledApplication._id,
+      message: `Citizen cancelled application ${cancelledApplication.applicationId}`,
+      meta: {
+        applicationId: cancelledApplication.applicationId,
+        fromStatus: previousStatus,
+        toStatus: 'cancelled'
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -338,13 +474,14 @@ const reviewApplicationByAdmin = async (req, res) => {
       });
     }
 
-    if (['cancelled', 'printed', 'delivered'].includes(application.status)) {
+    if (['cancelled', 'printed', 'dispatched', 'delivered'].includes(application.status)) {
       return res.status(400).json({
         success: false,
         message: `Application cannot be reviewed when status is '${application.status}'`
       });
     }
 
+    const previousStatus = application.status;
     application.status = status;
 
     if (status === 'approved') {
@@ -360,16 +497,43 @@ const reviewApplicationByAdmin = async (req, res) => {
         });
       }
 
-      application.rejectionReason = rejectionReason;
-      application.approvedAt = undefined;
+      application.rejectionReason = rejectionReason.trim();
+      application.approvedAt = null;
     }
 
     if (status === 'under_review') {
       application.rejectionReason = '';
-      application.approvedAt = undefined;
+      application.approvedAt = null;
     }
 
+    appendStatusHistory({
+      application,
+      fromStatus: previousStatus,
+      toStatus: status,
+      changedBy: req.user._id,
+      actorRole: req.user.role,
+      note:
+        status === 'rejected'
+          ? `Application rejected: ${application.rejectionReason}`
+          : `Application moved to ${status} by admin`
+    });
+
     const reviewedApplication = await application.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'application_reviewed',
+      entityType: 'Application',
+      entityId: reviewedApplication._id,
+      message: `Admin changed application ${reviewedApplication.applicationId} from ${previousStatus} to ${status}`,
+      meta: {
+        applicationId: reviewedApplication.applicationId,
+        fromStatus: previousStatus,
+        toStatus: status,
+        rejectionReason: reviewedApplication.rejectionReason || ''
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -394,6 +558,7 @@ const getAdminDashboardStats = async (req, res) => {
       rejectedCount,
       cancelledCount,
       printedCount,
+      dispatchedCount,
       deliveredCount,
       newCount,
       correctionCount,
@@ -407,6 +572,7 @@ const getAdminDashboardStats = async (req, res) => {
       Application.countDocuments({ status: 'rejected' }),
       Application.countDocuments({ status: 'cancelled' }),
       Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'dispatched' }),
       Application.countDocuments({ status: 'delivered' }),
       Application.countDocuments({ applicationType: 'new' }),
       Application.countDocuments({ applicationType: 'correction' }),
@@ -428,6 +594,7 @@ const getAdminDashboardStats = async (req, res) => {
           rejected: rejectedCount,
           cancelled: cancelledCount,
           printed: printedCount,
+          dispatched: dispatchedCount,
           delivered: deliveredCount
         },
         byType: {
@@ -472,14 +639,11 @@ const getApplicationPrefill = async (req, res) => {
     }
 
     const prefill = {
-      fullNameEnglish:
-        birthCertificate?.fullName || user.fullName || '',
-      fullNameBangla:
-        birthCertificate?.fullNameBangla || user.fullNameBangla || '',
+      fullNameEnglish: birthCertificate?.fullName || user.fullName || '',
+      fullNameBangla: birthCertificate?.fullNameBangla || user.fullNameBangla || '',
       fatherName: birthCertificate?.fatherName || '',
       motherName: birthCertificate?.motherName || '',
-      placeOfBirth:
-        birthCertificate?.placeOfBirth || user.placeOfBirth || '',
+      placeOfBirth: birthCertificate?.placeOfBirth || user.placeOfBirth || '',
       dateOfBirth: birthCertificate?.dateOfBirth
         ? new Date(birthCertificate.dateOfBirth).toISOString().split('T')[0]
         : user.dateOfBirth
