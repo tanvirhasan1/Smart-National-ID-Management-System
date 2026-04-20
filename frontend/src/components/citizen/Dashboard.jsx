@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaIdCard,
@@ -48,14 +48,23 @@ const CitizenDashboard = () => {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
+
+    const intervalId = setInterval(() => {
+      fetchDashboardData({ silent: true });
+    }, 20000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
 
       const [summaryResponse, applicationsResponse] = await Promise.all([
         api.get('/users/dashboard/summary'),
@@ -92,10 +101,13 @@ const CitizenDashboard = () => {
       });
 
       setApplications(applicationList);
+      setLastSyncedAt(new Date());
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -119,8 +131,273 @@ const CitizenDashboard = () => {
   };
 
   const approvedApplication = applications.find((app) =>
-    ['approved', 'printed', 'delivered'].includes(app.status)
+    ['approved', 'printed', 'dispatched', 'delivered'].includes(app.status)
   );
+
+  const sortedApplications = useMemo(() => {
+    return [...applications].sort((a, b) => {
+      const firstTime = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+      const secondTime = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+      return secondTime - firstTime;
+    });
+  }, [applications]);
+
+  const currentApplication = useMemo(() => {
+    return (
+      sortedApplications.find((app) => app.status !== 'cancelled') ||
+      sortedApplications[0] ||
+      null
+    );
+  }, [sortedApplications]);
+
+  const latestStatusHistory = useMemo(() => {
+    if (!currentApplication?.statusHistory?.length) {
+      return [];
+    }
+
+    return [...currentApplication.statusHistory]
+      .sort(
+        (a, b) =>
+          new Date(b?.changedAt || 0).getTime() -
+          new Date(a?.changedAt || 0).getTime()
+      )
+      .slice(0, 3);
+  }, [currentApplication]);
+
+  const getPrimaryApplicationState = (application) => {
+    if (!application) {
+      return {
+        badge: 'Not Started',
+        badgeClass: 'bg-slate-100 text-slate-700',
+        title: 'Start your Smart NID application',
+        description:
+          'You have not submitted any application yet. Once you apply, your full status journey will appear here.',
+        actionLabel: 'Apply for NID',
+        actionTo: '/apply',
+        icon: <FaIdCard />
+      };
+    }
+
+    switch (application.status) {
+      case 'submitted':
+      case 'under_review':
+        return {
+          badge: 'In Review',
+          badgeClass: 'bg-amber-100 text-amber-700',
+          title: 'Your application is under verification',
+          description:
+            'Your submitted information and documents are being reviewed by the authority. Please wait for the next update.',
+          actionLabel: 'Track application',
+          actionTo: `/track-application?id=${application._id}`,
+          icon: <FaClock />
+        };
+
+      case 'approved':
+        return {
+          badge: 'Approved',
+          badgeClass: 'bg-emerald-100 text-emerald-700',
+          title: 'Your application has been approved',
+          description:
+            dashboardSummary.appointments.booked > 0
+              ? 'Your application is approved and your appointment progress is available now.'
+              : 'Your application is approved. Book your biometric appointment as the next step.',
+          actionLabel:
+            dashboardSummary.appointments.booked > 0
+              ? 'Track application'
+              : 'Book appointment',
+          actionTo:
+            dashboardSummary.appointments.booked > 0
+              ? `/track-application?id=${application._id}`
+              : `/book-appointment/${application._id}`,
+          icon: <FaCheckCircle />
+        };
+
+      case 'printed':
+        return {
+          badge: 'Printed',
+          badgeClass: 'bg-sky-100 text-sky-700',
+          title: 'Your Smart NID has been printed',
+          description:
+            'Printing is complete. The next delivery-related update will appear here automatically.',
+          actionLabel: 'Track application',
+          actionTo: `/track-application?id=${application._id}`,
+          icon: <FaIdCard />
+        };
+
+      case 'dispatched':
+        return {
+          badge: 'Dispatched',
+          badgeClass: 'bg-sky-100 text-sky-700',
+          title: 'Your Smart NID is on the way',
+          description:
+            'Your card has already been dispatched. Please follow the tracker for the latest delivery progress.',
+          actionLabel: 'Track delivery',
+          actionTo: `/track-application?id=${application._id}`,
+          icon: <FaTruck />
+        };
+
+      case 'delivered':
+        return {
+          badge: 'Delivered',
+          badgeClass: 'bg-emerald-100 text-emerald-700',
+          title: 'Your Smart NID has been delivered',
+          description:
+            'Delivery is complete. You can keep tracking history or open the digital copy if available.',
+          actionLabel: 'Download digital NID',
+          actionTo: `/digital-nid/${application._id}`,
+          icon: <FaDownload />
+        };
+
+      case 'rejected':
+        return {
+          badge: 'Rejected',
+          badgeClass: 'bg-red-100 text-red-700',
+          title: 'Your application needs correction',
+          description:
+            'Your application was rejected during review. Please read the official reason below and take the next action.',
+          actionLabel: 'Contact support',
+          actionTo: '/support',
+          icon: <FaExclamationTriangle />
+        };
+
+      case 'cancelled':
+        return {
+          badge: 'Cancelled',
+          badgeClass: 'bg-slate-100 text-slate-700',
+          title: 'Your previous application was cancelled',
+          description: 'You can create a new application whenever you are ready.',
+          actionLabel: 'Apply again',
+          actionTo: '/apply',
+          icon: <FaIdCard />
+        };
+
+      default:
+        return {
+          badge: formatStatus(application.status),
+          badgeClass: 'bg-slate-100 text-slate-700',
+          title: 'Follow your latest NID update',
+          description:
+            'Your latest application status is available here. Open the tracker for the full details.',
+          actionLabel: 'Track application',
+          actionTo: `/track-application?id=${application._id}`,
+          icon: <FaSearch />
+        };
+    }
+  };
+
+  const getAppointmentState = (application) => {
+    if (!application) {
+      return {
+        title: 'Appointment Update',
+        description:
+          'Appointment details will appear here after your application moves to the approved stage.',
+        actionLabel: 'Apply first',
+        actionTo: '/apply',
+        icon: <FaCalendarAlt />
+      };
+    }
+
+    if (dashboardSummary.appointments.booked > 0) {
+      return {
+        title: 'Appointment Booked',
+        description:
+          'Your biometric appointment is already booked. Open the tracker to review the latest appointment information.',
+        actionLabel: 'Track appointment',
+        actionTo: `/track-application?id=${application._id}`,
+        icon: <FaCalendarAlt />
+      };
+    }
+
+    if (application.status === 'approved') {
+      return {
+        title: 'Appointment Needed',
+        description:
+          'Your application is approved. Book your biometric appointment to continue the process.',
+        actionLabel: 'Book now',
+        actionTo: `/book-appointment/${application._id}`,
+        icon: <FaCalendarAlt />
+      };
+    }
+
+    if (['printed', 'dispatched', 'delivered'].includes(application.status)) {
+      return {
+        title: 'Appointment Completed',
+        description:
+          'Your appointment step is already completed and your application has moved forward.',
+        actionLabel: 'View status',
+        actionTo: `/track-application?id=${application._id}`,
+        icon: <FaCheckCircle />
+      };
+    }
+
+    return {
+      title: 'Appointment Pending',
+      description:
+        'Appointment booking will become available when your application reaches the required stage.',
+      actionLabel: 'View progress',
+      actionTo: `/track-application?id=${application._id}`,
+      icon: <FaClock />
+    };
+  };
+
+  const getDeliveryState = (application) => {
+    if (!application) {
+      return {
+        title: 'NID Delivery Update',
+        description:
+          'Printing and delivery updates will appear here after your application progresses.',
+        actionLabel: 'Apply first',
+        actionTo: '/apply',
+        icon: <FaTruck />
+      };
+    }
+
+    if (application.status === 'delivered') {
+      return {
+        title: 'Delivered Successfully',
+        description:
+          'Your Smart NID delivery is complete. You can download the digital copy if available.',
+        actionLabel: 'Download NID',
+        actionTo: `/digital-nid/${application._id}`,
+        icon: <FaDownload />
+      };
+    }
+
+    if (application.status === 'dispatched') {
+      return {
+        title: 'Out for Delivery',
+        description:
+          'Your Smart NID has been dispatched and is now in the delivery stage.',
+        actionLabel: 'Track delivery',
+        actionTo: `/track-application?id=${application._id}`,
+        icon: <FaTruck />
+      };
+    }
+
+    if (application.status === 'printed') {
+      return {
+        title: 'Printing Completed',
+        description:
+          'Your Smart NID has already been printed and is waiting for the next update.',
+        actionLabel: 'Track progress',
+        actionTo: `/track-application?id=${application._id}`,
+        icon: <FaIdCard />
+      };
+    }
+
+    return {
+      title: 'Delivery Not Started',
+      description:
+        'Delivery updates will show automatically when your application reaches the printing and dispatch stage.',
+      actionLabel: 'View status',
+      actionTo: `/track-application?id=${application._id}`,
+      icon: <FaSearch />
+    };
+  };
+
+  const primaryApplicationState = getPrimaryApplicationState(currentApplication);
+  const appointmentState = getAppointmentState(currentApplication);
+  const deliveryState = getDeliveryState(currentApplication);
 
   if (loading) {
     return (
@@ -142,6 +419,11 @@ const CitizenDashboard = () => {
             <p className="dashboard-welcome-subtitle text-white/90">
               Welcome to Smart NID Management System
             </p>
+            {lastSyncedAt && (
+              <p className="mt-2 text-xs text-white/80">
+                Auto synced: {formatDate(lastSyncedAt)}
+              </p>
+            )}
           </div>
 
           <div className="dashboard-welcome-actions">
@@ -155,55 +437,184 @@ const CitizenDashboard = () => {
           </div>
         </section>
 
-        {/* Stats Cards */}
-        <section className="dashboard-stats-section mb-8">
-          <div className="dashboard-stats-grid grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="dashboard-stat-card flex items-center gap-4 rounded-xl bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              <div className="dashboard-stat-icon flex h-[50px] w-[50px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#16A34A_0%,#22C55E_100%)] text-xl text-white">
-                <FaIdCard />
+        {/* Status Overview */}
+        <section className="dashboard-status-section mb-8">
+          <div className="dashboard-status-grid grid gap-5 xl:grid-cols-[1.5fr,1fr,1fr]">
+            <div className="dashboard-primary-status-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] lg:p-7">
+              <div className="dashboard-primary-status-top flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="dashboard-primary-status-copy">
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${primaryApplicationState.badgeClass}`}
+                  >
+                    {primaryApplicationState.badge}
+                  </span>
+
+                  <h2 className="mt-4 text-[1.35rem] font-bold leading-tight text-[#111827]">
+                    {primaryApplicationState.title}
+                  </h2>
+
+                  <p className="mt-2 max-w-[560px] text-sm leading-6 text-[#6B7280]">
+                    {primaryApplicationState.description}
+                  </p>
+                </div>
+
+                <div className="dashboard-primary-status-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F0FDF4] text-xl text-[#16A34A]">
+                  {primaryApplicationState.icon}
+                </div>
               </div>
-              <div className="dashboard-stat-info">
-                <h3 className="text-[1.75rem] font-bold text-[#1F2937]">
-                  {dashboardSummary.applications.total}
-                </h3>
-                <p className="text-sm text-[#6B7280]">Total Applications</p>
+
+              {currentApplication && (
+                <div className="dashboard-primary-status-meta mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      Application ID
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      #{currentApplication.applicationId || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      Current Status
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      {formatStatus(currentApplication.status)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      Submitted On
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      {currentApplication.createdAt
+                        ? formatDate(currentApplication.createdAt)
+                        : 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      Last Updated
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      {currentApplication.updatedAt
+                        ? formatDate(currentApplication.updatedAt)
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentApplication?.status === 'rejected' &&
+                currentApplication?.rejectionReason && (
+                  <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-red-700">
+                      Rejection Reason
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-red-800">
+                      {currentApplication.rejectionReason}
+                    </p>
+                  </div>
+                )}
+
+              {latestStatusHistory.length > 0 && (
+                <div className="mt-5 rounded-xl border border-[#E5E7EB] bg-white px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                    Latest Updates
+                  </p>
+
+                  <div className="mt-3 flex flex-col gap-3">
+                    {latestStatusHistory.map((historyItem, index) => (
+                      <div
+                        key={`${historyItem.toStatus}-${historyItem.changedAt}-${index}`}
+                        className="rounded-lg bg-[#F9FAFB] px-3 py-3"
+                      >
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm font-semibold text-[#111827]">
+                            {formatStatus(historyItem.toStatus)}
+                          </p>
+                          <p className="text-xs text-[#6B7280]">
+                            {historyItem.changedAt
+                              ? formatDate(historyItem.changedAt)
+                              : 'N/A'}
+                          </p>
+                        </div>
+
+                        {historyItem.note && (
+                          <p className="mt-1 text-sm text-[#6B7280]">
+                            {historyItem.note}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="dashboard-primary-status-actions mt-6 flex flex-wrap gap-3">
+                <Link
+                  to={primaryApplicationState.actionTo}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
+                >
+                  <span>{primaryApplicationState.actionLabel}</span>
+                  <FaArrowRight />
+                </Link>
+
+                {currentApplication && (
+                  <Link
+                    to={`/track-application?id=${currentApplication._id}`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:border-[#16A34A] hover:text-[#16A34A]"
+                  >
+                    <span>View full status</span>
+                  </Link>
+                )}
               </div>
             </div>
 
-            <div className="dashboard-stat-card flex items-center gap-4 rounded-xl bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              <div className="dashboard-stat-icon flex h-[50px] w-[50px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#F59E0B_0%,#FBBF24_100%)] text-xl text-white">
-                <FaClock />
+            <div className="dashboard-update-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-xl text-[#16A34A]">
+                {appointmentState.icon}
               </div>
-              <div className="dashboard-stat-info">
-                <h3 className="text-[1.75rem] font-bold text-[#1F2937]">
-                  {dashboardSummary.applications.submitted}
-                </h3>
-                <p className="text-sm text-[#6B7280]">Submitted</p>
-              </div>
+
+              <h3 className="text-lg font-bold text-[#111827]">
+                {appointmentState.title}
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-[#6B7280]">
+                {appointmentState.description}
+              </p>
+
+              <Link
+                to={appointmentState.actionTo}
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#16A34A]"
+              >
+                <span>{appointmentState.actionLabel}</span>
+                <FaArrowRight />
+              </Link>
             </div>
 
-            <div className="dashboard-stat-card flex items-center gap-4 rounded-xl bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              <div className="dashboard-stat-icon flex h-[50px] w-[50px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#10B981_0%,#34D399_100%)] text-xl text-white">
-                <FaCheckCircle />
+            <div className="dashboard-update-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-xl text-[#16A34A]">
+                {deliveryState.icon}
               </div>
-              <div className="dashboard-stat-info">
-                <h3 className="text-[1.75rem] font-bold text-[#1F2937]">
-                  {dashboardSummary.applications.approved}
-                </h3>
-                <p className="text-sm text-[#6B7280]">Approved</p>
-              </div>
-            </div>
 
-            <div className="dashboard-stat-card flex items-center gap-4 rounded-xl bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              <div className="dashboard-stat-icon flex h-[50px] w-[50px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0EA5E9_0%,#38BDF8_100%)] text-xl text-white">
-                <FaCalendarAlt />
-              </div>
-              <div className="dashboard-stat-info">
-                <h3 className="text-[1.75rem] font-bold text-[#1F2937]">
-                  {dashboardSummary.appointments.booked}
-                </h3>
-                <p className="text-sm text-[#6B7280]">Booked Appointments</p>
-              </div>
+              <h3 className="text-lg font-bold text-[#111827]">
+                {deliveryState.title}
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-[#6B7280]">
+                {deliveryState.description}
+              </p>
+
+              <Link
+                to={deliveryState.actionTo}
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#16A34A]"
+              >
+                <span>{deliveryState.actionLabel}</span>
+                <FaArrowRight />
+              </Link>
             </div>
           </div>
         </section>
@@ -228,9 +639,6 @@ const CitizenDashboard = () => {
               <p className="text-sm text-[#6B7280]">
                 Submit a new Smart NID application
               </p>
-              <span className="dashboard-action-arrow absolute right-4 top-1/2 text-[#16A34A] opacity-0 transition">
-                <FaArrowRight />
-              </span>
             </Link>
 
             <Link
@@ -246,9 +654,6 @@ const CitizenDashboard = () => {
               <p className="text-sm text-[#6B7280]">
                 Check your application status
               </p>
-              <span className="dashboard-action-arrow absolute right-4 top-1/2 text-[#16A34A] opacity-0 transition">
-                <FaArrowRight />
-              </span>
             </Link>
 
             {approvedApplication && (
@@ -265,9 +670,6 @@ const CitizenDashboard = () => {
                 <p className="text-sm text-[#6B7280]">
                   Get your digital ID card
                 </p>
-                <span className="dashboard-action-arrow absolute right-4 top-1/2 text-[#16A34A] opacity-0 transition">
-                  <FaArrowRight />
-                </span>
               </Link>
             )}
 
@@ -284,9 +686,6 @@ const CitizenDashboard = () => {
               <p className="text-sm text-[#6B7280]">
                 Get help or raise a ticket
               </p>
-              <span className="dashboard-action-arrow absolute right-4 top-1/2 text-[#16A34A] opacity-0 transition">
-                <FaArrowRight />
-              </span>
             </Link>
           </div>
         </section>
@@ -340,8 +739,14 @@ const CitizenDashboard = () => {
                       Type: {(app.applicationType || 'N/A').toUpperCase()}
                     </p>
                     <p className="text-sm text-[#6B7280]">
-                      Submitted: {formatDate(app.createdAt)}
+                      Submitted: {app.createdAt ? formatDate(app.createdAt) : 'N/A'}
                     </p>
+
+                    {app.status === 'rejected' && app.rejectionReason && (
+                      <p className="mt-2 text-sm font-medium text-red-600">
+                        Reason: {app.rejectionReason}
+                      </p>
+                    )}
                   </div>
 
                   <div className="dashboard-application-status">
@@ -358,7 +763,9 @@ const CitizenDashboard = () => {
                       View Details
                     </Link>
 
-                    {app.status === 'approved' && (
+                    {['approved', 'printed', 'dispatched', 'delivered'].includes(
+                      app.status
+                    ) && (
                       <Link
                         to={`/digital-nid/${app._id}`}
                         className="btn btn-sm btn-primary"
