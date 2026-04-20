@@ -6,6 +6,10 @@
   color: #F9FAFB;
 }
 
+.site-footer.site-footer-no-margin {
+  margin-top: 0;
+}
+
 .site-footer .footer-top {
   padding: 3.5rem 1rem 2.5rem;
 }

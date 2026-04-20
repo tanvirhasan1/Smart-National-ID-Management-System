@@ -14,7 +14,8 @@ import {
   FaSearch,
   FaShieldAlt,
   FaUserCheck,
-  FaUserPlus
+  FaUserPlus,
+  FaFileUpload 
 } from 'react-icons/fa';
 import '../styles/LandingPage.css';
 
@@ -117,12 +118,30 @@ const processSteps = [
 ];
 
 const requirements = [
-  'Birth Registration Number',
-  'Recent passport-size photo',
-  'Clear signature image',
-  'Valid Bangladeshi mobile number',
-  "Parent's NID information",
-  'Address proof if required'
+  {
+    icon: <FaIdCard />,
+    title: 'Birth Registration Number'
+  },
+  {
+    icon: <FaFileUpload />,
+    title: 'Recent passport-size photo'
+  },
+  {
+    icon: <FaFileUpload />,
+    title: 'Clear signature image'
+  },
+  {
+    icon: <FaMobileAlt />,
+    title: 'Valid Bangladeshi mobile number'
+  },
+  {
+    icon: <FaIdCard />,
+    title: "Parent's NID information"
+  },
+  {
+    icon: <FaMapMarkerAlt />,
+    title: 'Address proof if required'
+  }
 ];
 
 const summaryCards = [
@@ -166,7 +185,7 @@ const LandingPage = () => {
                 Government Digital Identity Service
               </span>
 
-              <h1 className="hero-title mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.02] tracking-tight text-slate-950">
+              <h1 className="hero-title mt-5 text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.02] tracking-tight text-slate-950">
                 Smart National ID
                 <span className="hero-title-accent block text-emerald-600">
                   Management System
@@ -294,7 +313,7 @@ const LandingPage = () => {
                     {item.icon}
                   </div>
 
-                  <h3 className="text-lg font-bold leading-6 text-slate-900">
+                  <h3 className="text-md font-bold leading-6 text-slate-900">
                     {item.title}
                   </h3>
 
@@ -324,7 +343,7 @@ const LandingPage = () => {
                 Why this version feels better
               </span>
 
-              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-950">
+              <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
                 Cleaner, smarter, and more reliable for a national ID service
               </h2>
 
@@ -384,7 +403,7 @@ const LandingPage = () => {
               Simple citizen journey
             </span>
 
-            <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-950">
+            <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
               How the Smart NID service works
             </h2>
 
@@ -422,13 +441,13 @@ const LandingPage = () => {
 
       <section className="landing-requirements bg-white py-14 md:py-20">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="requirements-layout grid grid-cols-1 lg:grid-cols-[0.95fr,1.05fr] gap-8 lg:gap-10 items-start">
-            <div className="requirements-copy">
+          <div className="requirements-layout grid grid-cols-1 lg:grid-cols-[0.95fr,1.05fr] gap-8 lg:gap-10 items-stretch">
+            <div className="requirements-copy flex flex-col justify-center items-start">
               <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
                 Before you start
               </span>
 
-              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-950">
+              <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
                 Prepare the important information and documents
               </h2>
 
@@ -450,17 +469,22 @@ const LandingPage = () => {
               </div>
             </div>
 
-            <div className="requirements-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {requirements.map((item) => (
-                <div
-                  key={item}
-                  className="requirement-item flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700 shadow-sm"
-                >
-                  <FaCheckCircle className="text-emerald-600 shrink-0" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
+            <div className="requirements-grid grid grid-cols-2 sm:grid-cols-3 gap-4 lg:h-full lg:grid-rows-2">
+  {requirements.map((item) => (
+    <div
+      key={item.title}
+      className="requirement-item flex h-full min-h-[150px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg"
+    >
+      <div className="requirement-icon flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-600">
+        {item.icon}
+      </div>
+
+      <h3 className="mt-4 max-w-[150px] text-sm sm:text-base font-semibold leading-6 text-slate-900">
+        {item.title}
+      </h3>
+    </div>
+  ))}
+</div>
           </div>
         </div>
       </section>

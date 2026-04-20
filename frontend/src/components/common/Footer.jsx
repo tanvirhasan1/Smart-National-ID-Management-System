@@ -1,22 +1,24 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   FaIdCard,
-  FaEnvelope,
-  FaPhoneAlt,
-  FaMapMarkerAlt,
   FaFacebookF,
   FaLinkedinIn,
-  FaYoutube
+  FaYoutube,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaMapMarkerAlt
 } from 'react-icons/fa';
 import '../styles/Footer.css';
 
-// Public footer component
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const location = useLocation();
+
+  const isLandingPage = location.pathname === '/';
 
   return (
-    <footer className="site-footer">
+    <footer className={`site-footer ${isLandingPage ? 'site-footer-no-margin' : ''}`}>
       <div className="footer-top">
         <div className="footer-container">
           <div className="footer-grid">
@@ -25,6 +27,7 @@ const Footer = () => {
                 <div className="footer-brand-icon">
                   <FaIdCard />
                 </div>
+
                 <div className="footer-brand-text">
                   <h3>Smart NID</h3>
                   <p>Management System</p>
@@ -41,9 +44,11 @@ const Footer = () => {
                 <a href="#" className="footer-social-link" aria-label="Facebook">
                   <FaFacebookF />
                 </a>
+
                 <a href="#" className="footer-social-link" aria-label="LinkedIn">
                   <FaLinkedinIn />
                 </a>
+
                 <a href="#" className="footer-social-link" aria-label="YouTube">
                   <FaYoutube />
                 </a>
@@ -52,21 +57,39 @@ const Footer = () => {
 
             <div className="footer-column">
               <h4 className="footer-title">Quick Links</h4>
+
               <ul className="footer-links">
-                <li><Link to="/">Home</Link></li>
-                <li><Link to="/register">Register</Link></li>
-                <li><Link to="/login">Login</Link></li>
-                <li><Link to="/track-application">Track Application</Link></li>
+                <li>
+                  <Link to="/">Home</Link>
+                </li>
+                <li>
+                  <Link to="/register">Register</Link>
+                </li>
+                <li>
+                  <Link to="/login">Login</Link>
+                </li>
+                <li>
+                  <Link to="/track-application">Track Application</Link>
+                </li>
               </ul>
             </div>
 
             <div className="footer-column">
               <h4 className="footer-title">Citizen Services</h4>
+
               <ul className="footer-links">
-                <li><Link to="/apply">Apply for NID</Link></li>
-                <li><Link to="/support">Support</Link></li>
-                <li><Link to="/forgot-password">Forgot Password</Link></li>
-                <li><Link to="/verify-otp">OTP Verification</Link></li>
+                <li>
+                  <Link to="/apply">Apply for NID</Link>
+                </li>
+                <li>
+                  <Link to="/support">Support</Link>
+                </li>
+                <li>
+                  <Link to="/forgot-password">Forgot Password</Link>
+                </li>
+                <li>
+                  <Link to="/verify-otp">OTP Verification</Link>
+                </li>
               </ul>
             </div>
 
@@ -103,6 +126,7 @@ const Footer = () => {
       <div className="footer-bottom">
         <div className="footer-container footer-bottom-content">
           <p>© {currentYear} Smart NID Management System. All rights reserved.</p>
+
           <div className="footer-bottom-links">
             <a href="#">Privacy Policy</a>
             <a href="#">Terms of Service</a>
