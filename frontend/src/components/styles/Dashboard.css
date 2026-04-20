@@ -38,6 +38,7 @@
   text-decoration: none;
 }
 
+
 @media (max-width: 767px) {
   .dashboard-page-wrapper .dashboard-welcome-title {
     font-size: 1.5rem;
