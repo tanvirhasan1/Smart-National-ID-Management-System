@@ -21,6 +21,10 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { bangladeshLocations } from '../utils/helpers';
 import api from '../api/axios';
+import {
+  uploadCitizenApplicationDocument,
+  getCitizenDocumentLabel
+} from '../../services/applicationDocumentService';
 import '../styles/ApplicationForm.css';
 
 const ApplicationForm = () => {
@@ -35,6 +39,11 @@ const ApplicationForm = () => {
   const [sameAddress, setSameAddress] = useState(false);
   const [selectedPresentDivision, setSelectedPresentDivision] = useState('');
   const [selectedPermanentDivision, setSelectedPermanentDivision] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState({
+    photograph: null,
+    signature: null,
+    birthCertificate: null
+  });
 
   const photoInputRef = useRef(null);
   const signatureInputRef = useRef(null);
@@ -181,15 +190,17 @@ const ApplicationForm = () => {
   }, [user, setValue]);
 
   const getInputClass = (hasError = false) =>
-    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${hasError
-      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
+      hasError
+        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const getSelectClass = (hasError = false) =>
-    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${hasError
-      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${
+      hasError
+        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const handlePhotoChange = (event) => {
@@ -201,6 +212,10 @@ const ApplicationForm = () => {
       return;
     }
 
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      photograph: file
+    }));
     setValue('photo', file);
 
     const reader = new FileReader();
@@ -217,6 +232,10 @@ const ApplicationForm = () => {
       return;
     }
 
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      signature: file
+    }));
     setValue('signature', file);
 
     const reader = new FileReader();
@@ -233,6 +252,10 @@ const ApplicationForm = () => {
       return;
     }
 
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      birthCertificate: file
+    }));
     setValue('birthCertificate', file);
     setBirthCertPreview(file.name);
   };
@@ -256,17 +279,93 @@ const ApplicationForm = () => {
     }
   };
 
+  const resetPhotoSelection = () => {
+    setPhotoPreview(null);
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      photograph: null
+    }));
+    setValue('photo', null);
+
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
+  };
+
+  const resetSignatureSelection = () => {
+    setSignaturePreview(null);
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      signature: null
+    }));
+    setValue('signature', null);
+
+    if (signatureInputRef.current) {
+      signatureInputRef.current.value = '';
+    }
+  };
+
+  const resetBirthCertificateSelection = () => {
+    setBirthCertPreview(null);
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      birthCertificate: null
+    }));
+    setValue('birthCertificate', null);
+
+    if (birthCertInputRef.current) {
+      birthCertInputRef.current.value = '';
+    }
+  };
+
+  const uploadSelectedDocuments = async (applicationObjectId) => {
+    const uploadQueue = [
+      {
+        documentType: 'photograph',
+        file: selectedFiles.photograph
+      },
+      {
+        documentType: 'signature',
+        file: selectedFiles.signature
+      },
+      {
+        documentType: 'birthCertificate',
+        file: selectedFiles.birthCertificate
+      }
+    ].filter((item) => item.file);
+
+    const failedUploads = [];
+
+    for (const item of uploadQueue) {
+      try {
+        await uploadCitizenApplicationDocument({
+          applicationId: applicationObjectId,
+          documentType: item.documentType,
+          file: item.file
+        });
+      } catch (error) {
+        failedUploads.push(getCitizenDocumentLabel(item.documentType));
+        console.error(
+          `Failed to upload ${item.documentType}:`,
+          error?.response?.data || error.message
+        );
+      }
+    }
+
+    return failedUploads;
+  };
+
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const onSubmit = async (data) => {
-    if (!photoPreview) {
+    if (!selectedFiles.photograph || !photoPreview) {
       toast.error('Please upload your photograph');
       setCurrentStep(3);
       return;
     }
 
-    if (!signaturePreview) {
+    if (!selectedFiles.signature || !signaturePreview) {
       toast.error('Please upload your signature');
       setCurrentStep(3);
       return;
@@ -288,14 +387,14 @@ const ApplicationForm = () => {
       const permanentAddressPayload = sameAddress
         ? { ...presentAddressPayload }
         : {
-          division: data.permanentAddress.division,
-          district: data.permanentAddress.district,
-          upazila: data.permanentAddress.upazila,
-          unionOrWard: data.permanentAddress.unionOrWard || '',
-          villageOrArea: data.permanentAddress.villageOrArea || '',
-          postOffice: data.permanentAddress.postOffice || '',
-          postalCode: data.permanentAddress.postalCode || ''
-        };
+            division: data.permanentAddress.division,
+            district: data.permanentAddress.district,
+            upazila: data.permanentAddress.upazila,
+            unionOrWard: data.permanentAddress.unionOrWard || '',
+            villageOrArea: data.permanentAddress.villageOrArea || '',
+            postOffice: data.permanentAddress.postOffice || '',
+            postalCode: data.permanentAddress.postalCode || ''
+          };
 
       const payload = {
         applicationType: data.applicationType,
@@ -319,23 +418,41 @@ const ApplicationForm = () => {
         presentAddress: presentAddressPayload,
         permanentAddress: permanentAddressPayload,
         documents: {
-          birthCertificate: data.birthCertificate?.name || birthCertPreview || '',
+          birthCertificate: selectedFiles.birthCertificate?.name || '',
           fatherNid: data.fatherNID || '',
           motherNid: data.motherNID || '',
-          photo: data.photo?.name || 'photo-uploaded'
+          photo: selectedFiles.photograph?.name || '',
+          signature: selectedFiles.signature?.name || ''
         }
       };
 
       const response = await api.post('/applications', payload);
       const createdApplication = response?.data?.application;
+      const createdApplicationId = createdApplication?._id;
 
-      toast.success('Application submitted successfully!');
-      navigate(`/track-application?id=${createdApplication?._id}`);
+      if (!createdApplicationId) {
+        throw new Error('Application created but no application id was returned');
+      }
+
+      const failedUploads = await uploadSelectedDocuments(createdApplicationId);
+
+      if (failedUploads.length > 0) {
+        toast.warning(
+          `Application submitted, but these document uploads failed: ${failedUploads.join(
+            ', '
+          )}. Please contact support if needed.`
+        );
+      } else {
+        toast.success('Application submitted successfully!');
+      }
+
+      navigate(`/track-application?id=${createdApplicationId}`);
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0]?.msg ||
-        'Failed to create application'
+          error?.response?.data?.errors?.[0]?.msg ||
+          error?.message ||
+          'Failed to create application'
       );
     } finally {
       setIsSubmitting(false);
@@ -355,17 +472,29 @@ const ApplicationForm = () => {
         </div>
 
         <div className="progress-steps application-progress-steps mb-10 flex items-center justify-center px-2">
-          <div className={`progress-step ${currentStep >= 1 ? 'active' : ''} ${currentStep > 1 ? 'completed' : ''}`}>
+          <div
+            className={`progress-step ${currentStep >= 1 ? 'active' : ''} ${
+              currentStep > 1 ? 'completed' : ''
+            }`}
+          >
             <div className="step-circle">{currentStep > 1 ? <FaCheck /> : '1'}</div>
             <span>Personal Info</span>
           </div>
           <div className="step-line" />
-          <div className={`progress-step ${currentStep >= 2 ? 'active' : ''} ${currentStep > 2 ? 'completed' : ''}`}>
+          <div
+            className={`progress-step ${currentStep >= 2 ? 'active' : ''} ${
+              currentStep > 2 ? 'completed' : ''
+            }`}
+          >
             <div className="step-circle">{currentStep > 2 ? <FaCheck /> : '2'}</div>
             <span>Address & Family</span>
           </div>
           <div className="step-line" />
-          <div className={`progress-step ${currentStep >= 3 ? 'active' : ''} ${currentStep > 3 ? 'completed' : ''}`}>
+          <div
+            className={`progress-step ${currentStep >= 3 ? 'active' : ''} ${
+              currentStep > 3 ? 'completed' : ''
+            }`}
+          >
             <div className="step-circle">{currentStep > 3 ? <FaCheck /> : '3'}</div>
             <span>Documents</span>
           </div>
@@ -376,7 +505,10 @@ const ApplicationForm = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="application-form rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-8">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="application-form rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-8"
+        >
           {currentStep === 1 && (
             <div className="form-step application-step-panel">
               <h2 className="step-title">
@@ -387,7 +519,11 @@ const ApplicationForm = () => {
               </p>
 
               <div className="application-types mb-8 grid gap-5 md:grid-cols-3">
-                <label className={`type-card ${applicationType === 'new' ? 'selected' : ''}`}>
+                <label
+                  className={`type-card ${
+                    applicationType === 'new' ? 'selected' : ''
+                  }`}
+                >
                   <input type="radio" value="new" {...register('applicationType')} />
                   <div className="type-content">
                     <div className="type-icon new-icon">
@@ -398,8 +534,16 @@ const ApplicationForm = () => {
                   </div>
                 </label>
 
-                <label className={`type-card ${applicationType === 'correction' ? 'selected' : ''}`}>
-                  <input type="radio" value="correction" {...register('applicationType')} />
+                <label
+                  className={`type-card ${
+                    applicationType === 'correction' ? 'selected' : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value="correction"
+                    {...register('applicationType')}
+                  />
                   <div className="type-content">
                     <div className="type-icon correction-icon">
                       <FaIdCard />
@@ -409,7 +553,11 @@ const ApplicationForm = () => {
                   </div>
                 </label>
 
-                <label className={`type-card ${applicationType === 'reissue' ? 'selected' : ''}`}>
+                <label
+                  className={`type-card ${
+                    applicationType === 'reissue' ? 'selected' : ''
+                  }`}
+                >
                   <input type="radio" value="reissue" {...register('applicationType')} />
                   <div className="type-content">
                     <div className="type-icon renewal-icon">
@@ -430,7 +578,9 @@ const ApplicationForm = () => {
                     <input
                       type="text"
                       readOnly={applicationType === 'new'}
-                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
+                      className={`input-field ${
+                        applicationType === 'new' ? 'locked-input' : ''
+                      }`}
                       placeholder="Enter full name in English"
                       {...register('fullNameEnglish', {
                         required: 'Full name in English is required'
@@ -446,7 +596,9 @@ const ApplicationForm = () => {
                     <input
                       type="text"
                       readOnly={applicationType === 'new'}
-                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
+                      className={`input-field ${
+                        applicationType === 'new' ? 'locked-input' : ''
+                      }`}
                       placeholder="পূর্ণ নাম লিখুন"
                       {...register('fullNameBangla')}
                     />
@@ -464,7 +616,9 @@ const ApplicationForm = () => {
                     <input
                       type="date"
                       readOnly={applicationType === 'new'}
-                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
+                      className={`input-field ${
+                        applicationType === 'new' ? 'locked-input' : ''
+                      }`}
                       {...register('dateOfBirth', {
                         required: 'Date of birth is required'
                       })}
@@ -483,7 +637,9 @@ const ApplicationForm = () => {
                     </label>
                     <select
                       disabled={applicationType === 'new'}
-                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
+                      className={`input-field ${
+                        applicationType === 'new' ? 'locked-input' : ''
+                      }`}
                       {...register('gender', {
                         required: 'Gender is required'
                       })}
@@ -505,7 +661,9 @@ const ApplicationForm = () => {
                     <input
                       type="text"
                       readOnly={applicationType === 'new'}
-                      className={`input-field ${applicationType === 'new' ? 'locked-input' : ''}`}
+                      className={`input-field ${
+                        applicationType === 'new' ? 'locked-input' : ''
+                      }`}
                       placeholder="17 digit birth registration number"
                       {...register('birthRegistrationNumber', {
                         pattern: {
@@ -523,10 +681,7 @@ const ApplicationForm = () => {
 
                   <div className="form-group">
                     <label className="form-label">Blood Group</label>
-                    <select
-                      className={getSelectClass(false)}
-                      {...register('bloodGroup')}
-                    >
+                    <select className={getSelectClass(false)} {...register('bloodGroup')}>
                       <option value="">Select blood group</option>
                       <option value="A+">A+</option>
                       <option value="A-">A-</option>
@@ -592,10 +747,7 @@ const ApplicationForm = () => {
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
                     <label className="form-label">Marital Status</label>
-                    <select
-                      className={getSelectClass(false)}
-                      {...register('maritalStatus')}
-                    >
+                    <select className={getSelectClass(false)} {...register('maritalStatus')}>
                       <option value="single">Single</option>
                       <option value="married">Married</option>
                       <option value="divorced">Divorced</option>
@@ -619,7 +771,8 @@ const ApplicationForm = () => {
                   </div>
                 </div>
 
-                {(applicationType === 'correction' || applicationType === 'reissue') && (
+                {(applicationType === 'correction' ||
+                  applicationType === 'reissue') && (
                   <div className="form-group">
                     <label className="form-label">Existing NID Number *</label>
                     <input
@@ -628,13 +781,16 @@ const ApplicationForm = () => {
                       placeholder="Enter your current NID number"
                       {...register('existingNidNumber', {
                         required:
-                          applicationType === 'correction' || applicationType === 'reissue'
+                          applicationType === 'correction' ||
+                          applicationType === 'reissue'
                             ? 'Existing NID number is required'
                             : false
                       })}
                     />
                     {errors.existingNidNumber && (
-                      <span className="form-error">{errors.existingNidNumber.message}</span>
+                      <span className="form-error">
+                        {errors.existingNidNumber.message}
+                      </span>
                     )}
                   </div>
                 )}
@@ -1041,8 +1197,7 @@ const ApplicationForm = () => {
                           className="change-btn"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setPhotoPreview(null);
-                            setValue('photo', null);
+                            resetPhotoSelection();
                           }}
                         >
                           Change
@@ -1091,8 +1246,7 @@ const ApplicationForm = () => {
                           className="change-btn"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setSignaturePreview(null);
-                            setValue('signature', null);
+                            resetSignatureSelection();
                           }}
                         >
                           Change
@@ -1138,8 +1292,7 @@ const ApplicationForm = () => {
                           className="remove-btn"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setBirthCertPreview(null);
-                            setValue('birthCertificate', null);
+                            resetBirthCertificateSelection();
                           }}
                         >
                           Remove
@@ -1170,8 +1323,8 @@ const ApplicationForm = () => {
                 </h4>
                 <ul>
                   <li>Photo and signature preview will work normally</li>
-                  <li>Current backend stores document names, not binary file upload yet</li>
-                  <li>Real file upload middleware can be added in a later backend step</li>
+                  <li>Required documents will be uploaded after the application is created</li>
+                  <li>If any document upload fails after submission, the application will still be created and you can contact support</li>
                 </ul>
               </div>
 
@@ -1198,7 +1351,9 @@ const ApplicationForm = () => {
               <div className="review-section">
                 <div className="review-card">
                   <h4>Application Type</h4>
-                  <p className="review-value">{watch('applicationType')?.toUpperCase()} NID Application</p>
+                  <p className="review-value">
+                    {watch('applicationType')?.toUpperCase()} NID Application
+                  </p>
                 </div>
 
                 <div className="review-card">
@@ -1237,7 +1392,8 @@ const ApplicationForm = () => {
                     <div className="review-item">
                       <label>Present Address</label>
                       <p>
-                        {watch('presentAddress.division')}, {watch('presentAddress.district')},{' '}
+                        {watch('presentAddress.division')},{' '}
+                        {watch('presentAddress.district')},{' '}
                         {watch('presentAddress.upazila')}
                       </p>
                     </div>
@@ -1246,7 +1402,9 @@ const ApplicationForm = () => {
                       <p>
                         {sameAddress
                           ? 'Same as present address'
-                          : `${watch('permanentAddress.division')}, ${watch('permanentAddress.district')}, ${watch('permanentAddress.upazila')}`}
+                          : `${watch('permanentAddress.division')}, ${watch(
+                              'permanentAddress.district'
+                            )}, ${watch('permanentAddress.upazila')}`}
                       </p>
                     </div>
                   </div>
@@ -1321,7 +1479,9 @@ const ApplicationForm = () => {
                   </span>
                 </label>
                 {errors.declaration && (
-                  <span className="form-error">You must agree to the declaration</span>
+                  <span className="form-error">
+                    You must agree to the declaration
+                  </span>
                 )}
               </div>
 

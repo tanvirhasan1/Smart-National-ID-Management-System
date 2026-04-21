@@ -1,18 +1,21 @@
-// Admin Application Review Page Start
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
-  FaSearch,
-  FaFilter,
-  FaEye,
   FaCheck,
-  FaTimes,
-  FaSpinner,
-  FaUser,
+  FaChevronLeft,
+  FaChevronRight,
+  FaClock,
+  FaEye,
+  FaFileAlt,
+  FaFilter,
   FaIdCard,
   FaMapMarkerAlt,
-  FaExclamationTriangle
+  FaSearch,
+  FaSpinner,
+  FaTimes,
+  FaUndo,
+  FaUser
 } from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
@@ -25,122 +28,359 @@ import {
 } from '../utils/helpers';
 import '../styles/ApplicationReview.css';
 
+const DEFAULT_SORT = '-createdAt';
+
+const getApplicationListFromResponse = (response) =>
+  response?.data?.data || response?.data?.applications || [];
+
+const getPaginationMetaFromResponse = (response) =>
+  response?.data?.meta || {
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 1,
+    hasPrevPage: false,
+    hasNextPage: false
+  };
+
+const getApplicationDetailsFromResponse = (response) =>
+  response?.data?.application || response?.data?.data || null;
+
+const buildPageNumbers = (currentPage, totalPages) => {
+  if (totalPages <= 1) return [1];
+
+  const pages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+
+  return Array.from(pages)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+};
+
 const ApplicationReview = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [applications, setApplications] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
   const [applicationStats, setApplicationStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const [listLoading, setListLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
+
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState('');
+  const [decisionNote, setDecisionNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
-  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || '');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
 
-  // Load applications and stats when filter changes
+  const queryState = useMemo(() => {
+    const pageValue = Number(searchParams.get('page') || 1);
+
+    return {
+      page: Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1,
+      status: searchParams.get('status') || '',
+      applicationType:
+        searchParams.get('applicationType') || searchParams.get('type') || '',
+      search: searchParams.get('search') || '',
+      sort: searchParams.get('sort') || DEFAULT_SORT,
+      selectedId: searchParams.get('id') || ''
+    };
+  }, [searchParams]);
+
+  const paginationMeta = useMemo(
+    () =>
+      selectedApp?.__meta || {
+        page: 1,
+        limit: 10,
+        total: applications.length,
+        pages: 1,
+        hasPrevPage: false,
+        hasNextPage: false
+      },
+    [applications.length, selectedApp]
+  );
+
+  const currentMeta = useMemo(() => {
+    const appMeta = applications?.__meta;
+    if (appMeta) return appMeta;
+
+    return {
+      page: 1,
+      limit: 10,
+      total: applications.length,
+      pages: 1,
+      hasPrevPage: false,
+      hasNextPage: false
+    };
+  }, [applications]);
+
+  // Keep typing state separate so we do not hit the API on every keypress.
   useEffect(() => {
-    fetchApplications();
-    fetchApplicationStats();
-  }, [statusFilter, typeFilter]);
+    setSearchInput(queryState.search);
+  }, [queryState.search]);
 
-  const fetchApplications = async () => {
+  const updateQueryParams = useCallback(
+    (updates) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+
+        Object.entries(updates).forEach(([key, value]) => {
+          if (value === null || value === undefined || value === '') {
+            next.delete(key);
+          } else {
+            next.set(key, String(value));
+          }
+        });
+
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const fetchApplicationStats = useCallback(async () => {
     try {
-      setLoading(true);
-
-      const queryParams = new URLSearchParams();
-
-      if (statusFilter) {
-        queryParams.set('status', statusFilter);
-      }
-
-      if (typeFilter) {
-        queryParams.set('applicationType', typeFilter);
-      }
-
-      const queryString = queryParams.toString();
-      const url = queryString
-        ? `/admin/applications?${queryString}`
-        : '/admin/applications';
-
-      const response = await api.get(url);
-      const applicationList = response?.data?.applications || [];
-
-      setApplications(applicationList);
-
-      const appIdFromUrl = searchParams.get('id');
-
-      if (appIdFromUrl) {
-        const existingApp = applicationList.find((app) => app._id === appIdFromUrl);
-
-        if (existingApp) {
-          await handleSelectApplication(existingApp._id);
-          return;
-        }
-      }
-
-      if (selectedApp?._id) {
-        const stillExists = applicationList.find((app) => app._id === selectedApp._id);
-        if (stillExists) {
-          return;
-        }
-      }
-
-      if (applicationList.length > 0) {
-        await handleSelectApplication(applicationList[0]._id);
-      } else {
-        setSelectedApp(null);
-      }
-    } catch (error) {
-      console.error('Error fetching applications:', error);
-      toast.error(
-        error?.response?.data?.message || 'Failed to load applications'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchApplicationStats = async () => {
-    try {
+      setStatsLoading(true);
       const response = await api.get('/admin/applications/stats');
       setApplicationStats(response?.data?.data || null);
     } catch (error) {
       console.error('Error fetching application stats:', error);
+    } finally {
+      setStatsLoading(false);
     }
-  };
+  }, []);
 
-  // Load single application details
-  const handleSelectApplication = async (applicationId) => {
+  const fetchApplications = useCallback(async () => {
+    try {
+      setListLoading(true);
+
+      const query = new URLSearchParams();
+      query.set('page', queryState.page);
+      query.set('limit', 10);
+      query.set('sort', queryState.sort || DEFAULT_SORT);
+
+      if (queryState.status) {
+        query.set('status', queryState.status);
+      }
+
+      if (queryState.applicationType) {
+        query.set('applicationType', queryState.applicationType);
+      }
+
+      if (queryState.search) {
+        query.set('search', queryState.search);
+      }
+
+      const response = await api.get(`/admin/applications?${query.toString()}`);
+      const applicationList = getApplicationListFromResponse(response);
+      const meta = getPaginationMetaFromResponse(response);
+
+      // We attach meta on the array so the page can read it without another state block.
+      applicationList.__meta = meta;
+
+      setApplications(applicationList);
+
+      if (applicationList.length === 0) {
+        setSelectedApp(null);
+
+        if (queryState.selectedId) {
+          updateQueryParams({ id: null });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      toast.error(error?.response?.data?.message || 'Failed to load applications');
+    } finally {
+      setListLoading(false);
+    }
+  }, [
+    queryState.applicationType,
+    queryState.page,
+    queryState.search,
+    queryState.selectedId,
+    queryState.sort,
+    queryState.status,
+    updateQueryParams
+  ]);
+
+  const fetchApplicationDetails = useCallback(async (applicationId) => {
+    if (!applicationId) {
+      setSelectedApp(null);
+      return;
+    }
+
     try {
       setDetailsLoading(true);
-
       const response = await api.get(`/admin/applications/${applicationId}`);
-      const applicationDetails = response?.data?.application || null;
-
+      const applicationDetails = getApplicationDetailsFromResponse(response);
       setSelectedApp(applicationDetails);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('id', applicationId);
-        return next;
-      });
     } catch (error) {
       console.error('Error fetching application details:', error);
-      toast.error(
-        error?.response?.data?.message || 'Failed to load application details'
-      );
+      toast.error(error?.response?.data?.message || 'Failed to load application details');
     } finally {
       setDetailsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
+
+  useEffect(() => {
+    fetchApplicationStats();
+  }, [fetchApplicationStats]);
+
+  // When no selected application exists, auto-pick the first item from the current page.
+  useEffect(() => {
+    if (!listLoading && applications.length > 0 && !queryState.selectedId) {
+      updateQueryParams({ id: applications[0]._id });
+    }
+  }, [applications, listLoading, queryState.selectedId, updateQueryParams]);
+
+  useEffect(() => {
+    if (queryState.selectedId) {
+      fetchApplicationDetails(queryState.selectedId);
+    }
+  }, [fetchApplicationDetails, queryState.selectedId]);
+
+  const pageNumbers = useMemo(
+    () => buildPageNumbers(currentMeta.page || 1, currentMeta.pages || 1),
+    [currentMeta.page, currentMeta.pages]
+  );
+
+  const statsCards = useMemo(() => {
+    return [
+      {
+        key: 'total',
+        title: 'Total Applications',
+        value: applicationStats?.totalApplications || 0,
+        theme: 'neutral'
+      },
+      {
+        key: 'submitted',
+        title: 'Submitted',
+        value: applicationStats?.submittedApplications || 0,
+        theme: 'blue'
+      },
+      {
+        key: 'review',
+        title: 'Under Review',
+        value: applicationStats?.underReviewApplications || 0,
+        theme: 'yellow'
+      },
+      {
+        key: 'approved',
+        title: 'Approved',
+        value: applicationStats?.approvedApplications || 0,
+        theme: 'green'
+      }
+    ];
+  }, [applicationStats]);
+
+  const canApprove =
+    selectedApp && ['submitted', 'under_review'].includes(selectedApp.status);
+
+  const canReject =
+    selectedApp && ['submitted', 'under_review'].includes(selectedApp.status);
+
+  const canReopen =
+    selectedApp && selectedApp.status === 'rejected';
+
+  const openActionModal = (actionType) => {
+    setPendingAction(actionType);
+    setDecisionNote('');
+    setRejectionReason(selectedApp?.rejectionReason || '');
+    setShowActionModal(true);
   };
 
-  const handleReviewAction = async (status) => {
-    if (!selectedApp?._id) return;
+  const closeActionModal = () => {
+    if (actionLoading) return;
+    setShowActionModal(false);
+    setPendingAction('');
+    setDecisionNote('');
+    setRejectionReason('');
+  };
 
-    if (status === 'rejected' && !rejectionReason.trim()) {
+  const getActionModalText = () => {
+    if (pendingAction === 'approved') {
+      return {
+        title: 'Approve Application',
+        description: 'Add a short approval note for traceability.',
+        confirmText: 'Confirm Approve',
+        confirmClass: 'approve'
+      };
+    }
+
+    if (pendingAction === 'under_review') {
+      return {
+        title: 'Move to Under Review',
+        description: 'Add a note so future admins understand why it was reopened.',
+        confirmText: 'Confirm Review',
+        confirmClass: 'review'
+      };
+    }
+
+    return {
+      title: 'Reject Application',
+      description: 'A clear rejection reason is required before continuing.',
+      confirmText: 'Confirm Reject',
+      confirmClass: 'reject'
+    };
+  };
+
+  const handleSelectApplication = (applicationId) => {
+    updateQueryParams({ id: applicationId });
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+
+    updateQueryParams({
+      search: searchInput.trim() || null,
+      page: 1,
+      id: null
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput('');
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('page');
+      next.delete('status');
+      next.delete('applicationType');
+      next.delete('type');
+      next.delete('search');
+      next.delete('sort');
+      next.delete('id');
+      return next;
+    });
+  };
+
+  const handleFilterChange = (key, value) => {
+    updateQueryParams({
+      [key]: value || null,
+      page: 1,
+      id: null
+    });
+  };
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > (currentMeta.pages || 1)) return;
+
+    updateQueryParams({
+      page: nextPage,
+      id: null
+    });
+  };
+
+  const handleReviewAction = async () => {
+    if (!selectedApp?._id || !pendingAction) return;
+
+    if (pendingAction === 'rejected' && !rejectionReason.trim()) {
       toast.error('Please provide a rejection reason');
       return;
     }
@@ -149,124 +389,88 @@ const ApplicationReview = () => {
 
     try {
       const payload = {
-        status,
-        rejectionReason: status === 'rejected' ? rejectionReason.trim() : ''
+        status: pendingAction,
+        decisionNote: decisionNote.trim(),
+        rejectionReason: pendingAction === 'rejected' ? rejectionReason.trim() : ''
       };
 
       await api.patch(`/admin/applications/${selectedApp._id}/review`, payload);
 
-      toast.success(`Application ${formatStatus(status)} successfully`);
+      toast.success(`Application ${formatStatus(pendingAction)} successfully`);
 
-      setShowRejectModal(false);
-      setRejectionReason('');
-
-      await fetchApplications();
-      await fetchApplicationStats();
-      await handleSelectApplication(selectedApp._id);
+      closeActionModal();
+      await Promise.all([fetchApplications(), fetchApplicationStats()]);
+      await fetchApplicationDetails(selectedApp._id);
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || 'Failed to update application'
-      );
+      toast.error(error?.response?.data?.message || 'Failed to update application');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const filteredApplications = useMemo(() => {
-    return applications.filter((app) => {
-      const applicationId = app.applicationId || '';
-      const applicantName = app.applicant?.fullName || '';
-      const applicantPhone = app.applicant?.phone || '';
+  const statusHistory = selectedApp?.statusHistory || [];
 
-      const query = searchQuery.toLowerCase();
-
-      return (
-        applicationId.toLowerCase().includes(query) ||
-        applicantName.toLowerCase().includes(query) ||
-        applicantPhone.toLowerCase().includes(query)
-      );
-    });
-  }, [applications, searchQuery]);
-
-  const canReview =
-    selectedApp && ['submitted', 'under_review'].includes(selectedApp.status);
-
-  if (loading) {
-    return (
-      <AdminLayout>
-        <div className="admin-review-loading-wrapper flex min-h-[60vh] items-center justify-center">
-          <Loader size="large" text="Loading applications..." />
-        </div>
-      </AdminLayout>
-    );
-  }
+  const actionModalText = getActionModalText();
 
   return (
     <AdminLayout>
       <div className="application-review-page-wrapper">
         {/* Page header */}
-        <div className="application-review-header-panel mb-8 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="application-review-header-panel">
+          <div className="application-review-header-top">
             <div>
-              <h1 className="application-review-title mb-1 text-[1.9rem] font-bold text-[#1F2937]">
-                Application Review
-              </h1>
-              <p className="application-review-subtitle text-[#6B7280]">
-                Review, approve or reject citizen NID applications.
+              <h1 className="application-review-title">Application Review</h1>
+              <p className="application-review-subtitle">
+                Review, verify and control citizen applications with a paginated admin workflow.
               </p>
             </div>
           </div>
 
-          {applicationStats && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl bg-[#F9FAFB] p-4">
-                <p className="mb-1 text-sm text-[#6B7280]">Total Applications</p>
-                <p className="text-2xl font-bold text-[#1F2937]">
-                  {applicationStats.totalApplications || 0}
-                </p>
+          <div className="application-review-stats-grid">
+            {statsCards.map((item) => (
+              <div
+                key={item.key}
+                className={`application-review-stat-card application-review-stat-${item.theme}`}
+              >
+                <p>{item.title}</p>
+                <h3>{statsLoading ? '...' : item.value}</h3>
               </div>
-              <div className="rounded-xl bg-[#F9FAFB] p-4">
-                <p className="mb-1 text-sm text-[#6B7280]">Submitted</p>
-                <p className="text-2xl font-bold text-[#1F2937]">
-                  {applicationStats.submittedApplications || 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-[#F9FAFB] p-4">
-                <p className="mb-1 text-sm text-[#6B7280]">Under Review</p>
-                <p className="text-2xl font-bold text-[#1F2937]">
-                  {applicationStats.underReviewApplications || 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-[#F9FAFB] p-4">
-                <p className="mb-1 text-sm text-[#6B7280]">Approved</p>
-                <p className="text-2xl font-bold text-[#1F2937]">
-                  {applicationStats.approvedApplications || 0}
-                </p>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="application-review-filters mb-6 flex flex-col gap-4 lg:flex-row">
-          <div className="application-review-search-box flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 lg:min-w-[320px]">
-            <FaSearch className="text-[#9CA3AF]" />
-            <input
-              type="text"
-              placeholder="Search by application ID, applicant or phone"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full border-none bg-transparent text-sm text-[#1F2937] outline-none"
-            />
-          </div>
+        <div className="application-review-toolbar">
+          <form className="application-review-search-form" onSubmit={handleSearchSubmit}>
+            <div className="application-review-search-box">
+              <FaSearch className="application-review-field-icon" />
+              <input
+                type="text"
+                placeholder="Search by application ID, name, phone, BRN or NID"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+            </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="application-review-filter-group flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
-              <FaFilter className="text-[#6B7280]" />
+            <button type="submit" className="application-review-toolbar-button primary">
+              Search
+            </button>
+
+            <button
+              type="button"
+              className="application-review-toolbar-button secondary"
+              onClick={handleClearFilters}
+            >
+              Clear
+            </button>
+          </form>
+
+          <div className="application-review-filter-row">
+            <div className="application-review-filter-group">
+              <FaFilter className="application-review-field-icon" />
               <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="border-none bg-transparent text-sm text-[#374151] outline-none"
+                value={queryState.status}
+                onChange={(event) => handleFilterChange('status', event.target.value)}
               >
                 <option value="">All Status</option>
                 <option value="submitted">Submitted</option>
@@ -278,12 +482,11 @@ const ApplicationReview = () => {
               </select>
             </div>
 
-            <div className="application-review-filter-group flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
-              <FaFilter className="text-[#6B7280]" />
+            <div className="application-review-filter-group">
+              <FaFilter className="application-review-field-icon" />
               <select
-                value={typeFilter}
-                onChange={(event) => setTypeFilter(event.target.value)}
-                className="border-none bg-transparent text-sm text-[#374151] outline-none"
+                value={queryState.applicationType}
+                onChange={(event) => handleFilterChange('applicationType', event.target.value)}
               >
                 <option value="">All Types</option>
                 <option value="new">New</option>
@@ -291,382 +494,460 @@ const ApplicationReview = () => {
                 <option value="reissue">Reissue</option>
               </select>
             </div>
+
+            <div className="application-review-filter-group">
+              <FaFilter className="application-review-field-icon" />
+              <select
+                value={queryState.sort}
+                onChange={(event) => handleFilterChange('sort', event.target.value)}
+              >
+                <option value="-createdAt">Newest First</option>
+                <option value="createdAt">Oldest First</option>
+                <option value="-updatedAt">Recently Updated</option>
+                <option value="status">Status A-Z</option>
+                <option value="-status">Status Z-A</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="application-review-content grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          {/* Applications table */}
-          <div className="application-review-table-card rounded-2xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-            <div className="border-b border-[#E5E7EB] px-5 py-4">
-              <h3 className="text-lg font-semibold text-[#1F2937]">
-                Applications ({filteredApplications.length})
-              </h3>
+        <div className="application-review-content">
+          {/* Applications list */}
+          <div className="application-review-table-card">
+            <div className="application-review-card-header">
+              <div>
+                <h3>Applications</h3>
+                <p>
+                  Page {currentMeta.page || 1} of {currentMeta.pages || 1} · Total{' '}
+                  {currentMeta.total || 0}
+                </p>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead className="bg-[#F9FAFB]">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Application
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Applicant
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Created
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredApplications.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="px-4 py-10 text-center text-sm text-[#9CA3AF]"
-                      >
-                        No applications found
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredApplications.map((app) => (
-                      <tr
-                        key={app._id}
-                        className={`border-t border-[#F3F4F6] transition hover:bg-[#F9FAFB] ${
-                          selectedApp?._id === app._id ? 'bg-[#F0FDF4]' : ''
-                        }`}
-                      >
-                        <td className="px-4 py-4 text-sm font-semibold text-[#16A34A]">
-                          #{app.applicationId}
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-[#1F2937]">
-                              {app.applicant?.fullName || 'N/A'}
-                            </span>
-                            <span className="text-xs text-[#6B7280]">
-                              {app.applicant?.phone || 'N/A'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className="inline-flex rounded-md bg-[#F3F4F6] px-3 py-1 text-xs font-semibold text-[#374151]">
-                            {formatStatus(app.applicationType || 'new')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={`badge badge-${getStatusColor(app.status)}`}>
-                            {formatStatus(app.status)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-[#6B7280]">
-                          {formatDate(app.createdAt)}
-                        </td>
-                        <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center rounded-lg border border-[#D1D5DB] bg-white p-2 text-[#374151] transition hover:bg-[#F9FAFB]"
-                            onClick={() => handleSelectApplication(app._id)}
-                            title="View details"
-                          >
-                            <FaEye />
-                          </button>
-                        </td>
+            {listLoading ? (
+              <div className="application-review-loading-state">
+                <Loader size="medium" text="Loading applications..." />
+              </div>
+            ) : (
+              <>
+                <div className="application-review-table-wrap">
+                  <table className="application-review-table">
+                    <thead>
+                      <tr>
+                        <th>Application</th>
+                        <th>Applicant</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {applications.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="application-review-empty-cell">
+                            No applications found for the current filter
+                          </td>
+                        </tr>
+                      ) : (
+                        applications.map((app) => (
+                          <tr
+                            key={app._id}
+                            className={
+                              selectedApp?._id === app._id
+                                ? 'application-review-row active'
+                                : 'application-review-row'
+                            }
+                          >
+                            <td>
+                              <div className="application-review-primary-text">
+                                #{app.applicationId || app._id?.slice(-6)}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="application-review-user-cell">
+                                <span>{app.applicant?.fullName || app.fullNameEnglish || 'N/A'}</span>
+                                <small>{app.phone || app.applicant?.phone || 'N/A'}</small>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="application-review-type-chip">
+                                {formatStatus(app.applicationType || 'new')}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge badge-${getStatusColor(app.status)}`}
+                              >
+                                {formatStatus(app.status)}
+                              </span>
+                            </td>
+                            <td>{formatDate(app.createdAt)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="application-review-icon-button"
+                                onClick={() => handleSelectApplication(app._id)}
+                                title="View details"
+                              >
+                                <FaEye />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="application-review-pagination">
+                  <button
+                    type="button"
+                    className="application-review-page-nav"
+                    onClick={() => handlePageChange((currentMeta.page || 1) - 1)}
+                    disabled={!currentMeta.hasPrevPage}
+                  >
+                    <FaChevronLeft />
+                    <span>Prev</span>
+                  </button>
+
+                  <div className="application-review-page-numbers">
+                    {pageNumbers.map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        className={
+                          pageNumber === (currentMeta.page || 1)
+                            ? 'application-review-page-number active'
+                            : 'application-review-page-number'
+                        }
+                        onClick={() => handlePageChange(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="application-review-page-nav"
+                    onClick={() => handlePageChange((currentMeta.page || 1) + 1)}
+                    disabled={!currentMeta.hasNextPage}
+                  >
+                    <span>Next</span>
+                    <FaChevronRight />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Details panel */}
-          <div className="application-review-details-card rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+          <div className="application-review-details-card">
             {detailsLoading ? (
-              <div className="flex min-h-[420px] items-center justify-center">
+              <div className="application-review-loading-state large">
                 <Loader size="medium" text="Loading application details..." />
               </div>
             ) : selectedApp ? (
               <>
-                <div className="mb-6 border-b border-[#E5E7EB] pb-5">
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="mb-1 text-2xl font-bold text-[#1F2937]">
-                        #{selectedApp.applicationId}
-                      </h2>
-                      <p className="text-sm text-[#6B7280]">
-                        Submitted on {formatDateTime(selectedApp.createdAt)}
-                      </p>
-                    </div>
-
-                    <span className={`badge badge-${getStatusColor(selectedApp.status)}`}>
-                      {formatStatus(selectedApp.status)}
-                    </span>
+                <div className="application-review-details-header">
+                  <div>
+                    <h2>#{selectedApp.applicationId || selectedApp._id?.slice(-6)}</h2>
+                    <p>
+                      Submitted on {selectedApp.createdAt ? formatDateTime(selectedApp.createdAt) : 'N/A'}
+                    </p>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">Application Type</p>
-                      <p className="font-semibold text-[#1F2937]">
-                        {formatStatus(selectedApp.applicationType || 'new')}
-                      </p>
-                    </div>
+                  <span className={`badge badge-${getStatusColor(selectedApp.status)}`}>
+                    {formatStatus(selectedApp.status)}
+                  </span>
+                </div>
 
-                    <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">Applicant</p>
-                      <p className="font-semibold text-[#1F2937]">
-                        {selectedApp.applicant?.fullName || 'N/A'}
-                      </p>
+                <div className="application-review-summary-grid">
+                  <div className="application-review-summary-card">
+                    <p>Application Type</p>
+                    <h4>{formatStatus(selectedApp.applicationType || 'new')}</h4>
+                  </div>
+
+                  <div className="application-review-summary-card">
+                    <p>Applicant</p>
+                    <h4>{selectedApp.applicant?.fullName || selectedApp.fullNameEnglish || 'N/A'}</h4>
+                  </div>
+                </div>
+
+                <div className="application-review-section-card">
+                  <div className="application-review-section-title">
+                    <FaUser className="application-review-section-icon" />
+                    <h3>Applicant Information</h3>
+                  </div>
+
+                  <div className="application-review-detail-grid">
+                    <div>
+                      <p>Full Name</p>
+                      <h4>{selectedApp.fullNameEnglish || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Bangla Name</p>
+                      <h4>{selectedApp.fullNameBangla || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Phone</p>
+                      <h4>{selectedApp.phone || selectedApp.applicant?.phone || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Email</p>
+                      <h4>{selectedApp.email || selectedApp.applicant?.email || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Date of Birth</p>
+                      <h4>
+                        {selectedApp.dateOfBirth ? formatDate(selectedApp.dateOfBirth) : 'N/A'}
+                      </h4>
+                    </div>
+                    <div>
+                      <p>Gender</p>
+                      <h4>{formatStatus(selectedApp.gender || 'N/A')}</h4>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-                    <div className="mb-4 flex items-center gap-2 text-[#1F2937]">
-                      <FaUser className="text-[#16A34A]" />
-                      <h3 className="text-lg font-semibold">Applicant Information</h3>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Full Name</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.fullNameEnglish || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Bangla Name</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.fullNameBangla || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Phone</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.phone || selectedApp.applicant?.phone || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Email</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.email || selectedApp.applicant?.email || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Date of Birth</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.dateOfBirth ? formatDate(selectedApp.dateOfBirth) : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Gender</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {formatStatus(selectedApp.gender || 'N/A')}
-                        </p>
-                      </div>
-                    </div>
+                <div className="application-review-section-card">
+                  <div className="application-review-section-title">
+                    <FaIdCard className="application-review-section-icon" />
+                    <h3>Family Information</h3>
                   </div>
 
-                  <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-                    <div className="mb-4 flex items-center gap-2 text-[#1F2937]">
-                      <FaIdCard className="text-[#16A34A]" />
-                      <h3 className="text-lg font-semibold">Family Information</h3>
+                  <div className="application-review-detail-grid">
+                    <div>
+                      <p>Father Name</p>
+                      <h4>{selectedApp.fatherName || 'N/A'}</h4>
                     </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Father Name</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.fatherName || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Mother Name</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.motherName || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Spouse Name</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.spouseName || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Occupation</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {selectedApp.occupation || 'N/A'}
-                        </p>
-                      </div>
+                    <div>
+                      <p>Mother Name</p>
+                      <h4>{selectedApp.motherName || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Spouse Name</p>
+                      <h4>{selectedApp.spouseName || 'N/A'}</h4>
+                    </div>
+                    <div>
+                      <p>Occupation</p>
+                      <h4>{selectedApp.occupation || 'N/A'}</h4>
                     </div>
                   </div>
+                </div>
 
-                  <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-                    <div className="mb-4 flex items-center gap-2 text-[#1F2937]">
-                      <FaMapMarkerAlt className="text-[#16A34A]" />
-                      <h3 className="text-lg font-semibold">Address Information</h3>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Present Address</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {[
-                            selectedApp.presentAddress?.division,
-                            selectedApp.presentAddress?.district,
-                            selectedApp.presentAddress?.upazila
-                          ]
-                            .filter(Boolean)
-                            .join(', ') || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6B7280]">Permanent Address</p>
-                        <p className="font-semibold text-[#1F2937]">
-                          {[
-                            selectedApp.permanentAddress?.division,
-                            selectedApp.permanentAddress?.district,
-                            selectedApp.permanentAddress?.upazila
-                          ]
-                            .filter(Boolean)
-                            .join(', ') || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
+                <div className="application-review-section-card">
+                  <div className="application-review-section-title">
+                    <FaMapMarkerAlt className="application-review-section-icon" />
+                    <h3>Address Information</h3>
                   </div>
 
-                  {selectedApp.rejectionReason && (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-                      <div className="mb-2 flex items-center gap-2 text-red-700">
-                        <FaExclamationTriangle />
-                        <span className="font-semibold">Rejection Reason</span>
-                      </div>
-                      <p className="text-sm text-red-800">
-                        {selectedApp.rejectionReason}
-                      </p>
+                  <div className="application-review-detail-grid">
+                    <div>
+                      <p>Present Address</p>
+                      <h4>
+                        {[
+                          selectedApp.presentAddress?.division,
+                          selectedApp.presentAddress?.district,
+                          selectedApp.presentAddress?.upazila,
+                          selectedApp.presentAddress?.unionOrWard,
+                          selectedApp.presentAddress?.villageOrArea
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || 'N/A'}
+                      </h4>
+                    </div>
+                    <div>
+                      <p>Permanent Address</p>
+                      <h4>
+                        {[
+                          selectedApp.permanentAddress?.division,
+                          selectedApp.permanentAddress?.district,
+                          selectedApp.permanentAddress?.upazila,
+                          selectedApp.permanentAddress?.unionOrWard,
+                          selectedApp.permanentAddress?.villageOrArea
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || 'N/A'}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedApp.rejectionReason ? (
+                  <div className="application-review-alert-card">
+                    <p>Current Rejection Reason</p>
+                    <h4>{selectedApp.rejectionReason}</h4>
+                  </div>
+                ) : null}
+
+                <div className="application-review-section-card">
+                  <div className="application-review-section-title">
+                    <FaClock className="application-review-section-icon" />
+                    <h3>Status History</h3>
+                  </div>
+
+                  {statusHistory.length === 0 ? (
+                    <div className="application-review-history-empty">
+                      No status history found yet
+                    </div>
+                  ) : (
+                    <div className="application-review-history-list">
+                      {[...statusHistory]
+                        .slice()
+                        .reverse()
+                        .map((historyItem, index) => (
+                          <div key={`${historyItem.changedAt}-${index}`} className="application-review-history-item">
+                            <div className="application-review-history-dot" />
+                            <div className="application-review-history-content">
+                              <div className="application-review-history-top">
+                                <span>
+                                  {historyItem.fromStatus
+                                    ? `${formatStatus(historyItem.fromStatus)} → ${formatStatus(historyItem.toStatus)}`
+                                    : formatStatus(historyItem.toStatus)}
+                                </span>
+                                <small>
+                                  {historyItem.changedAt
+                                    ? formatDateTime(historyItem.changedAt)
+                                    : 'N/A'}
+                                </small>
+                              </div>
+
+                              <p>
+                                {historyItem.reason || historyItem.note || 'No reason added'}
+                              </p>
+
+                              <div className="application-review-history-meta">
+                                <span>
+                                  By: {historyItem.changedByRole
+                                    ? formatStatus(historyItem.changedByRole)
+                                    : 'System'}
+                                </span>
+                                {historyItem.requestId ? (
+                                  <span>Request: {historyItem.requestId}</span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   )}
+                </div>
 
-                  {canReview && (
-                    <div className="flex flex-wrap gap-3 border-t border-[#E5E7EB] pt-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
-                        onClick={() => handleReviewAction('under_review')}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? <FaSpinner className="animate-spin" /> : <FaEye />}
-                        <span>Mark Under Review</span>
-                      </button>
+                <div className="application-review-action-row">
+                  {canReopen ? (
+                    <button
+                      type="button"
+                      className="application-review-action-button neutral"
+                      onClick={() => openActionModal('under_review')}
+                      disabled={actionLoading}
+                    >
+                      <FaUndo />
+                      <span>Reopen for Review</span>
+                    </button>
+                  ) : null}
 
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
-                        onClick={() => handleReviewAction('approved')}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? <FaSpinner className="animate-spin" /> : <FaCheck />}
-                        <span>Approve</span>
-                      </button>
+                  {canApprove ? (
+                    <button
+                      type="button"
+                      className="application-review-action-button approve"
+                      onClick={() => openActionModal('approved')}
+                      disabled={actionLoading}
+                    >
+                      <FaCheck />
+                      <span>Approve</span>
+                    </button>
+                  ) : null}
 
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        onClick={() => setShowRejectModal(true)}
-                        disabled={actionLoading}
-                      >
-                        <FaTimes />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  )}
+                  {canReject ? (
+                    <button
+                      type="button"
+                      className="application-review-action-button reject"
+                      onClick={() => openActionModal('rejected')}
+                      disabled={actionLoading}
+                    >
+                      <FaTimes />
+                      <span>Reject</span>
+                    </button>
+                  ) : null}
                 </div>
               </>
             ) : (
-              <div className="flex min-h-[520px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-6 text-center">
-                <FaEye className="mb-4 text-5xl text-[#D1D5DB]" />
-                <h3 className="mb-2 text-xl font-semibold text-[#374151]">
-                  Select an Application
-                </h3>
-                <p className="max-w-[420px] text-[#6B7280]">
-                  Choose an application from the table to review full details.
-                </p>
+              <div className="application-review-empty-details">
+                <FaFileAlt className="application-review-empty-icon" />
+                <h3>Select an Application</h3>
+                <p>Choose an application from the left table to review full details.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Reject modal */}
-        {showRejectModal && (
-          <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 px-4 py-6"
-            onClick={() => setShowRejectModal(false)}
-          >
+        {/* Action modal */}
+        {showActionModal ? (
+          <div className="application-review-modal-backdrop" onClick={closeActionModal}>
             <div
-              className="w-full max-w-[520px] rounded-2xl bg-white shadow-[0_18px_40px_rgba(0,0,0,0.16)]"
+              className="application-review-modal-card"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="border-b border-[#E5E7EB] px-6 py-5">
-                <h3 className="text-xl font-semibold text-[#1F2937]">
-                  Reject Application
-                </h3>
-                <p className="mt-1 text-sm text-[#6B7280]">
-                  Please provide a clear reason for rejection.
-                </p>
+              <div className="application-review-modal-header">
+                <h3>{actionModalText.title}</h3>
+                <p>{actionModalText.description}</p>
               </div>
 
-              <div className="px-6 py-6">
-                <label className="mb-2 block text-sm font-medium text-[#374151]">
-                  Rejection Reason *
-                </label>
-                <textarea
-                  rows={5}
-                  value={rejectionReason}
-                  onChange={(event) => setRejectionReason(event.target.value)}
-                  placeholder="Write the rejection reason..."
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                />
+              <div className="application-review-modal-body">
+                <div className="application-review-modal-field">
+                  <label>Decision Note</label>
+                  <textarea
+                    rows={4}
+                    value={decisionNote}
+                    onChange={(event) => setDecisionNote(event.target.value)}
+                    placeholder="Write a short admin note for audit trail..."
+                  />
+                </div>
+
+                {pendingAction === 'rejected' ? (
+                  <div className="application-review-modal-field">
+                    <label>Rejection Reason *</label>
+                    <textarea
+                      rows={5}
+                      value={rejectionReason}
+                      onChange={(event) => setRejectionReason(event.target.value)}
+                      placeholder="Write the rejection reason..."
+                    />
+                  </div>
+                ) : null}
               </div>
 
-              <div className="flex flex-col gap-3 border-t border-[#E5E7EB] px-6 py-5 sm:flex-row sm:justify-end">
+              <div className="application-review-modal-footer">
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectionReason('');
-                  }}
+                  className="application-review-toolbar-button secondary"
+                  onClick={closeActionModal}
+                  disabled={actionLoading}
                 >
                   Cancel
                 </button>
 
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => handleReviewAction('rejected')}
-                  disabled={actionLoading || !rejectionReason.trim()}
+                  className={`application-review-toolbar-button ${actionModalText.confirmClass}`}
+                  onClick={handleReviewAction}
+                  disabled={
+                    actionLoading ||
+                    (pendingAction === 'rejected' && !rejectionReason.trim())
+                  }
                 >
-                  {actionLoading ? <FaSpinner className="animate-spin" /> : <FaTimes />}
-                  <span>Confirm Reject</span>
+                  {actionLoading ? <FaSpinner className="spin" /> : null}
+                  <span>{actionModalText.confirmText}</span>
                 </button>
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </AdminLayout>
   );
 };
 
 export default ApplicationReview;
-// Admin Application Review Page End

@@ -135,7 +135,7 @@
 .application-form-page-wrapper .type-content {
   border: 2px solid #E5E7EB;
   border-radius: 0.75rem;
-  padding: 1.5rem;
+  padding: 1rem 0.8rem;
   text-align: center;
   transition: all 0.3s ease;
 }

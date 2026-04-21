@@ -1,42 +1,82 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FaSpinner, FaUserCog, FaUsers } from 'react-icons/fa';
+import {
+  FaCheckCircle,
+  FaEnvelope,
+  FaFilter,
+  FaPhoneAlt,
+  FaPlus,
+  FaSearch,
+  FaShieldAlt,
+  FaSpinner,
+  FaUserCheck,
+  FaUserClock,
+  FaUserShield,
+  FaUsers
+} from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
+import Loader from '../common/Loader';
+import { useAuth } from '../context/AuthContext';
+import { formatDateTime, formatStatus } from '../utils/helpers';
+import '../styles/AdminUsers.css';
 
-const defaultForm = {
-  fullName: '',
-  email: '',
-  phone: '',
-  password: '',
-  role: 'support_staff'
-};
+const inferMainAdmin = (user) =>
+  Boolean(user?.isMainAdmin) || (user?.role === 'admin' && !user?.createdBy);
 
-const roleOptions = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'system_supervisor', label: 'System Supervisor' },
-  { value: 'support_staff', label: 'Support Staff' }
-];
-
-const roleBadgeMap = {
-  admin: 'bg-red-100 text-red-700',
-  system_supervisor: 'bg-blue-100 text-blue-700',
-  support_staff: 'bg-amber-100 text-amber-700'
-};
+const getUsersFromResponse = (response) =>
+  response?.data?.data || response?.data?.users || [];
 
 const AdminUsers = () => {
-  const [users, setUsers] = useState([]);
-  const [formData, setFormData] = useState(defaultForm);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    role: 'support_staff'
+  });
+
+  const isMainAdmin = inferMainAdmin(user);
+
+  // Load internal users for the control panel view.
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/users');
-      setUsers(response.data?.data || []);
+
+      const response = await api.get('/admin/users?limit=300&sort=-createdAt');
+      const internalUsers = getUsersFromResponse(response);
+
+      setUsers(internalUsers);
+
+      setSelectedUser((currentSelected) => {
+        if (!internalUsers.length) return null;
+        if (!currentSelected) return internalUsers[0];
+
+        const stillExists = internalUsers.find(
+          (item) => item._id === currentSelected._id
+        );
+
+        return stillExists || internalUsers[0];
+      });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to load users');
+      console.error('Error fetching internal users:', error);
+      toast.error(
+        error?.response?.data?.message || 'Failed to load internal users'
+      );
     } finally {
       setLoading(false);
     }
@@ -46,235 +86,580 @@ const AdminUsers = () => {
     fetchUsers();
   }, []);
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const summary = useMemo(() => {
+    return {
+      total: users.length,
+      admins: users.filter((item) => item.role === 'admin').length,
+      supervisors: users.filter((item) => item.role === 'system_supervisor')
+        .length,
+      supportStaff: users.filter((item) => item.role === 'support_staff').length,
+      active: users.filter((item) => item.status !== 'blocked').length,
+      blocked: users.filter((item) => item.status === 'blocked').length
+    };
+  }, [users]);
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+  const visibleUsers = useMemo(() => {
+    return users.filter((item) => {
+      const searchValue = searchInput.trim().toLowerCase();
+
+      const matchesSearch =
+        !searchValue ||
+        item.fullName?.toLowerCase().includes(searchValue) ||
+        item.email?.toLowerCase().includes(searchValue) ||
+        item.phone?.toLowerCase().includes(searchValue);
+
+      const matchesRole = !roleFilter || item.role === roleFilter;
+      const matchesStatus = !statusFilter || item.status === statusFilter;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchInput, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    if (!visibleUsers.length) {
+      setSelectedUser(null);
+      return;
+    }
+
+    setSelectedUser((currentSelected) => {
+      if (!currentSelected) return visibleUsers[0];
+
+      const stillExists = visibleUsers.find(
+        (item) => item._id === currentSelected._id
+      );
+
+      return stillExists || visibleUsers[0];
+    });
+  }, [visibleUsers]);
+
+  const openCreateModal = () => {
+    setCreateForm({
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      role: 'support_staff'
+    });
+    setCreateModalOpen(true);
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const closeCreateModal = () => {
+    if (createLoading) return;
 
-    if (
-      !formData.fullName.trim() ||
-      !formData.email.trim() ||
-      !formData.phone.trim() ||
-      !formData.password.trim()
-    ) {
-      toast.error('All fields are required');
+    setCreateModalOpen(false);
+    setCreateForm({
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      role: 'support_staff'
+    });
+  };
+
+  const handleCreateUser = async () => {
+    if (!createForm.fullName.trim()) {
+      toast.error('Full name is required');
       return;
     }
 
-    if (formData.password.trim().length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (!createForm.email.trim()) {
+      toast.error('Email is required');
       return;
     }
 
-    setIsSubmitting(true);
+    if (!createForm.phone.trim()) {
+      toast.error('Phone number is required');
+      return;
+    }
+
+    if (!createForm.password) {
+      toast.error('Password is required');
+      return;
+    }
+
+    if (createForm.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    if (createForm.password !== createForm.confirmPassword) {
+      toast.error('Password and confirm password do not match');
+      return;
+    }
 
     try {
-      const response = await api.post('/admin/users', {
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        password: formData.password,
-        role: formData.role
+      setCreateLoading(true);
+
+      await api.post('/admin/users', {
+        fullName: createForm.fullName.trim(),
+        email: createForm.email.trim(),
+        phone: createForm.phone.trim(),
+        password: createForm.password,
+        role: createForm.role
       });
 
-      const createdUser = response.data?.data;
-
-      if (createdUser) {
-        setUsers((prev) => [createdUser, ...prev]);
-      }
-
-      setFormData(defaultForm);
-      toast.success(response.data?.message || 'Internal user created successfully');
+      toast.success('Internal user created successfully');
+      closeCreateModal();
+      await fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create user');
+      console.error('Error creating internal user:', error);
+      toast.error(
+        error?.response?.data?.message || 'Failed to create internal user'
+      );
     } finally {
-      setIsSubmitting(false);
+      setCreateLoading(false);
     }
   };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setRoleFilter('');
+    setStatusFilter('');
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="admin-users-loading-state">
+          <Loader size="large" text="Loading internal users..." />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
-      <div className="admin-users-page space-y-6">
-        <div className="rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-          <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="admin-users-page">
+        {/* Page header and control summary */}
+        <div className="admin-users-header-card">
+          <div className="admin-users-header-top">
             <div>
-              <h1 className="text-2xl font-bold text-[#1F2937]">Users Management</h1>
-              <p className="mt-1 text-sm text-[#6B7280]">
-                Create and view internal system users.
+              <h1 className="admin-users-title">Internal User Control</h1>
+              <p className="admin-users-subtitle">
+                Manage admins, system supervisors and support staff from one
+                control-focused workspace.
               </p>
             </div>
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ECFDF5] text-[#16A34A]">
-              <FaUserCog />
-            </div>
+            {isMainAdmin ? (
+              <button
+                type="button"
+                className="admin-users-primary-button"
+                onClick={openCreateModal}
+              >
+                <FaPlus />
+                <span>Create Internal User</span>
+              </button>
+            ) : null}
           </div>
 
-          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#374151]">
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                placeholder="Enter full name"
-                className="w-full rounded-lg border border-[#D1D5DB] px-4 py-3 outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-              />
+          <div className="admin-users-stats-grid">
+            <div className="admin-users-stat-card neutral">
+              <div className="admin-users-stat-icon">
+                <FaUsers />
+              </div>
+              <div>
+                <p>Total Internal Users</p>
+                <h3>{summary.total}</h3>
+              </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#374151]">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter email address"
-                className="w-full rounded-lg border border-[#D1D5DB] px-4 py-3 outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-              />
+            <div className="admin-users-stat-card blue">
+              <div className="admin-users-stat-icon">
+                <FaUserShield />
+              </div>
+              <div>
+                <p>Admins</p>
+                <h3>{summary.admins}</h3>
+              </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#374151]">
-                Phone
-              </label>
-              <input
-                type="text"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Enter phone number"
-                className="w-full rounded-lg border border-[#D1D5DB] px-4 py-3 outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-              />
+            <div className="admin-users-stat-card yellow">
+              <div className="admin-users-stat-icon">
+                <FaShieldAlt />
+              </div>
+              <div>
+                <p>Supervisors</p>
+                <h3>{summary.supervisors}</h3>
+              </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#374151]">
-                Role
-              </label>
+            <div className="admin-users-stat-card green">
+              <div className="admin-users-stat-icon">
+                <FaUserCheck />
+              </div>
+              <div>
+                <p>Support Staff</p>
+                <h3>{summary.supportStaff}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and quick filters */}
+        <div className="admin-users-toolbar">
+          <div className="admin-users-search-box">
+            <FaSearch className="admin-users-field-icon" />
+            <input
+              type="text"
+              placeholder="Search by name, email or phone"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          </div>
+
+          <div className="admin-users-filter-row">
+            <div className="admin-users-filter-group">
+              <FaFilter className="admin-users-field-icon" />
               <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-[#D1D5DB] px-4 py-3 outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
               >
-                {roleOptions.map((role) => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
+                <option value="">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="system_supervisor">System Supervisor</option>
+                <option value="support_staff">Support Staff</option>
               </select>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-[#374151]">
-                Temporary Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter temporary password"
-                className="w-full rounded-lg border border-[#D1D5DB] px-4 py-3 outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-              />
+            <div className="admin-users-filter-group">
+              <FaFilter className="admin-users-field-icon" />
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="blocked">Blocked</option>
+              </select>
             </div>
 
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? (
-                  <>
-                    <FaSpinner className="animate-spin" />
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaUserCog />
-                    <span>Create User</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+            <button
+              type="button"
+              className="admin-users-secondary-button"
+              onClick={clearFilters}
+            >
+              Clear Filters
+            </button>
+          </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ECFDF5] text-[#16A34A]">
-              <FaUsers />
+        <div className="admin-users-content">
+          {/* User list side */}
+          <div className="admin-users-list-card">
+            <div className="admin-users-card-header">
+              <div>
+                <h3>Team Directory</h3>
+                <p>{visibleUsers.length} users found</p>
+              </div>
             </div>
 
-            <div>
-              <h2 className="text-lg font-bold text-[#1F2937]">Internal Users</h2>
-              <p className="text-sm text-[#6B7280]">
-                Admin, system supervisor and support staff accounts.
-              </p>
-            </div>
+            {visibleUsers.length === 0 ? (
+              <div className="admin-users-empty-state">
+                <FaUserClock className="admin-users-empty-icon" />
+                <h3>No internal users found</h3>
+                <p>Try changing your search or filter selection.</p>
+              </div>
+            ) : (
+              <div className="admin-users-list">
+                {visibleUsers.map((item) => (
+                  <button
+                    key={item._id}
+                    type="button"
+                    className={
+                      selectedUser?._id === item._id
+                        ? 'admin-users-list-item active'
+                        : 'admin-users-list-item'
+                    }
+                    onClick={() => setSelectedUser(item)}
+                  >
+                    <div className="admin-users-list-top">
+                      <h4>{item.fullName || 'Unnamed User'}</h4>
+                      <span
+                        className={`admin-users-status-chip ${item.status || 'active'}`}
+                      >
+                        {formatStatus(item.status || 'active')}
+                      </span>
+                    </div>
+
+                    <p>{item.email || 'No email'}</p>
+
+                    <div className="admin-users-list-meta">
+                      <span className="admin-users-role-chip">
+                        {formatStatus(item.role)}
+                      </span>
+                      <small>{item.phone || 'No phone'}</small>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {loading ? (
-            <div className="flex items-center gap-3 rounded-xl bg-[#F9FAFB] px-4 py-6 text-[#6B7280]">
-              <FaSpinner className="animate-spin" />
-              <span>Loading users...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[#D1D5DB] px-4 py-8 text-center text-[#6B7280]">
-              No internal users found.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-y-3">
-                <thead>
-                  <tr className="text-left text-sm text-[#6B7280]">
-                    <th className="px-3">Name</th>
-                    <th className="px-3">Email</th>
-                    <th className="px-3">Phone</th>
-                    <th className="px-3">Role</th>
-                    <th className="px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((item) => (
-                    <tr key={item._id} className="bg-[#F9FAFB] text-sm text-[#1F2937]">
-                      <td className="rounded-l-xl px-3 py-4 font-medium">{item.fullName}</td>
-                      <td className="px-3 py-4">{item.email}</td>
-                      <td className="px-3 py-4">{item.phone}</td>
-                      <td className="px-3 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                            roleBadgeMap[item.role] || 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {item.role}
-                        </span>
-                      </td>
-                      <td className="rounded-r-xl px-3 py-4">
-                        <span className="inline-flex rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-semibold text-[#166534]">
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* Selected user details */}
+          <div className="admin-users-details-card">
+            {selectedUser ? (
+              <>
+                <div className="admin-users-details-header">
+                  <div>
+                    <h2>{selectedUser.fullName || 'Unnamed User'}</h2>
+                    <p>
+                      {formatStatus(selectedUser.role)} ·{' '}
+                      {formatStatus(selectedUser.status || 'active')}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`admin-users-status-chip ${selectedUser.status || 'active'}`}
+                  >
+                    {formatStatus(selectedUser.status || 'active')}
+                  </span>
+                </div>
+
+                <div className="admin-users-summary-grid">
+                  <div className="admin-users-summary-card">
+                    <p>Role</p>
+                    <h4>{formatStatus(selectedUser.role)}</h4>
+                  </div>
+
+                  <div className="admin-users-summary-card">
+                    <p>Status</p>
+                    <h4>{formatStatus(selectedUser.status || 'active')}</h4>
+                  </div>
+                </div>
+
+                <div className="admin-users-section-card">
+                  <div className="admin-users-section-title">
+                    <FaEnvelope className="admin-users-section-icon" />
+                    <h3>Contact Information</h3>
+                  </div>
+
+                  <div className="admin-users-detail-grid">
+                    <div>
+                      <p>Email</p>
+                      <h4>{selectedUser.email || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Phone</p>
+                      <h4>{selectedUser.phone || 'N/A'}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-users-section-card">
+                  <div className="admin-users-section-title">
+                    <FaUsers className="admin-users-section-icon" />
+                    <h3>Access Overview</h3>
+                  </div>
+
+                  <div className="admin-users-access-grid">
+                    <div className="admin-users-access-item">
+                      <span>Role Type</span>
+                      <strong>{formatStatus(selectedUser.role)}</strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Account Status</span>
+                      <strong>{formatStatus(selectedUser.status || 'active')}</strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Created At</span>
+                      <strong>
+                        {selectedUser.createdAt
+                          ? formatDateTime(selectedUser.createdAt)
+                          : 'N/A'}
+                      </strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Updated At</span>
+                      <strong>
+                        {selectedUser.updatedAt
+                          ? formatDateTime(selectedUser.updatedAt)
+                          : 'N/A'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedUser.createdBy ? (
+                  <div className="admin-users-section-card">
+                    <div className="admin-users-section-title">
+                      <FaPhoneAlt className="admin-users-section-icon" />
+                      <h3>Created By</h3>
+                    </div>
+
+                    <div className="admin-users-detail-grid">
+                      <div>
+                        <p>Creator Name</p>
+                        <h4>{selectedUser.createdBy?.fullName || 'N/A'}</h4>
+                      </div>
+
+                      <div>
+                        <p>Creator Email</p>
+                        <h4>{selectedUser.createdBy?.email || 'N/A'}</h4>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="admin-users-note-card">
+                  <p>Main admin note</p>
+                  <h4>
+                    Keep role creation limited, traceable and need-based so the
+                    admin tree stays clean and controllable.
+                  </h4>
+                </div>
+              </>
+            ) : (
+              <div className="admin-users-empty-state details">
+                <FaUsers className="admin-users-empty-icon" />
+                <h3>Select a user</h3>
+                <p>Choose an internal user from the left side to view details.</p>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Create user modal */}
+        {createModalOpen ? (
+          <div className="admin-users-modal-backdrop" onClick={closeCreateModal}>
+            <div
+              className="admin-users-modal-card"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="admin-users-modal-header">
+                <h3>Create Internal User</h3>
+                <p>
+                  Add a controlled internal account for admin, system supervisor
+                  or support staff.
+                </p>
+              </div>
+
+              <div className="admin-users-modal-body">
+                <div className="admin-users-modal-grid">
+                  <div className="admin-users-modal-field">
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      value={createForm.fullName}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          fullName: event.target.value
+                        }))
+                      }
+                      placeholder="Enter full name"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      value={createForm.email}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          email: event.target.value
+                        }))
+                      }
+                      placeholder="Enter email"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Phone *</label>
+                    <input
+                      type="text"
+                      value={createForm.phone}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          phone: event.target.value
+                        }))
+                      }
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Role *</label>
+                    <select
+                      value={createForm.role}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          role: event.target.value
+                        }))
+                      }
+                    >
+                      <option value="support_staff">Support Staff</option>
+                      <option value="system_supervisor">System Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Password *</label>
+                    <input
+                      type="password"
+                      value={createForm.password}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          password: event.target.value
+                        }))
+                      }
+                      placeholder="Enter password"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Confirm Password *</label>
+                    <input
+                      type="password"
+                      value={createForm.confirmPassword}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          confirmPassword: event.target.value
+                        }))
+                      }
+                      placeholder="Confirm password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-users-modal-footer">
+                <button
+                  type="button"
+                  className="admin-users-secondary-button"
+                  onClick={closeCreateModal}
+                  disabled={createLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-users-primary-button"
+                  onClick={handleCreateUser}
+                  disabled={createLoading}
+                >
+                  {createLoading ? <FaSpinner className="spin" /> : null}
+                  <span>Create User</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AdminLayout>
   );
