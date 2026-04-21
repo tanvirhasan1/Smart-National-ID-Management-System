@@ -6,7 +6,10 @@ const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
 const AuditLog = require('../models/AuditLog');
-const { createAuditLog } = require('../utils/auditLogger');
+const {
+  createAuditLog,
+  getRequestAuditContext
+} = require('../utils/auditLogger');
 const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
 const { syncUserBuckets } = require('../utils/userBuckets');
 
@@ -39,6 +42,60 @@ const ensureMainAdminAccess = (req, res) => {
   }
 
   return true;
+};
+
+const buildApplicationAuditState = (application) => ({
+  status: application.status,
+  rejectionReason: application.rejectionReason || '',
+  approvedAt: application.approvedAt || null,
+  printedAt: application.printedAt || null,
+  dispatchedAt: application.dispatchedAt || null,
+  deliveredAt: application.deliveredAt || null,
+  cancelledAt: application.cancelledAt || null,
+  latestStatusChangedAt: application.latestStatusChangedAt || null
+});
+
+const buildSupportTicketAuditState = (ticket) => ({
+  status: ticket.status,
+  assignedTo: ticket.assignedTo ? ticket.assignedTo.toString() : null,
+  resolutionNotes: ticket.resolutionNotes || '',
+  resolvedAt: ticket.resolvedAt || null,
+  closedAt: ticket.closedAt || null
+});
+
+const appendApplicationStatusHistory = (
+  application,
+  req,
+  { fromStatus, toStatus, reason = '', note = '' }
+) => {
+  if (!fromStatus || !toStatus || fromStatus === toStatus) {
+    return;
+  }
+
+  const requestContext = getRequestAuditContext(req);
+  const changedAt = new Date();
+
+  application.latestStatusChangedAt = changedAt;
+  application.statusHistory = Array.isArray(application.statusHistory)
+    ? application.statusHistory
+    : [];
+
+  application.statusHistory.push({
+    fromStatus,
+    toStatus,
+    reason,
+    note,
+    changedAt,
+    changedBy: req.user?._id || null,
+    changedByRole: req.user?.role || 'system',
+    ipAddress: requestContext.ipAddress || '',
+    userAgent: requestContext.userAgent || '',
+    requestId: requestContext.requestId || ''
+  });
+
+  if (application.statusHistory.length > 300) {
+    application.statusHistory = application.statusHistory.slice(-300);
+  }
 };
 
 const getAdminDashboard = async (req, res) => {
@@ -496,7 +553,6 @@ const getSupportStats = async (req, res) => {
 
 const assignSupportTicket = async (req, res) => {
   try {
-    // Validate ticket id before query.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -513,6 +569,11 @@ const assignSupportTicket = async (req, res) => {
       });
     }
 
+    const beforeState = buildSupportTicketAuditState(ticket);
+    const requestContext = getRequestAuditContext(req);
+    const assignmentReason = String(req.body.assignmentReason || '').trim();
+    const assignmentNote = String(req.body.assignmentNote || '').trim();
+
     let assigneeId = req.body.assignedTo || req.user._id;
 
     if (req.body.assignedTo) {
@@ -525,7 +586,6 @@ const assignSupportTicket = async (req, res) => {
         });
       }
 
-      // Only admin or support staff can take support tickets.
       if (!['admin', 'support_staff'].includes(assignee.role)) {
         return res.status(400).json({
           success: false,
@@ -536,12 +596,13 @@ const assignSupportTicket = async (req, res) => {
 
     ticket.assignedTo = assigneeId;
 
-    // Move open ticket into progress once assigned.
     if (ticket.status === 'open') {
       ticket.status = 'in_progress';
     }
 
     await ticket.save();
+
+    const afterState = buildSupportTicketAuditState(ticket);
 
     await createAuditLog({
       actor: req.user._id,
@@ -550,8 +611,15 @@ const assignSupportTicket = async (req, res) => {
       entityType: 'SupportTicket',
       entityId: ticket._id,
       message: `Assigned support ticket ${ticket.ticketNumber || ''}`.trim(),
+      reason: assignmentReason || 'Support ticket assignment updated',
+      severity: ticket.priority === 'urgent' ? 'warning' : 'info',
+      sourceModule: 'admin.support',
+      requestContext,
+      beforeState,
+      afterState,
       meta: {
-        assignedTo: assigneeId.toString()
+        assignedTo: assigneeId.toString(),
+        assignmentNote
       }
     });
 
@@ -574,7 +642,6 @@ const assignSupportTicket = async (req, res) => {
 
 const updateSupportTicketStatus = async (req, res) => {
   try {
-    // Validate ticket id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -583,6 +650,7 @@ const updateSupportTicketStatus = async (req, res) => {
     }
 
     const { status, resolutionNotes } = req.body;
+    const statusNote = String(req.body.statusNote || '').trim();
     const allowedStatuses = ['open', 'in_progress', 'resolved', 'closed'];
 
     if (!allowedStatuses.includes(status)) {
@@ -601,6 +669,10 @@ const updateSupportTicketStatus = async (req, res) => {
       });
     }
 
+    const previousStatus = ticket.status;
+    const beforeState = buildSupportTicketAuditState(ticket);
+    const requestContext = getRequestAuditContext(req);
+
     ticket.status = status;
 
     if (resolutionNotes !== undefined) {
@@ -611,11 +683,13 @@ const updateSupportTicketStatus = async (req, res) => {
       ticket.resolvedAt = new Date();
     }
 
-    if (status === 'closed') {
+    if (status === 'closed' && !ticket.closedAt) {
       ticket.closedAt = new Date();
     }
 
     await ticket.save();
+
+    const afterState = buildSupportTicketAuditState(ticket);
 
     await createAuditLog({
       actor: req.user._id,
@@ -623,10 +697,22 @@ const updateSupportTicketStatus = async (req, res) => {
       action: 'UPDATE_SUPPORT_TICKET_STATUS',
       entityType: 'SupportTicket',
       entityId: ticket._id,
-      message: `Updated support ticket status to ${status}`,
+      message: `Updated support ticket status from ${previousStatus} to ${status}`,
+      reason:
+        statusNote ||
+        resolutionNotes ||
+        `Support ticket moved from ${previousStatus} to ${status}`,
+      severity:
+        ticket.priority === 'urgent' || status === 'closed' ? 'warning' : 'info',
+      sourceModule: 'admin.support',
+      requestContext,
+      beforeState,
+      afterState,
       meta: {
         status,
-        resolutionNotes: resolutionNotes || ''
+        previousStatus,
+        resolutionNotes: resolutionNotes || '',
+        statusNote
       }
     });
 
@@ -910,7 +996,6 @@ const getPrintingQueue = async (req, res) => {
 
 const markApplicationAsPrinted = async (req, res) => {
   try {
-    // Validate application id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -934,10 +1019,24 @@ const markApplicationAsPrinted = async (req, res) => {
       });
     }
 
+    const previousStatus = application.status;
+    const beforeState = buildApplicationAuditState(application);
+    const requestContext = getRequestAuditContext(req);
+    const printNote = String(req.body.printNote || '').trim();
+    const batchReference = String(req.body.batchReference || '').trim();
+
     application.status = 'printed';
     application.printedAt = new Date();
 
+    appendApplicationStatusHistory(application, req, {
+      fromStatus: previousStatus,
+      toStatus: 'printed',
+      reason: printNote || batchReference || 'Application marked as printed',
+      note: printNote || batchReference
+    });
+
     const updatedApplication = await application.save();
+    const afterState = buildApplicationAuditState(updatedApplication);
 
     await createAuditLog({
       actor: req.user._id,
@@ -946,8 +1045,16 @@ const markApplicationAsPrinted = async (req, res) => {
       entityType: 'Application',
       entityId: updatedApplication._id,
       message: `Marked application ${updatedApplication.applicationId} as printed`,
+      reason: printNote || batchReference || 'Application marked as printed',
+      severity: 'info',
+      sourceModule: 'admin.printing',
+      requestContext,
+      beforeState,
+      afterState,
       meta: {
-        status: updatedApplication.status
+        status: updatedApplication.status,
+        printNote,
+        batchReference
       }
     });
 
@@ -993,7 +1100,6 @@ const getDeliveryQueue = async (req, res) => {
 
 const markApplicationAsDelivered = async (req, res) => {
   try {
-    // Validate application id before update.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -1017,10 +1123,25 @@ const markApplicationAsDelivered = async (req, res) => {
       });
     }
 
+    const previousStatus = application.status;
+    const beforeState = buildApplicationAuditState(application);
+    const requestContext = getRequestAuditContext(req);
+    const deliveryNote = String(req.body.deliveryNote || '').trim();
+    const deliveryReference = String(req.body.deliveryReference || '').trim();
+
     application.status = 'delivered';
     application.deliveredAt = new Date();
 
+    appendApplicationStatusHistory(application, req, {
+      fromStatus: previousStatus,
+      toStatus: 'delivered',
+      reason:
+        deliveryNote || deliveryReference || 'Application marked as delivered',
+      note: deliveryNote || deliveryReference
+    });
+
     const updatedApplication = await application.save();
+    const afterState = buildApplicationAuditState(updatedApplication);
 
     await createAuditLog({
       actor: req.user._id,
@@ -1029,8 +1150,17 @@ const markApplicationAsDelivered = async (req, res) => {
       entityType: 'Application',
       entityId: updatedApplication._id,
       message: `Marked application ${updatedApplication.applicationId} as delivered`,
+      reason:
+        deliveryNote || deliveryReference || 'Application marked as delivered',
+      severity: 'info',
+      sourceModule: 'admin.delivery',
+      requestContext,
+      beforeState,
+      afterState,
       meta: {
-        status: updatedApplication.status
+        status: updatedApplication.status,
+        deliveryNote,
+        deliveryReference
       }
     });
 
@@ -1110,7 +1240,6 @@ const getSingleApplicationForAdmin = async (req, res) => {
 
 const reviewApplicationByAdmin = async (req, res) => {
   try {
-    // Validate application id before review.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -1119,6 +1248,7 @@ const reviewApplicationByAdmin = async (req, res) => {
     }
 
     const { status, rejectionReason } = req.body;
+    const decisionNote = String(req.body.decisionNote || '').trim();
     const allowedStatuses = ['under_review', 'approved', 'rejected'];
 
     if (!allowedStatuses.includes(status)) {
@@ -1144,6 +1274,39 @@ const reviewApplicationByAdmin = async (req, res) => {
       });
     }
 
+    const transitionMap = {
+      submitted: ['under_review', 'approved', 'rejected'],
+      under_review: ['approved', 'rejected'],
+      rejected: ['under_review'],
+      approved: [],
+      printed: [],
+      dispatched: [],
+      delivered: [],
+      cancelled: [],
+      draft: []
+    };
+
+    const previousStatus = application.status;
+
+    if (previousStatus === status) {
+      return res.status(400).json({
+        success: false,
+        message: `Application is already in '${status}' status`
+      });
+    }
+
+    const allowedNextStatuses = transitionMap[previousStatus] || [];
+
+    if (!allowedNextStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot move application from '${previousStatus}' to '${status}'`
+      });
+    }
+
+    const beforeState = buildApplicationAuditState(application);
+    const requestContext = getRequestAuditContext(req);
+
     application.status = status;
 
     if (status === 'approved') {
@@ -1155,7 +1318,22 @@ const reviewApplicationByAdmin = async (req, res) => {
       application.rejectionReason = rejectionReason;
     }
 
+    if (status === 'under_review') {
+      application.rejectionReason = '';
+    }
+
+    appendApplicationStatusHistory(application, req, {
+      fromStatus: previousStatus,
+      toStatus: status,
+      reason:
+        rejectionReason ||
+        decisionNote ||
+        `Application review moved to ${status}`,
+      note: decisionNote
+    });
+
     const updatedApplication = await application.save();
+    const afterState = buildApplicationAuditState(updatedApplication);
 
     await createAuditLog({
       actor: req.user._id,
@@ -1163,10 +1341,21 @@ const reviewApplicationByAdmin = async (req, res) => {
       action: 'REVIEW_APPLICATION',
       entityType: 'Application',
       entityId: updatedApplication._id,
-      message: `Updated application ${updatedApplication.applicationId} to ${status}`,
+      message: `Updated application ${updatedApplication.applicationId} from ${previousStatus} to ${status}`,
+      reason:
+        rejectionReason ||
+        decisionNote ||
+        `Review status changed to ${status}`,
+      severity: status === 'rejected' ? 'warning' : 'info',
+      sourceModule: 'admin.applications',
+      requestContext,
+      beforeState,
+      afterState,
       meta: {
         status,
-        rejectionReason: rejectionReason || ''
+        previousStatus,
+        rejectionReason: rejectionReason || '',
+        decisionNote
       }
     });
 
@@ -1229,6 +1418,9 @@ const getApplicationStatsForAdmin = async (req, res) => {
 const bulkMarkApplicationsAsPrinted = async (req, res) => {
   try {
     const { applicationIds } = req.body;
+    const actionNote = String(req.body.actionNote || '').trim();
+    const batchReference = String(req.body.batchReference || '').trim();
+    const requestContext = getRequestAuditContext(req);
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return res.status(400).json({
@@ -1265,11 +1457,24 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
         continue;
       }
 
+      const previousStatus = application.status;
+      const beforeState = buildApplicationAuditState(application);
+
       application.status = 'printed';
       application.printedAt = new Date();
-      await application.save();
 
+      appendApplicationStatusHistory(application, req, {
+        fromStatus: previousStatus,
+        toStatus: 'printed',
+        reason:
+          actionNote || batchReference || 'Application marked as printed in bulk',
+        note: actionNote || batchReference
+      });
+
+      await application.save();
       updatedCount += 1;
+
+      const afterState = buildApplicationAuditState(application);
 
       await createAuditLog({
         actor: req.user._id,
@@ -1278,8 +1483,17 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
         entityType: 'Application',
         entityId: application._id,
         message: `Marked application ${application.applicationId} as printed`,
+        reason:
+          actionNote || batchReference || 'Bulk print action completed',
+        severity: 'info',
+        sourceModule: 'admin.printing',
+        requestContext,
+        beforeState,
+        afterState,
         meta: {
-          status: application.status
+          status: application.status,
+          actionNote,
+          batchReference
         }
       });
     }
@@ -1303,6 +1517,9 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
 const bulkMarkApplicationsAsDelivered = async (req, res) => {
   try {
     const { applicationIds } = req.body;
+    const actionNote = String(req.body.actionNote || '').trim();
+    const deliveryReference = String(req.body.deliveryReference || '').trim();
+    const requestContext = getRequestAuditContext(req);
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return res.status(400).json({
@@ -1339,11 +1556,26 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
         continue;
       }
 
+      const previousStatus = application.status;
+      const beforeState = buildApplicationAuditState(application);
+
       application.status = 'delivered';
       application.deliveredAt = new Date();
-      await application.save();
 
+      appendApplicationStatusHistory(application, req, {
+        fromStatus: previousStatus,
+        toStatus: 'delivered',
+        reason:
+          actionNote ||
+          deliveryReference ||
+          'Application marked as delivered in bulk',
+        note: actionNote || deliveryReference
+      });
+
+      await application.save();
       updatedCount += 1;
+
+      const afterState = buildApplicationAuditState(application);
 
       await createAuditLog({
         actor: req.user._id,
@@ -1352,8 +1584,17 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
         entityType: 'Application',
         entityId: application._id,
         message: `Marked application ${application.applicationId} as delivered`,
+        reason:
+          actionNote || deliveryReference || 'Bulk delivery action completed',
+        severity: 'info',
+        sourceModule: 'admin.delivery',
+        requestContext,
+        beforeState,
+        afterState,
         meta: {
-          status: application.status
+          status: application.status,
+          actionNote,
+          deliveryReference
         }
       });
     }

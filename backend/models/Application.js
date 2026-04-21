@@ -253,6 +253,11 @@ const statusHistorySchema = new mongoose.Schema(
       trim: true,
       required: true
     },
+    reason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     note: {
       type: String,
       trim: true,
@@ -271,6 +276,21 @@ const statusHistorySchema = new mongoose.Schema(
       type: String,
       enum: ['citizen', 'admin', 'system_supervisor', 'support_staff', 'system'],
       default: 'system'
+    },
+    ipAddress: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    userAgent: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    requestId: {
+      type: String,
+      trim: true,
+      default: ''
     }
   },
   { _id: false }
@@ -424,6 +444,10 @@ const applicationSchema = new mongoose.Schema(
     cancelledAt: {
       type: Date,
       default: null
+    },
+        latestStatusChangedAt: {
+      type: Date,
+      default: null
     }
   },
   {
@@ -433,6 +457,8 @@ const applicationSchema = new mongoose.Schema(
 
 applicationSchema.index({ applicant: 1, createdAt: -1 });
 applicationSchema.index({ applicant: 1, status: 1, updatedAt: -1 });
+applicationSchema.index({ status: 1, updatedAt: -1 });
+applicationSchema.index({ latestStatusChangedAt: -1 });
 
 
 module.exports =
