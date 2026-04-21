@@ -15,6 +15,54 @@ const { syncUserBuckets } = require('../utils/userBuckets');
 
 // Allowed internal roles for manually created staff users.
 const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
+const MAX_PAGE_SIZE = 100;
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
+
+const getPaginationOptions = (query = {}) => {
+  const page = parsePositiveInteger(query.page, 1);
+  const limit = Math.min(
+    parsePositiveInteger(query.limit, 20),
+    MAX_PAGE_SIZE
+  );
+  const skip = (page - 1) * limit;
+
+  return { page, limit, skip };
+};
+
+const buildPaginationMeta = ({ page, limit, total }) => {
+  const pages = Math.max(1, Math.ceil(total / limit));
+
+  return {
+    page,
+    limit,
+    total,
+    pages,
+    hasPrevPage: page > 1,
+    hasNextPage: page < pages
+  };
+};
+
+const escapeRegex = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getSafeSort = (sortValue, fallback = { createdAt: -1 }, allowed = []) => {
+  if (!sortValue || typeof sortValue !== 'string') {
+    return fallback;
+  }
+
+  const field = sortValue.startsWith('-') ? sortValue.slice(1) : sortValue;
+  const direction = sortValue.startsWith('-') ? -1 : 1;
+
+  if (!allowed.includes(field)) {
+    return fallback;
+  }
+
+  return { [field]: direction };
+};
 
 // Keep response shape clean for internal users.
 const mapInternalUserResponse = (user) => ({
@@ -367,17 +415,55 @@ const getInternalUsers = async (req, res) => {
       return;
     }
 
-    const users = await User.find({
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
+      'createdAt',
+      'updatedAt',
+      'fullName',
+      'email',
+      'role',
+      'status'
+    ]);
+
+    const filter = {
       role: { $in: INTERNAL_USER_ROLES }
-    })
-      .select('-password')
-      .populate('createdBy', 'fullName email')
-      .sort({ createdAt: -1 });
+    };
+
+    if (req.query.role) {
+      filter.role = req.query.role;
+    }
+
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { fullName: regex },
+        { email: regex },
+        { phone: regex }
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select('-password')
+        .populate('createdBy', 'fullName email')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(filter)
+    ]);
+
+    const mappedUsers = users.map(mapInternalUserResponse);
 
     res.status(200).json({
       success: true,
-      count: users.length,
-      data: users.map(mapInternalUserResponse)
+      count: mappedUsers.length,
+      data: mappedUsers,
+      users: mappedUsers,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
@@ -483,22 +569,54 @@ const createInternalUser = async (req, res) => {
 
 const getAllSupportTickets = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
+      'createdAt',
+      'updatedAt',
+      'priority',
+      'status',
+      'resolvedAt',
+      'closedAt'
+    ]);
+
     const filter = {};
-    const { status, priority, category } = req.query;
+    const { status, priority, category, assignedTo } = req.query;
 
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (category) filter.category = category;
 
-    const tickets = await SupportTicket.find(filter)
-      .sort({ createdAt: -1 })
-      .populate('citizen', 'fullName email phone role')
-      .populate('assignedTo', 'fullName email role');
+    if (assignedTo === 'unassigned') {
+      filter.assignedTo = null;
+    } else if (assignedTo) {
+      filter.assignedTo = assignedTo;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { ticketNumber: regex },
+        { subject: regex },
+        { description: regex }
+      ];
+    }
+
+    const [tickets, total] = await Promise.all([
+      SupportTicket.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .populate('citizen', 'fullName email phone role')
+        .populate('assignedTo', 'fullName email role'),
+      SupportTicket.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: tickets.length,
-      data: tickets
+      data: tickets,
+      tickets,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
@@ -802,6 +920,16 @@ const createCenter = async (req, res) => {
 
 const getAllCenters = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
+      'createdAt',
+      'updatedAt',
+      'name',
+      'district',
+      'dailyCapacity',
+      'isActive'
+    ]);
+
     const filter = {};
 
     if (req.query.isActive !== undefined) {
@@ -812,12 +940,30 @@ const getAllCenters = async (req, res) => {
       filter.district = req.query.district;
     }
 
-    const centers = await Center.find(filter).sort({ createdAt: -1 });
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { name: regex },
+        { district: regex },
+        { address: regex },
+        { contactNumber: regex }
+      ];
+    }
+
+    const [centers, total] = await Promise.all([
+      Center.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      Center.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: centers.length,
-      centers
+      centers,
+      data: centers,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
@@ -1073,6 +1219,15 @@ const markApplicationAsPrinted = async (req, res) => {
 
 const getDeliveryQueue = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { printedAt: 1, createdAt: 1 }, [
+      'createdAt',
+      'updatedAt',
+      'printedAt',
+      'deliveredAt',
+      'status'
+    ]);
+
     const filter = {};
 
     if (req.query.status) {
@@ -1081,14 +1236,38 @@ const getDeliveryQueue = async (req, res) => {
       filter.status = { $in: ['printed', 'delivered'] };
     }
 
-    const applications = await Application.find(filter)
-      .populate('applicant', 'fullName email phone role')
-      .sort({ printedAt: 1, createdAt: 1 });
+    if (req.query.applicationType) {
+      filter.applicationType = req.query.applicationType;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { applicationId: regex },
+        { fullNameEnglish: regex },
+        { fullNameBangla: regex },
+        { phone: regex },
+        { email: regex },
+        { birthRegistrationNumber: regex },
+        { existingNidNumber: regex }
+      ];
+    }
+
+    const [applications, total] = await Promise.all([
+      Application.find(filter)
+        .populate('applicant', 'fullName email phone role')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      Application.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: applications.length,
-      applications
+      applications,
+      data: applications,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
@@ -1179,6 +1358,18 @@ const markApplicationAsDelivered = async (req, res) => {
 
 const getAllApplicationsForAdmin = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
+      'createdAt',
+      'updatedAt',
+      'submittedAt',
+      'approvedAt',
+      'printedAt',
+      'deliveredAt',
+      'status',
+      'applicationType'
+    ]);
+
     const filter = {};
 
     if (req.query.status) {
@@ -1189,14 +1380,34 @@ const getAllApplicationsForAdmin = async (req, res) => {
       filter.applicationType = req.query.applicationType;
     }
 
-    const applications = await Application.find(filter)
-      .populate('applicant', 'fullName email phone role')
-      .sort({ createdAt: -1 });
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { applicationId: regex },
+        { fullNameEnglish: regex },
+        { fullNameBangla: regex },
+        { phone: regex },
+        { email: regex },
+        { birthRegistrationNumber: regex },
+        { existingNidNumber: regex }
+      ];
+    }
+
+    const [applications, total] = await Promise.all([
+      Application.find(filter)
+        .populate('applicant', 'fullName email phone role')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      Application.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: applications.length,
-      applications
+      applications,
+      data: applications,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
