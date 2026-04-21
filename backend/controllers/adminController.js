@@ -58,74 +58,246 @@ const getAdminDashboard = async (req, res) => {
 
 const getAdminDashboardSummary = async (req, res) => {
   try {
-    // Count dashboard summary data.
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const last24HoursStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const isMainAdmin = isMainAdminUser(req.user);
+    const viewerRole = req.user?.role || 'admin';
+
+    const access = {
+      viewerRole,
+      isMainAdmin,
+      canManageUsers: viewerRole === 'admin' && isMainAdmin,
+      canManageApplications: viewerRole === 'admin',
+      canManageAppointments: viewerRole === 'admin',
+      canManagePrinting: viewerRole === 'admin',
+      canManageDelivery: viewerRole === 'admin',
+      canManageSupport: ['admin', 'support_staff'].includes(viewerRole),
+      canViewAudit: ['admin', 'system_supervisor'].includes(viewerRole),
+      canViewAnalytics: ['admin', 'system_supervisor'].includes(viewerRole)
+    };
+
     const [
       totalApplications,
       submittedApplications,
       underReviewApplications,
       approvedApplications,
       rejectedApplications,
+      printedApplications,
+      deliveredApplications,
+      cancelledApplications,
+      newApplicationsToday,
+      rejectedToday,
+
       totalAppointments,
       bookedAppointments,
       completedAppointments,
       cancelledAppointments,
+      todayAppointments,
+
       totalSupportTickets,
       openSupportTickets,
       inProgressSupportTickets,
       resolvedSupportTickets,
+      closedSupportTickets,
+      urgentSupportTickets,
+      highPrioritySupportTickets,
+      unassignedSupportTickets,
+      newTicketsToday,
+
       totalCenters,
       activeCenters,
-      inactiveCenters
+      inactiveCenters,
+
+      totalUsers,
+      totalCitizens,
+      totalInternalUsers,
+      totalAdmins,
+      totalSupervisors,
+      totalSupportStaff,
+      blockedUsers,
+      pendingUsers,
+
+      auditLogsLast24Hours
     ] = await Promise.all([
       Application.countDocuments(),
       Application.countDocuments({ status: 'submitted' }),
       Application.countDocuments({ status: 'under_review' }),
       Application.countDocuments({ status: 'approved' }),
       Application.countDocuments({ status: 'rejected' }),
+      Application.countDocuments({ status: 'printed' }),
+      Application.countDocuments({ status: 'delivered' }),
+      Application.countDocuments({ status: 'cancelled' }),
+      Application.countDocuments({ createdAt: { $gte: startOfToday } }),
+      Application.countDocuments({
+        status: 'rejected',
+        updatedAt: { $gte: startOfToday }
+      }),
+
       Appointment.countDocuments(),
       Appointment.countDocuments({ status: 'booked' }),
       Appointment.countDocuments({ status: 'completed' }),
       Appointment.countDocuments({ status: 'cancelled' }),
+      Appointment.countDocuments({
+        appointmentDate: { $gte: startOfToday }
+      }),
+
       SupportTicket.countDocuments(),
       SupportTicket.countDocuments({ status: 'open' }),
       SupportTicket.countDocuments({ status: 'in_progress' }),
       SupportTicket.countDocuments({ status: 'resolved' }),
+      SupportTicket.countDocuments({ status: 'closed' }),
+      SupportTicket.countDocuments({ priority: 'urgent' }),
+      SupportTicket.countDocuments({ priority: 'high' }),
+      SupportTicket.countDocuments({ assignedTo: null }),
+      SupportTicket.countDocuments({ createdAt: { $gte: startOfToday } }),
+
       Center.countDocuments(),
       Center.countDocuments({ isActive: true }),
-      Center.countDocuments({ isActive: false })
+      Center.countDocuments({ isActive: false }),
+
+      User.countDocuments(),
+      User.countDocuments({ role: 'citizen' }),
+      User.countDocuments({ role: { $in: INTERNAL_USER_ROLES } }),
+      User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ role: 'system_supervisor' }),
+      User.countDocuments({ role: 'support_staff' }),
+      User.countDocuments({ status: 'blocked' }),
+      User.countDocuments({ status: 'pending' }),
+
+      AuditLog.countDocuments({ createdAt: { $gte: last24HoursStart } })
     ]);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        applications: {
-          total: totalApplications,
-          submitted: submittedApplications,
-          underReview: underReviewApplications,
-          approved: approvedApplications,
-          rejected: rejectedApplications
-        },
-        appointments: {
-          total: totalAppointments,
-          booked: bookedAppointments,
-          completed: completedAppointments,
-          cancelled: cancelledAppointments
-        },
-        supportTickets: {
-          total: totalSupportTickets,
-          open: openSupportTickets,
-          inProgress: inProgressSupportTickets,
-          resolved: resolvedSupportTickets
-        },
-        centers: {
-          total: totalCenters,
-          active: activeCenters,
-          inactive: inactiveCenters
-        }
+    const reviewQueue = submittedApplications + underReviewApplications;
+    const printingQueue = approvedApplications;
+    const deliveryQueue = printedApplications;
+
+    let roleFocus;
+
+    if (viewerRole === 'support_staff') {
+      roleFocus = {
+        primaryModule: 'support',
+        headline: 'Support operations',
+        priorityItems: [
+          { key: 'open_tickets', label: 'Open tickets', value: openSupportTickets },
+          { key: 'in_progress_tickets', label: 'In progress', value: inProgressSupportTickets },
+          { key: 'urgent_tickets', label: 'Urgent tickets', value: urgentSupportTickets },
+          { key: 'unassigned_tickets', label: 'Unassigned tickets', value: unassignedSupportTickets }
+        ]
+      };
+    } else if (viewerRole === 'system_supervisor') {
+      roleFocus = {
+        primaryModule: 'supervision',
+        headline: 'System supervision',
+        priorityItems: [
+          { key: 'review_queue', label: 'Review queue', value: reviewQueue },
+          { key: 'delivery_queue', label: 'Delivery queue', value: deliveryQueue },
+          { key: 'urgent_tickets', label: 'Urgent tickets', value: urgentSupportTickets },
+          { key: 'audit_last_24h', label: 'Audit events (24h)', value: auditLogsLast24Hours }
+        ]
+      };
+    } else {
+      roleFocus = {
+        primaryModule: isMainAdmin ? 'main_admin' : 'admin_operations',
+        headline: isMainAdmin ? 'Main admin control' : 'Admin operations',
+        priorityItems: [
+          { key: 'review_queue', label: 'Review queue', value: reviewQueue },
+          { key: 'printing_queue', label: 'Printing queue', value: printingQueue },
+          { key: 'delivery_queue', label: 'Delivery queue', value: deliveryQueue },
+          { key: 'open_tickets', label: 'Open tickets', value: openSupportTickets }
+        ]
+      };
+    }
+
+    const responseData = {
+      meta: {
+        generatedAt: now.toISOString(),
+        lastUpdatedAt: now.toISOString()
+      },
+      access,
+      roleFocus,
+
+      applications: {
+        total: totalApplications,
+        submitted: submittedApplications,
+        underReview: underReviewApplications,
+        approved: approvedApplications,
+        rejected: rejectedApplications,
+        printed: printedApplications,
+        delivered: deliveredApplications,
+        cancelled: cancelledApplications,
+        newToday: newApplicationsToday,
+        rejectedToday
+      },
+
+      appointments: {
+        total: totalAppointments,
+        booked: bookedAppointments,
+        completed: completedAppointments,
+        cancelled: cancelledAppointments,
+        today: todayAppointments
+      },
+
+      supportTickets: {
+        total: totalSupportTickets,
+        open: openSupportTickets,
+        inProgress: inProgressSupportTickets,
+        resolved: resolvedSupportTickets,
+        closed: closedSupportTickets,
+        highPriority: highPrioritySupportTickets,
+        urgent: urgentSupportTickets,
+        unassigned: unassignedSupportTickets,
+        newToday: newTicketsToday
+      },
+
+      centers: {
+        total: totalCenters,
+        active: activeCenters,
+        inactive: inactiveCenters
+      },
+
+      queues: {
+        review: reviewQueue,
+        printing: printingQueue,
+        delivery: deliveryQueue
+      },
+
+      alerts: {
+        urgentSupportTickets,
+        unassignedSupportTickets,
+        applicationsRejectedToday: rejectedToday,
+        applicationsSubmittedToday: newApplicationsToday,
+        appointmentsToday: todayAppointments
       }
+    };
+
+    if (access.canManageUsers || access.canViewAnalytics) {
+      responseData.users = {
+        total: totalUsers,
+        citizens: totalCitizens,
+        internal: totalInternalUsers,
+        admins: totalAdmins,
+        systemSupervisors: totalSupervisors,
+        supportStaff: totalSupportStaff,
+        blocked: blockedUsers,
+        pending: pendingUsers
+      };
+    }
+
+    if (access.canViewAudit) {
+      responseData.governance = {
+        auditLogsLast24Hours
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: responseData
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
