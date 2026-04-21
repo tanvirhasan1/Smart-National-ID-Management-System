@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
+  uploadApplicationDocument,
   getApplicationPrefill,
   getMyApplications,
   getSingleApplication,
@@ -13,6 +14,9 @@ const {
   getAdminDashboardStats
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
+const {
+  uploadSingleApplicationDocument
+} = require('../middleware/applicationDocumentUpload');
 
 const router = express.Router();
 
@@ -70,6 +74,14 @@ router.post(
       .withMessage('Permanent address district is required')
   ],
   createApplication
+);
+
+router.post(
+  '/:id/documents/:documentType',
+  protect,
+  authorize('citizen'),
+  uploadSingleApplicationDocument,
+  uploadApplicationDocument
 );
 
 router.put('/:id', protect, updateApplication);

@@ -4,39 +4,41 @@ const { randomUUID } = require('crypto');
 const { validationResult } = require('express-validator');
 const Application = require('../models/Application');
 const { createAuditLog } = require('../utils/auditLogger');
-
-const ACTIVE_APPLICATION_STATUSES = [
-  'draft',
-  'submitted',
-  'under_review',
-  'approved',
-  'printed',
-  'dispatched'
-];
+const uploadApplicationDocumentToCloudinary = require('../utils/uploadApplicationDocumentToCloudinary');
 
 const generateApplicationId = () => {
   const shortId = randomUUID().split('-')[0].toUpperCase();
   return `APP-${Date.now()}-${shortId}`;
 };
 
-const appendStatusHistory = ({
+const citizenDocumentFieldMap = {
+  photograph: 'photo',
+  signature: 'signature',
+  birthCertificate: 'birthCertificate'
+};
+
+const pushApplicationStatusHistory = ({
   application,
   fromStatus,
   toStatus,
-  changedBy,
-  actorRole,
-  note
+  note = '',
+  changedBy = null,
+  changedByRole = 'system'
 }) => {
-  application.statusHistory.push({
-    fromStatus: fromStatus || null,
+  const currentHistory = Array.isArray(application.statusHistory)
+    ? [...application.statusHistory]
+    : [];
+
+  currentHistory.push({
+    fromStatus,
     toStatus,
-    changedBy: changedBy || null,
-    actorRole: actorRole || 'system',
-    note: note || '',
-    changedAt: new Date()
+    note,
+    changedAt: new Date(),
+    changedBy,
+    changedByRole
   });
 
-  application.lastStatusChangedAt = new Date();
+  application.statusHistory = currentHistory;
 };
 
 const buildChangedFields = (application, payload, allowedFields) => {
@@ -70,20 +72,6 @@ const createApplication = async (req, res) => {
       });
     }
 
-    const existingActiveApplication = await Application.findOne({
-      applicant: req.user._id,
-      status: { $in: ACTIVE_APPLICATION_STATUSES }
-    }).select('_id applicationId status');
-
-    if (existingActiveApplication) {
-      return res.status(409).json({
-        success: false,
-        message:
-          'You already have an active application. Please complete, cancel, or wait for the current one before creating another application.',
-        activeApplication: existingActiveApplication
-      });
-    }
-
     const {
       applicationType,
       fullNameEnglish,
@@ -105,6 +93,8 @@ const createApplication = async (req, res) => {
       documents
     } = req.body;
 
+    const submittedAt = new Date();
+
     const application = await Application.create({
       applicant: req.user._id,
       applicationId: generateApplicationId(),
@@ -125,18 +115,25 @@ const createApplication = async (req, res) => {
       occupation,
       presentAddress,
       permanentAddress,
-      documents,
+      documents: {
+        birthCertificate: documents?.birthCertificate || '',
+        fatherNid: documents?.fatherNid || '',
+        motherNid: documents?.motherNid || '',
+        utilityBill: documents?.utilityBill || '',
+        passport: documents?.passport || '',
+        photo: documents?.photo || '',
+        signature: documents?.signature || ''
+      },
       status: 'submitted',
-      submittedAt: new Date(),
-      lastStatusChangedAt: new Date(),
+      submittedAt,
       statusHistory: [
         {
-          fromStatus: null,
+          fromStatus: 'draft',
           toStatus: 'submitted',
-          changedBy: req.user._id,
-          actorRole: req.user.role,
           note: 'Application submitted by citizen',
-          changedAt: new Date()
+          changedAt: submittedAt,
+          changedBy: req.user._id,
+          changedByRole: req.user.role
         }
       ]
     });
@@ -144,24 +141,172 @@ const createApplication = async (req, res) => {
     await createAuditLog({
       actor: req.user._id,
       actorRole: req.user.role,
-      action: 'application_created',
+      action: 'APPLICATION_CREATED',
       entityType: 'Application',
       entityId: application._id,
       message: `Citizen submitted application ${application.applicationId}`,
       meta: {
         applicationId: application.applicationId,
-        applicationType: application.applicationType,
-        status: application.status
+        applicationType: application.applicationType
       }
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Application submitted successfully',
       application
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const uploadApplicationDocument = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const { documentType } = req.params;
+
+    if (!citizenDocumentFieldMap[documentType]) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid document type'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Document file is required'
+      });
+    }
+
+    const application = await Application.findOne({
+      _id: req.params.id,
+      applicant: req.user._id
+    });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (
+      ['approved', 'printed', 'dispatched', 'delivered', 'cancelled'].includes(
+        application.status
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Documents cannot be updated when status is '${application.status}'`
+      });
+    }
+
+    const uploadResult = await uploadApplicationDocumentToCloudinary({
+      fileBuffer: req.file.buffer,
+      applicationId: application.applicationId,
+      citizenId: req.user._id,
+      documentType
+    });
+
+    const existingDocument = application.documentAssets?.[documentType] || {};
+    const existingHistory = Array.isArray(existingDocument.history)
+      ? [...existingDocument.history]
+      : [];
+
+    const historyAction =
+      existingDocument?.cloudinary?.publicId ? 'replaced' : 'uploaded';
+
+    application.set(
+      `documents.${citizenDocumentFieldMap[documentType]}`,
+      req.file.originalname
+    );
+
+    application.set(`documentAssets.${documentType}`, {
+      status: 'uploaded',
+      cloudinary: {
+        assetId: uploadResult.assetId,
+        publicId: uploadResult.publicId,
+        version: uploadResult.version,
+        secureUrl: uploadResult.secureUrl,
+        resourceType: uploadResult.resourceType,
+        format: uploadResult.format,
+        bytes: uploadResult.bytes,
+        width: uploadResult.width,
+        height: uploadResult.height,
+        originalFilename: uploadResult.originalFilename || req.file.originalname,
+        folder: uploadResult.folder,
+        etag: uploadResult.etag,
+        createdAt: uploadResult.createdAt
+      },
+      uploadedAt: new Date(),
+      uploadedBy: req.user._id,
+      verifiedAt: null,
+      verifiedBy: null,
+      rejectionReason: '',
+      history: [
+        ...existingHistory,
+        {
+          action: historyAction,
+          actor: req.user._id,
+          actorRole: req.user.role,
+          note:
+            historyAction === 'uploaded'
+              ? `${documentType} uploaded by citizen`
+              : `${documentType} replaced by citizen`,
+          publicId: uploadResult.publicId,
+          secureUrl: uploadResult.secureUrl,
+          occurredAt: new Date()
+        }
+      ]
+    });
+
+    const updatedApplication = await application.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action:
+        historyAction === 'uploaded'
+          ? 'APPLICATION_DOCUMENT_UPLOADED'
+          : 'APPLICATION_DOCUMENT_REPLACED',
+      entityType: 'Application',
+      entityId: updatedApplication._id,
+      message: `${documentType} ${historyAction} for ${updatedApplication.applicationId}`,
+      meta: {
+        applicationId: updatedApplication.applicationId,
+        documentType,
+        publicId: uploadResult.publicId,
+        secureUrl: uploadResult.secureUrl,
+        bytes: uploadResult.bytes,
+        format: uploadResult.format
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        historyAction === 'uploaded'
+          ? 'Document uploaded successfully'
+          : 'Document replaced successfully',
+      data: {
+        applicationId: updatedApplication.applicationId,
+        documentType,
+        document: updatedApplication.documentAssets[documentType]
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -170,16 +315,17 @@ const createApplication = async (req, res) => {
 
 const getMyApplications = async (req, res) => {
   try {
-    const applications = await Application.find({ applicant: req.user._id })
-      .sort({ createdAt: -1 });
+    const applications = await Application.find({ applicant: req.user._id }).sort({
+      createdAt: -1
+    });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: applications.length,
       applications
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -207,12 +353,12 @@ const getSingleApplication = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       application
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -286,7 +432,7 @@ const updateApplication = async (req, res) => {
     await createAuditLog({
       actor: req.user._id,
       actorRole: req.user.role,
-      action: 'application_updated',
+      action: 'APPLICATION_UPDATED',
       entityType: 'Application',
       entityId: updatedApplication._id,
       message: `Citizen updated application ${updatedApplication.applicationId}`,
@@ -296,14 +442,14 @@ const updateApplication = async (req, res) => {
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Application updated successfully',
       application: updatedApplication,
       changedFields
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -347,13 +493,13 @@ const cancelApplication = async (req, res) => {
     application.status = 'cancelled';
     application.cancelledAt = new Date();
 
-    appendStatusHistory({
+    pushApplicationStatusHistory({
       application,
       fromStatus: previousStatus,
       toStatus: 'cancelled',
+      note: 'Application cancelled by citizen',
       changedBy: req.user._id,
-      actorRole: req.user.role,
-      note: 'Application cancelled by citizen'
+      changedByRole: req.user.role
     });
 
     const cancelledApplication = await application.save();
@@ -361,7 +507,7 @@ const cancelApplication = async (req, res) => {
     await createAuditLog({
       actor: req.user._id,
       actorRole: req.user.role,
-      action: 'application_cancelled',
+      action: 'APPLICATION_CANCELLED',
       entityType: 'Application',
       entityId: cancelledApplication._id,
       message: `Citizen cancelled application ${cancelledApplication.applicationId}`,
@@ -372,13 +518,13 @@ const cancelApplication = async (req, res) => {
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Application cancelled successfully',
       application: cancelledApplication
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -401,13 +547,13 @@ const getAllApplicationsForAdmin = async (req, res) => {
       .populate('applicant', 'fullName email phone role')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: applications.length,
       applications
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -423,8 +569,10 @@ const getSingleApplicationForAdmin = async (req, res) => {
       });
     }
 
-    const application = await Application.findById(req.params.id)
-      .populate('applicant', 'fullName email phone role isVerified status createdAt');
+    const application = await Application.findById(req.params.id).populate(
+      'applicant',
+      'fullName email phone role isVerified status createdAt'
+    );
 
     if (!application) {
       return res.status(404).json({
@@ -433,12 +581,12 @@ const getSingleApplicationForAdmin = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       application
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -455,7 +603,6 @@ const reviewApplicationByAdmin = async (req, res) => {
     }
 
     const { status, rejectionReason } = req.body;
-
     const allowedStatuses = ['under_review', 'approved', 'rejected'];
 
     if (!allowedStatuses.includes(status)) {
@@ -506,16 +653,16 @@ const reviewApplicationByAdmin = async (req, res) => {
       application.approvedAt = null;
     }
 
-    appendStatusHistory({
+    pushApplicationStatusHistory({
       application,
       fromStatus: previousStatus,
       toStatus: status,
-      changedBy: req.user._id,
-      actorRole: req.user.role,
       note:
         status === 'rejected'
           ? `Application rejected: ${application.rejectionReason}`
-          : `Application moved to ${status} by admin`
+          : `Application moved to ${status} by admin`,
+      changedBy: req.user._id,
+      changedByRole: req.user.role
     });
 
     const reviewedApplication = await application.save();
@@ -523,25 +670,25 @@ const reviewApplicationByAdmin = async (req, res) => {
     await createAuditLog({
       actor: req.user._id,
       actorRole: req.user.role,
-      action: 'application_reviewed',
+      action: 'APPLICATION_REVIEW_UPDATED',
       entityType: 'Application',
       entityId: reviewedApplication._id,
-      message: `Admin changed application ${reviewedApplication.applicationId} from ${previousStatus} to ${status}`,
+      message: `Application ${reviewedApplication.applicationId} moved to ${status}`,
       meta: {
         applicationId: reviewedApplication.applicationId,
         fromStatus: previousStatus,
         toStatus: status,
-        rejectionReason: reviewedApplication.rejectionReason || ''
+        rejectionReason: status === 'rejected' ? application.rejectionReason : ''
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: `Application ${status} successfully`,
       application: reviewedApplication
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -583,7 +730,7 @@ const getAdminDashboardStats = async (req, res) => {
         .limit(5)
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       stats: {
         totalApplications,
@@ -606,7 +753,7 @@ const getAdminDashboardStats = async (req, res) => {
       recentApplications
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -691,6 +838,7 @@ const getApplicationPrefill = async (req, res) => {
 
 module.exports = {
   createApplication,
+  uploadApplicationDocument,
   getMyApplications,
   getSingleApplication,
   updateApplication,
