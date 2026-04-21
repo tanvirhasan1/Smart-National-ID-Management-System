@@ -5,8 +5,7 @@ const adminPresenceSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-      unique: true
+      required: true
     },
     role: {
       type: String,
@@ -51,13 +50,13 @@ const adminPresenceSchema = new mongoose.Schema(
   }
 );
 
-// Fast lookup by user.
+// Keep one unique index only for each internal user presence row.
 adminPresenceSchema.index({ userId: 1 }, { unique: true });
 
-// Fast live-user filtering.
+// Speed up live admin lookups.
 adminPresenceSchema.index({ isOnline: 1, lastSeenAt: -1 });
 
-// Fast recent activity checks.
+// Speed up recent activity checks.
 adminPresenceSchema.index({ lastSeenAt: -1 });
 
 module.exports =
