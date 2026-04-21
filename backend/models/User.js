@@ -124,6 +124,26 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: {
       type: Date,
       default: null
+    },
+
+    // Soft remove instead of hard delete so everything stays traceable.
+    isArchived: {
+      type: Boolean,
+      default: false
+    },
+    archivedAt: {
+      type: Date,
+      default: null
+    },
+    archivedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    archiveReason: {
+      type: String,
+      trim: true,
+      default: ''
     }
   },
   {
@@ -150,6 +170,9 @@ userSchema.index(
     }
   }
 );
+
+// Speed up internal admin directory lookups.
+userSchema.index({ role: 1, status: 1, isArchived: 1, createdAt: -1 });
 
 userSchema.pre('validate', function syncPermissions() {
   if (!Array.isArray(this.permissions) || this.permissions.length === 0) {

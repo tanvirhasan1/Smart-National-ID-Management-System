@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const AdminUser = require('../models/AdminUser');
+const AdminPresence = require('../models/AdminPresence');
 const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
@@ -12,6 +13,10 @@ const {
 } = require('../utils/auditLogger');
 const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
 const { syncUserBuckets } = require('../utils/userBuckets');
+const {
+  buildInternalPresenceMap,
+  markInternalUserOffline
+} = require('../utils/internalPresence');
 
 // Allowed internal roles for manually created staff users.
 const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
@@ -73,7 +78,11 @@ const mapInternalUserResponse = (user) => ({
   role: user.role,
   permissions: user.permissions || [],
   status: user.status,
+  accountStatus: user.status,
   isVerified: user.isVerified,
+  isArchived: Boolean(user.isArchived),
+  archivedAt: user.archivedAt || null,
+  archiveReason: user.archiveReason || '',
   createdBy: user.createdBy,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
@@ -91,6 +100,28 @@ const ensureMainAdminAccess = (req, res) => {
 
   return true;
 };
+
+const buildInternalUserSnapshot = (user) => ({
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  status: user.status,
+  isVerified: user.isVerified,
+  isArchived: user.isArchived,
+  archivedAt: user.archivedAt || null,
+  archiveReason: user.archiveReason || ''
+});
+
+const buildInternalUserResponse = (user, presence = null) => ({
+  ...mapInternalUserResponse(user),
+  liveStatus: {
+    isLive: Boolean(presence?.isLive),
+    lastSeenAt: presence?.lastSeenAt || null,
+    sessionStartedAt: presence?.sessionStartedAt || null,
+    currentRoute: presence?.currentRoute || ''
+  }
+});
 
 const buildApplicationAuditState = (application) => ({
   status: application.status,
@@ -170,6 +201,8 @@ const getAdminDashboardSummary = async (req, res) => {
     const last24HoursStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const isMainAdmin = isMainAdminUser(req.user);
     const viewerRole = req.user?.role || 'admin';
+
+    const activeUserFilter = { isArchived: { $ne: true } };
 
     const access = {
       viewerRole,
@@ -263,14 +296,14 @@ const getAdminDashboardSummary = async (req, res) => {
       Center.countDocuments({ isActive: true }),
       Center.countDocuments({ isActive: false }),
 
-      User.countDocuments(),
-      User.countDocuments({ role: 'citizen' }),
-      User.countDocuments({ role: { $in: INTERNAL_USER_ROLES } }),
-      User.countDocuments({ role: 'admin' }),
-      User.countDocuments({ role: 'system_supervisor' }),
-      User.countDocuments({ role: 'support_staff' }),
-      User.countDocuments({ status: 'blocked' }),
-      User.countDocuments({ status: 'pending' }),
+      User.countDocuments(activeUserFilter),
+      User.countDocuments({ ...activeUserFilter, role: 'citizen' }),
+      User.countDocuments({ ...activeUserFilter, role: { $in: INTERNAL_USER_ROLES } }),
+      User.countDocuments({ ...activeUserFilter, role: 'admin' }),
+      User.countDocuments({ ...activeUserFilter, role: 'system_supervisor' }),
+      User.countDocuments({ ...activeUserFilter, role: 'support_staff' }),
+      User.countDocuments({ ...activeUserFilter, status: 'blocked' }),
+      User.countDocuments({ ...activeUserFilter, status: 'pending' }),
 
       AuditLog.countDocuments({ createdAt: { $gte: last24HoursStart } })
     ]);
@@ -415,7 +448,6 @@ const getInternalUsers = async (req, res) => {
       return;
     }
 
-    const { page, limit, skip } = getPaginationOptions(req.query);
     const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
       'createdAt',
       'updatedAt',
@@ -426,7 +458,8 @@ const getInternalUsers = async (req, res) => {
     ]);
 
     const filter = {
-      role: { $in: INTERNAL_USER_ROLES }
+      role: { $in: INTERNAL_USER_ROLES },
+      isArchived: { $ne: true }
     };
 
     if (req.query.role) {
@@ -446,24 +479,25 @@ const getInternalUsers = async (req, res) => {
       ];
     }
 
-    const [users, total] = await Promise.all([
-      User.find(filter)
-        .select('-password')
-        .populate('createdBy', 'fullName email')
-        .sort(sort)
-        .skip(skip)
-        .limit(limit),
-      User.countDocuments(filter)
-    ]);
+    const users = await User.find(filter)
+      .select('-password')
+      .populate('createdBy', 'fullName email')
+      .sort(sort);
 
-    const mappedUsers = users.map(mapInternalUserResponse);
+    const presenceMap = await buildInternalPresenceMap(users.map((user) => user._id));
+
+    const mappedUsers = users.map((user) =>
+      buildInternalUserResponse(user, presenceMap[user._id.toString()])
+    );
 
     res.status(200).json({
       success: true,
       count: mappedUsers.length,
       data: mappedUsers,
       users: mappedUsers,
-      meta: buildPaginationMeta({ page, limit, total })
+      meta: {
+        total: mappedUsers.length
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -531,7 +565,11 @@ const createInternalUser = async (req, res) => {
       permissions: getDefaultPermissions(role),
       isVerified: true,
       status: 'active',
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      isArchived: false,
+      archivedAt: null,
+      archivedBy: null,
+      archiveReason: ''
     });
 
     await syncUserBuckets(user);
@@ -544,6 +582,9 @@ const createInternalUser = async (req, res) => {
       entityId: user._id,
       message: `Created internal user ${user.fullName}`,
       meta: {
+        reason: 'Internal user created by main admin',
+        before: null,
+        after: buildInternalUserSnapshot(user),
         createdUserRole: user.role,
         createdUserEmail: user.email
       }
@@ -555,9 +596,274 @@ const createInternalUser = async (req, res) => {
       success: true,
       message: 'Internal user created successfully',
       data: {
-        ...mapInternalUserResponse(user),
+        ...buildInternalUserResponse(user, null),
         bucketId: bucketUser ? bucketUser._id : null
       }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const updateInternalUser = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user id'
+      });
+    }
+
+    const targetUser = await User.findById(req.params.id)
+      .select('-password')
+      .populate('createdBy', 'fullName email');
+
+    if (!targetUser || !INTERNAL_USER_ROLES.includes(targetUser.role) || targetUser.isArchived) {
+      return res.status(404).json({
+        success: false,
+        message: 'Internal user not found'
+      });
+    }
+
+    // Never let this panel edit the root main admin account.
+    if (isMainAdminUser(targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Main admin account cannot be edited from this panel'
+      });
+    }
+
+    const fullName =
+      req.body.fullName !== undefined
+        ? String(req.body.fullName || '').trim()
+        : targetUser.fullName;
+
+    const email =
+      req.body.email !== undefined
+        ? String(req.body.email || '').trim().toLowerCase()
+        : targetUser.email;
+
+    const phone =
+      req.body.phone !== undefined
+        ? String(req.body.phone || '').trim()
+        : targetUser.phone;
+
+    const role =
+      req.body.role !== undefined
+        ? String(req.body.role || '').trim()
+        : targetUser.role;
+
+    const status =
+      req.body.status !== undefined
+        ? String(req.body.status || '').trim()
+        : targetUser.status;
+
+    const updateReason = String(
+      req.body.updateReason || 'Internal user updated by main admin'
+    ).trim();
+
+    if (!fullName || !email || !phone || !role || !status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Full name, email, phone, role and status are required'
+      });
+    }
+
+    if (!INTERNAL_USER_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user role'
+      });
+    }
+
+    if (!['active', 'blocked', 'pending'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid account status'
+      });
+    }
+
+    const existingEmailUser = await User.findOne({
+      email,
+      _id: { $ne: targetUser._id }
+    });
+
+    if (existingEmailUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use'
+      });
+    }
+
+    const existingPhoneUser = await User.findOne({
+      phone,
+      _id: { $ne: targetUser._id }
+    });
+
+    if (existingPhoneUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone already in use'
+      });
+    }
+
+    const before = buildInternalUserSnapshot(targetUser);
+
+    targetUser.fullName = fullName;
+    targetUser.email = email;
+    targetUser.phone = phone;
+    targetUser.role = role;
+    targetUser.status = status;
+
+    // Reset permissions when role changes so access stays clean.
+    if (before.role !== role) {
+      targetUser.permissions = getDefaultPermissions(role);
+    }
+
+    const updatedUser = await targetUser.save();
+    await syncUserBuckets(updatedUser);
+
+    // Keep live presence in sync when the user gets blocked or role changes.
+    if (status === 'blocked') {
+      await markInternalUserOffline({
+        user: updatedUser,
+        req,
+        source: 'blocked'
+      });
+    } else {
+      await AdminPresence.findOneAndUpdate(
+        { userId: updatedUser._id },
+        {
+          $set: {
+            role: updatedUser.role
+          }
+        }
+      );
+    }
+
+    const presenceMap = await buildInternalPresenceMap([updatedUser._id]);
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'UPDATE_INTERNAL_USER',
+      entityType: 'User',
+      entityId: updatedUser._id,
+      message: `Updated internal user ${updatedUser.fullName}`,
+      meta: {
+        reason: updateReason,
+        before,
+        after: buildInternalUserSnapshot(updatedUser)
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Internal user updated successfully',
+      data: buildInternalUserResponse(
+        updatedUser,
+        presenceMap[updatedUser._id.toString()]
+      )
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const archiveInternalUser = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user id'
+      });
+    }
+
+    const targetUser = await User.findById(req.params.id).select('-password');
+
+    if (!targetUser || !INTERNAL_USER_ROLES.includes(targetUser.role) || targetUser.isArchived) {
+      return res.status(404).json({
+        success: false,
+        message: 'Internal user not found'
+      });
+    }
+
+    // Main admin should never remove self from the system.
+    if (req.user._id.toString() === targetUser._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot remove your own account from this panel'
+      });
+    }
+
+    // Never allow deleting the root main admin account.
+    if (isMainAdminUser(targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Main admin account cannot be removed'
+      });
+    }
+
+    const archiveReason = String(
+      req.body.archiveReason || req.body.reason || ''
+    ).trim();
+
+    if (!archiveReason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Archive reason is required'
+      });
+    }
+
+    const before = buildInternalUserSnapshot(targetUser);
+
+    targetUser.isArchived = true;
+    targetUser.archivedAt = new Date();
+    targetUser.archivedBy = req.user._id;
+    targetUser.archiveReason = archiveReason;
+    targetUser.status = 'blocked';
+
+    await targetUser.save();
+
+    await AdminUser.deleteOne({ userId: targetUser._id });
+
+    await markInternalUserOffline({
+      user: targetUser,
+      req,
+      source: 'archived'
+    });
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'ARCHIVE_INTERNAL_USER',
+      entityType: 'User',
+      entityId: targetUser._id,
+      message: `Archived internal user ${targetUser.fullName}`,
+      meta: {
+        reason: archiveReason,
+        before,
+        after: buildInternalUserSnapshot(targetUser)
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Internal user removed from active control successfully'
     });
   } catch (error) {
     res.status(500).json({
@@ -708,6 +1014,13 @@ const assignSupportTicket = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Ticket can only be assigned to admin or support staff'
+        });
+      }
+
+      if (assignee.isArchived || assignee.status === 'blocked') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot assign ticket to inactive internal user'
         });
       }
     }
@@ -1419,7 +1732,6 @@ const getAllApplicationsForAdmin = async (req, res) => {
 
 const getSingleApplicationForAdmin = async (req, res) => {
   try {
-    // Validate application id before query.
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -1828,17 +2140,63 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
 
 const getRecentAuditLogs = async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 20;
+    const { page, limit, skip } = getPaginationOptions(req.query);
+    const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
+      'createdAt',
+      'action',
+      'entityType',
+      'actorRole',
+      'severity',
+      'sourceModule'
+    ]);
 
-    const logs = await AuditLog.find()
-      .populate('actor', 'fullName email role')
-      .sort({ createdAt: -1 })
-      .limit(limit);
+    const filter = {};
+
+    if (req.query.entityType) {
+      filter.entityType = req.query.entityType;
+    }
+
+    if (req.query.actorRole) {
+      filter.actorRole = req.query.actorRole;
+    }
+
+    if (req.query.action) {
+      filter.action = req.query.action;
+    }
+
+    if (req.query.severity) {
+      filter.severity = req.query.severity;
+    }
+
+    if (req.query.sourceModule) {
+      filter.sourceModule = req.query.sourceModule;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { action: regex },
+        { message: regex },
+        { reason: regex },
+        { sourceModule: regex }
+      ];
+    }
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter)
+        .populate('actor', 'fullName email role')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      AuditLog.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: logs.length,
-      logs
+      logs,
+      data: logs,
+      meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
     res.status(500).json({
@@ -2083,6 +2441,8 @@ module.exports = {
   getAdminDashboardSummary,
   getInternalUsers,
   createInternalUser,
+  updateInternalUser,
+  archiveInternalUser,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,

@@ -4,6 +4,8 @@ const {
   getAdminDashboardSummary,
   getInternalUsers,
   createInternalUser,
+  updateInternalUser,
+  archiveInternalUser,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
@@ -83,6 +85,7 @@ router.patch(
   authorize('admin'),
   reviewApplicationByAdmin
 );
+
 // Internal user management
 router.get(
   '/users',
@@ -97,6 +100,21 @@ router.post(
   authorize('admin'),
   createInternalUser
 );
+
+router.put(
+  '/users/:id',
+  protect,
+  authorize('admin'),
+  updateInternalUser
+);
+
+router.delete(
+  '/users/:id',
+  protect,
+  authorize('admin'),
+  archiveInternalUser
+);
+
 // Support routes
 router.get(
   '/support/tickets',
@@ -225,7 +243,6 @@ router.patch(
   bulkMarkApplicationsAsDelivered
 );
 
-
 // Export routes
 router.get(
   '/printing/export',
@@ -247,4 +264,5 @@ router.get(
   authorize('admin', 'system_supervisor'),
   exportAuditReport
 );
+
 module.exports = router;

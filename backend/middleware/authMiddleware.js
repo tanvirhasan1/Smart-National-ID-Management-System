@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { verifyAccessToken } = require('../utils/token');
+const { markInternalUserPresence } = require('../utils/internalPresence');
 
 const protect = async (req, res, next) => {
   try {
@@ -9,7 +10,7 @@ const protect = async (req, res, next) => {
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer ')
     ) {
-      token = req.headers.authorization.split(' ')[1];
+      token = req.headers.authorization.split('Bearer ')[1];
     }
 
     if (!token) {
@@ -29,6 +30,13 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (user.isArchived) {
+      return res.status(403).json({
+        success: false,
+        message: 'This account has been removed from active use'
+      });
+    }
+
     if (user.status === 'blocked') {
       return res.status(403).json({
         success: false,
@@ -37,6 +45,14 @@ const protect = async (req, res, next) => {
     }
 
     req.user = user;
+
+    // Track live admin/support activity without blocking the request flow.
+    await markInternalUserPresence({
+      user,
+      req,
+      source: 'request'
+    });
+
     next();
   } catch (error) {
     return res.status(401).json({
