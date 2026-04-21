@@ -1,368 +1,162 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { toast } from 'react-toastify';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  FaExclamationTriangle,
+  FaFilter,
   FaHistory,
   FaSearch,
-  FaFilter,
-  FaEye,
-  FaTimes,
-  FaUser,
-  FaCalendarAlt,
-  FaClock,
-  FaGlobe,
-  FaFileExport,
-  FaChevronLeft,
-  FaChevronRight,
-  FaFileAlt,
-  FaUsers,
-  FaTicketAlt,
-  FaCog,
-  FaShieldAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaEdit,
-  FaPlus,
-  FaTrash,
-  FaSignInAlt,
-  FaUserPlus,
-  FaPrint,
-  FaTruck,
-  FaSyncAlt
+  FaUserShield
 } from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
-import { formatDate, formatDateTime } from '../utils/helpers';
+import { formatDateTime, formatStatus } from '../utils/helpers';
 import '../styles/AuditLogs.css';
 
+const getLogsFromResponse = (response) =>
+  response?.data?.data || response?.data?.logs || [];
+
+const normalizeText = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const buildLogSearchText = (log) =>
+  normalizeText(
+    [
+      log?.action,
+      log?.message,
+      log?.reason,
+      log?.entityType,
+      log?.sourceModule,
+      log?.actorRole,
+      log?.actor?.fullName,
+      log?.actor?.email,
+      ...(Array.isArray(log?.changedFields) ? log.changedFields : [])
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+
+const getSeverityClass = (severity) => {
+  const value = String(severity || 'info').toLowerCase();
+
+  if (value === 'critical') return 'critical';
+  if (value === 'warning') return 'warning';
+  return 'info';
+};
+
+const prettyJson = (value) => {
+  if (!value) return 'No data';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return 'Unable to render data';
+  }
+};
+
 const AuditLogs = () => {
-  // State management
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalLogs, setTotalLogs] = useState(0);
-  const logsPerPage = 20;
+  const [searchInput, setSearchInput] = useState('');
+  const [entityFilter, setEntityFilter] = useState('');
+  const [actorRoleFilter, setActorRoleFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
 
-  // Filters
-  const [filters, setFilters] = useState({
-    module: '',
-    action: '',
-    userRole: '',
-    startDate: '',
-    endDate: '',
-    searchQuery: ''
-  });
-
-  // Statistics
-  const [stats, setStats] = useState({
-    totalToday: 0,
-    totalThisWeek: 0,
-    totalThisMonth: 0,
-    byModule: {}
-  });
-
-  useEffect(() => {
-    fetchLogs();
-    fetchStats();
-  }, [currentPage, filters]);
-
-  const requestWithFallback = async (requests = []) => {
-    let lastError = null;
-
-    for (const requestFn of requests) {
-      try {
-        return await requestFn();
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    throw lastError;
-  };
-
-  const getLogUser = (log) => {
-    return log?.userId || log?.user || log?.performedBy || {};
-  };
-
-  const normalizeLogsResponse = (response) => {
-    const responseData = response?.data || {};
-
-    const items =
-      responseData.data ||
-      responseData.logs ||
-      responseData.auditLogs ||
-      responseData.items ||
-      [];
-
-    const total =
-      responseData.total ||
-      responseData.pagination?.total ||
-      responseData.count ||
-      items.length ||
-      0;
-
-    return { items, total };
-  };
-
+  // Load recent audit logs for trace-first admin monitoring.
   const fetchLogs = async () => {
     try {
       setLoading(true);
 
-      const queryParams = new URLSearchParams();
-      queryParams.set('page', currentPage);
-      queryParams.set('limit', logsPerPage);
+      const response = await api.get('/admin/audit/recent?limit=300&sort=-createdAt');
+      const rows = getLogsFromResponse(response);
 
-      if (filters.module) queryParams.set('module', filters.module);
-      if (filters.action) queryParams.set('action', filters.action);
-      if (filters.userRole) queryParams.set('userRole', filters.userRole);
-      if (filters.startDate) queryParams.set('startDate', filters.startDate);
-      if (filters.endDate) queryParams.set('endDate', filters.endDate);
-      if (filters.searchQuery) {
-        queryParams.set('search', filters.searchQuery);
-      }
+      setLogs(rows);
 
-      const queryString = queryParams.toString();
+      setSelectedLog((currentSelected) => {
+        if (!rows.length) return null;
+        if (!currentSelected) return rows[0];
 
-      const response = await requestWithFallback([
-        () => api.get(`/admin/audit-logs?${queryString}`),
-        () => api.get(`/admin/audit?${queryString}`)
-      ]);
-
-      const { items, total } = normalizeLogsResponse(response);
-
-      setLogs(items);
-      setTotalLogs(total);
-      setTotalPages(Math.max(1, Math.ceil(total / logsPerPage)));
+        const stillExists = rows.find((item) => item._id === currentSelected._id);
+        return stillExists || rows[0];
+      });
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      toast.error(
-        error?.response?.data?.message || 'Failed to load audit logs'
-      );
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await requestWithFallback([
-        () => api.get('/admin/audit-logs/stats'),
-        () => api.get('/admin/audit/stats')
-      ]);
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
-      setStats(
-        response?.data?.data || {
-          totalToday: 0,
-          totalThisWeek: 0,
-          totalThisMonth: 0,
-          byModule: {}
-        }
-      );
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      module: '',
-      action: '',
-      userRole: '',
-      startDate: '',
-      endDate: '',
-      searchQuery: ''
-    });
-    setCurrentPage(1);
-  };
-
-  const handleExport = async () => {
-    try {
-      toast.info('Preparing export...');
-
-      const response = await requestWithFallback([
-        () =>
-          api.get('/admin/audit-logs/export', {
-            params: filters,
-            responseType: 'blob'
-          }),
-        () =>
-          api.get('/admin/audit/export', {
-            params: filters,
-            responseType: 'blob'
-          })
-      ]);
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `audit-logs-${formatDate(new Date())}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      toast.success('Export completed');
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to export logs');
-    }
-  };
-
-  const handleViewDetails = (log) => {
-    setSelectedLog(log);
-    setShowDetailModal(true);
-  };
-
-  const getActionIcon = (action = '') => {
-    const iconMap = {
-      user_registered: FaUserPlus,
-      user_login: FaSignInAlt,
-      account_verified: FaCheckCircle,
-      application_created: FaPlus,
-      application_submitted: FaFileAlt,
-      application_approved: FaCheckCircle,
-      application_rejected: FaTimesCircle,
-      appointment_booked: FaCalendarAlt,
-      appointment_completed: FaCheckCircle,
-      appointment_cancelled: FaTimesCircle,
-      ticket_created: FaTicketAlt,
-      ticket_resolved: FaCheckCircle,
-      nid_generated: FaShieldAlt,
-      card_printed: FaPrint,
-      card_dispatched: FaTruck,
-      card_delivered: FaCheckCircle,
-      profile_updated: FaEdit,
-      password_changed: FaShieldAlt,
-      center_created: FaPlus,
-      center_updated: FaEdit,
-      center_deleted: FaTrash,
-      default: FaHistory
+  const summary = useMemo(() => {
+    return {
+      total: logs.length,
+      info: logs.filter((item) => item.severity === 'info').length,
+      warning: logs.filter((item) => item.severity === 'warning').length,
+      critical: logs.filter((item) => item.severity === 'critical').length,
+      applicationLogs: logs.filter((item) => item.entityType === 'Application').length,
+      userLogs: logs.filter((item) => item.entityType === 'User').length
     };
+  }, [logs]);
 
-    const Icon = iconMap[action] || iconMap.default;
-    return <Icon />;
-  };
+  const visibleLogs = useMemo(() => {
+    const normalizedSearch = normalizeText(searchInput);
+    const searchTokens = normalizedSearch.split(' ').filter(Boolean);
 
-  const getActionColor = (action = '') => {
-    if (
-      action.includes('created') ||
-      action.includes('registered') ||
-      action.includes('approved') ||
-      action.includes('completed') ||
-      action.includes('verified') ||
-      action.includes('generated') ||
-      action.includes('delivered')
-    ) {
-      return 'success';
-    }
+    return logs.filter((item) => {
+      const searchableText = buildLogSearchText(item);
 
-    if (
-      action.includes('rejected') ||
-      action.includes('cancelled') ||
-      action.includes('deleted')
-    ) {
-      return 'danger';
-    }
+      const matchesSearch =
+        searchTokens.length === 0 ||
+        searchTokens.every((token) => searchableText.includes(token));
 
-    if (
-      action.includes('updated') ||
-      action.includes('changed') ||
-      action.includes('submitted')
-    ) {
-      return 'warning';
-    }
-
-    if (
-      action.includes('login') ||
-      action.includes('booked') ||
-      action.includes('dispatched') ||
-      action.includes('printed')
-    ) {
-      return 'info';
-    }
-
-    return 'default';
-  };
-
-  const getModuleIcon = (module = '') => {
-    const iconMap = {
-      users: FaUsers,
-      applications: FaFileAlt,
-      appointments: FaCalendarAlt,
-      tickets: FaTicketAlt,
-      support: FaTicketAlt,
-      system: FaCog,
-      default: FaHistory
-    };
-
-    const Icon = iconMap[module] || iconMap.default;
-    return <Icon />;
-  };
-
-  const formatActionName = (action = '') => {
-    return action
-      .split('_')
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  const modules = [
-    { value: 'users', label: 'Users' },
-    { value: 'applications', label: 'Applications' },
-    { value: 'appointments', label: 'Appointments' },
-    { value: 'tickets', label: 'Support Tickets' },
-    { value: 'support', label: 'Support Tickets' },
-    { value: 'system', label: 'System' }
-  ];
-
-  const actions = [
-    { value: 'user_registered', label: 'User Registered' },
-    { value: 'user_login', label: 'User Login' },
-    { value: 'account_verified', label: 'Account Verified' },
-    { value: 'application_created', label: 'Application Created' },
-    { value: 'application_submitted', label: 'Application Submitted' },
-    { value: 'application_approved', label: 'Application Approved' },
-    { value: 'application_rejected', label: 'Application Rejected' },
-    { value: 'appointment_booked', label: 'Appointment Booked' },
-    { value: 'appointment_completed', label: 'Appointment Completed' },
-    { value: 'ticket_created', label: 'Ticket Created' },
-    { value: 'ticket_resolved', label: 'Ticket Resolved' },
-    { value: 'nid_generated', label: 'NID Generated' },
-    { value: 'card_printed', label: 'Card Printed' },
-    { value: 'card_dispatched', label: 'Card Dispatched' }
-  ];
-
-  const filteredLogs = useMemo(() => {
-    if (!filters.searchQuery) return logs;
-
-    const query = filters.searchQuery.toLowerCase();
-
-    return logs.filter((log) => {
-      const logUser = getLogUser(log);
+      const matchesEntity = !entityFilter || item.entityType === entityFilter;
+      const matchesActorRole = !actorRoleFilter || item.actorRole === actorRoleFilter;
+      const matchesSeverity = !severityFilter || item.severity === severityFilter;
+      const matchesSource = !sourceFilter || item.sourceModule === sourceFilter;
 
       return (
-        (logUser?.fullName || '').toLowerCase().includes(query) ||
-        (logUser?.mobile || logUser?.phone || '').toLowerCase().includes(query) ||
-        (log?.action || '').toLowerCase().includes(query) ||
-        (log?.module || '').toLowerCase().includes(query) ||
-        (log?.ipAddress || '').toLowerCase().includes(query)
+        matchesSearch &&
+        matchesEntity &&
+        matchesActorRole &&
+        matchesSeverity &&
+        matchesSource
       );
     });
-  }, [logs, filters.searchQuery]);
+  }, [logs, searchInput, entityFilter, actorRoleFilter, severityFilter, sourceFilter]);
 
-  if (loading && logs.length === 0) {
+  useEffect(() => {
+    if (!visibleLogs.length) {
+      setSelectedLog(null);
+      return;
+    }
+
+    setSelectedLog((currentSelected) => {
+      if (!currentSelected) return visibleLogs[0];
+
+      const stillExists = visibleLogs.find((item) => item._id === currentSelected._id);
+      return stillExists || visibleLogs[0];
+    });
+  }, [visibleLogs]);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setEntityFilter('');
+    setActorRoleFilter('');
+    setSeverityFilter('');
+    setSourceFilter('');
+  };
+
+  if (loading) {
     return (
       <AdminLayout>
-        <div className="admin-loading">
+        <div className="audit-logs-loading-state">
           <Loader size="large" text="Loading audit logs..." />
         </div>
       </AdminLayout>
@@ -372,465 +166,362 @@ const AuditLogs = () => {
   return (
     <AdminLayout>
       <div className="audit-logs-page">
-        <div className="page-header">
-          <div className="header-content">
-            <h1><FaHistory /> Audit Logs</h1>
-            <p>System activity and security logs</p>
+        {/* Audit overview header */}
+        <div className="audit-logs-header-card">
+          <div className="audit-logs-header-top">
+            <div>
+              <h1 className="audit-logs-title">Audit Logs</h1>
+              <p className="audit-logs-subtitle">
+                Review admin actions, user changes and system trace history from one governance workspace.
+              </p>
+            </div>
           </div>
-          <div className="header-actions">
-            <button className="btn btn-outline" onClick={handleExport}>
-              <FaFileExport /> Export
-            </button>
+
+          <div className="audit-logs-stats-grid">
+            <div className="audit-logs-stat-card neutral">
+              <div className="audit-logs-stat-icon">
+                <FaHistory />
+              </div>
+              <div>
+                <p>Total Logs</p>
+                <h3>{summary.total}</h3>
+              </div>
+            </div>
+
+            <div className="audit-logs-stat-card blue">
+              <div className="audit-logs-stat-icon">
+                <FaHistory />
+              </div>
+              <div>
+                <p>Info</p>
+                <h3>{summary.info}</h3>
+              </div>
+            </div>
+
+            <div className="audit-logs-stat-card yellow">
+              <div className="audit-logs-stat-icon">
+                <FaExclamationTriangle />
+              </div>
+              <div>
+                <p>Warning</p>
+                <h3>{summary.warning}</h3>
+              </div>
+            </div>
+
+            <div className="audit-logs-stat-card red">
+              <div className="audit-logs-stat-icon">
+                <FaExclamationTriangle />
+              </div>
+              <div>
+                <p>Critical</p>
+                <h3>{summary.critical}</h3>
+              </div>
+            </div>
+
+            <div className="audit-logs-stat-card green">
+              <div className="audit-logs-stat-icon">
+                <FaUserShield />
+              </div>
+              <div>
+                <p>User Logs</p>
+                <h3>{summary.userLogs}</h3>
+              </div>
+            </div>
+
+            <div className="audit-logs-stat-card purple">
+              <div className="audit-logs-stat-icon">
+                <FaHistory />
+              </div>
+              <div>
+                <p>Application Logs</p>
+                <h3>{summary.applicationLogs}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and filter controls */}
+        <div className="audit-logs-toolbar">
+          <div className="audit-logs-search-box">
+            <FaSearch className="audit-logs-field-icon" />
+            <input
+              type="text"
+              placeholder="Search by action, actor, reason, source, entity or changed field"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          </div>
+
+          <div className="audit-logs-filter-row">
+            <div className="audit-logs-filter-group">
+              <FaFilter className="audit-logs-field-icon" />
+              <select
+                value={entityFilter}
+                onChange={(event) => setEntityFilter(event.target.value)}
+              >
+                <option value="">All Entities</option>
+                <option value="User">User</option>
+                <option value="Application">Application</option>
+                <option value="SupportTicket">Support Ticket</option>
+                <option value="Center">Center</option>
+              </select>
+            </div>
+
+            <div className="audit-logs-filter-group">
+              <FaFilter className="audit-logs-field-icon" />
+              <select
+                value={actorRoleFilter}
+                onChange={(event) => setActorRoleFilter(event.target.value)}
+              >
+                <option value="">All Actor Roles</option>
+                <option value="admin">Admin</option>
+                <option value="system_supervisor">System Supervisor</option>
+                <option value="support_staff">Support Staff</option>
+                <option value="citizen">Citizen</option>
+              </select>
+            </div>
+
+            <div className="audit-logs-filter-group">
+              <FaFilter className="audit-logs-field-icon" />
+              <select
+                value={severityFilter}
+                onChange={(event) => setSeverityFilter(event.target.value)}
+              >
+                <option value="">All Severity</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <div className="audit-logs-filter-group">
+              <FaFilter className="audit-logs-field-icon" />
+              <select
+                value={sourceFilter}
+                onChange={(event) => setSourceFilter(event.target.value)}
+              >
+                <option value="">All Sources</option>
+                <option value="admin">admin</option>
+                <option value="admin.applications">admin.applications</option>
+                <option value="admin.delivery">admin.delivery</option>
+                <option value="admin.printing">admin.printing</option>
+                <option value="admin.support">admin.support</option>
+                <option value="support">support</option>
+                <option value="applications">applications</option>
+              </select>
+            </div>
+
             <button
-              className="btn btn-primary"
-              onClick={() => {
-                fetchLogs();
-                fetchStats();
-              }}
+              type="button"
+              className="audit-logs-secondary-button"
+              onClick={clearFilters}
             >
-              <FaSyncAlt /> Refresh
+              Clear Filters
             </button>
           </div>
         </div>
 
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-icon bg-blue">
-              <FaHistory />
+        <div className="audit-logs-content">
+          {/* Log list */}
+          <div className="audit-logs-list-card">
+            <div className="audit-logs-card-header">
+              <div>
+                <h3>Trace Timeline</h3>
+                <p>{visibleLogs.length} logs found</p>
+              </div>
             </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.totalToday || 0}</span>
-              <span className="stat-label">Today</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon bg-green">
-              <FaCalendarAlt />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.totalThisWeek || 0}</span>
-              <span className="stat-label">This Week</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon bg-purple">
-              <FaFileAlt />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.totalThisMonth || 0}</span>
-              <span className="stat-label">This Month</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon bg-orange">
-              <FaShieldAlt />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{totalLogs}</span>
-              <span className="stat-label">Total Logs</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="filters-card">
-          <div className="filters-header">
-            <h3><FaFilter /> Filters</h3>
-            {Object.values(filters).some((v) => v) && (
-              <button className="clear-filters-btn" onClick={handleClearFilters}>
-                <FaTimes /> Clear All
-              </button>
+            {visibleLogs.length === 0 ? (
+              <div className="audit-logs-empty-state">
+                <FaHistory className="audit-logs-empty-icon" />
+                <h3>No logs found</h3>
+                <p>Try changing your search or filter selection.</p>
+              </div>
+            ) : (
+              <div className="audit-logs-list">
+                {visibleLogs.map((item) => (
+                  <button
+                    key={item._id}
+                    type="button"
+                    className={
+                      selectedLog?._id === item._id
+                        ? 'audit-logs-list-item active'
+                        : 'audit-logs-list-item'
+                    }
+                    onClick={() => setSelectedLog(item)}
+                  >
+                    <div className="audit-logs-list-top">
+                      <h4>{item.action || 'Unknown Action'}</h4>
+
+                      <span
+                        className={`audit-logs-severity-chip ${getSeverityClass(
+                          item.severity
+                        )}`}
+                      >
+                        {formatStatus(item.severity || 'info')}
+                      </span>
+                    </div>
+
+                    <p>{item.message || 'No message available'}</p>
+
+                    <div className="audit-logs-list-meta">
+                      <span className="audit-logs-entity-chip">
+                        {formatStatus(item.entityType || 'Unknown')}
+                      </span>
+                      <small>{formatDateTime(item.createdAt)}</small>
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          <div className="filters-grid">
-            <div className="filter-item">
-              <label>Search</label>
-              <div className="search-input">
-                <FaSearch />
-                <input
-                  type="text"
-                  placeholder="Search by user, action..."
-                  value={filters.searchQuery}
-                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
-                />
-              </div>
-            </div>
+          {/* Selected log details */}
+          <div className="audit-logs-details-card">
+            {selectedLog ? (
+              <>
+                <div className="audit-logs-details-header">
+                  <div>
+                    <h2>{selectedLog.action || 'Unknown Action'}</h2>
+                    <p>{selectedLog.message || 'No message available'}</p>
+                  </div>
 
-            <div className="filter-item">
-              <label>Module</label>
-              <select
-                value={filters.module}
-                onChange={(e) => handleFilterChange('module', e.target.value)}
-              >
-                <option value="">All Modules</option>
-                {modules.map((mod) => (
-                  <option key={mod.value} value={mod.value}>
-                    {mod.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-item">
-              <label>Action</label>
-              <select
-                value={filters.action}
-                onChange={(e) => handleFilterChange('action', e.target.value)}
-              >
-                <option value="">All Actions</option>
-                {actions.map((act) => (
-                  <option key={act.value} value={act.value}>
-                    {act.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-item">
-              <label>User Role</label>
-              <select
-                value={filters.userRole}
-                onChange={(e) => handleFilterChange('userRole', e.target.value)}
-              >
-                <option value="">All Roles</option>
-                <option value="citizen">Citizen</option>
-                <option value="admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
-              </select>
-            </div>
-
-            <div className="filter-item">
-              <label>Start Date</label>
-              <input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              />
-            </div>
-
-            <div className="filter-item">
-              <label>End Date</label>
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="logs-card">
-          <div className="card-header">
-            <h3>Activity Logs</h3>
-            <span className="logs-count">{totalLogs} total logs</span>
-          </div>
-
-          <div className="table-container">
-            <table className="logs-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Module</th>
-                  <th>Action</th>
-                  <th>IP Address</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="7" className="loading-row">
-                      <Loader size="small" />
-                    </td>
-                  </tr>
-                ) : filteredLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="empty-row">
-                      <FaHistory className="empty-icon" />
-                      <p>No audit logs found</p>
-                      {Object.values(filters).some((v) => v) && (
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={handleClearFilters}
-                        >
-                          Clear Filters
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredLogs.map((log, index) => {
-                    const logUser = getLogUser(log);
-
-                    return (
-                      <tr key={log._id || index}>
-                        <td>
-                          <div className="timestamp-cell">
-                            <span className="date">
-                              {formatDate(log.timestamp || log.createdAt)}
-                            </span>
-                            <span className="time">
-                              <FaClock />{' '}
-                              {new Date(
-                                log.timestamp || log.createdAt || new Date()
-                              ).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="user-cell">
-                            <div className="user-avatar">
-                              <FaUser />
-                            </div>
-                            <div className="user-info">
-                              <span className="user-name">
-                                {logUser?.fullName || 'System'}
-                              </span>
-                              <span className="user-id">
-                                {logUser?.mobile || logUser?.phone || 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`role-badge ${log.userRole || logUser?.role || ''}`}>
-                            {log.userRole || logUser?.role || 'N/A'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="module-cell">
-                            <span className={`module-icon module-${log.module}`}>
-                              {getModuleIcon(log.module)}
-                            </span>
-                            <span className="module-name">{log.module || 'system'}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={`action-badge action-${getActionColor(log.action || '')}`}>
-                            {getActionIcon(log.action)}
-                            <span>{formatActionName(log.action || 'unknown_action')}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="ip-cell">
-                            <FaGlobe />
-                            <span>{log.ipAddress || 'N/A'}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            className="btn-view"
-                            onClick={() => handleViewDetails(log)}
-                            title="View Details"
-                          >
-                            <FaEye />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <div className="pagination-info">
-                Showing {((currentPage - 1) * logsPerPage) + 1} to {Math.min(currentPage * logsPerPage, totalLogs)} of {totalLogs} logs
-              </div>
-              <div className="pagination-controls">
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  First
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <FaChevronLeft />
-                </button>
-
-                <div className="page-numbers">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                  <span
+                    className={`audit-logs-severity-chip ${getSeverityClass(
+                      selectedLog.severity
+                    )}`}
+                  >
+                    {formatStatus(selectedLog.severity || 'info')}
+                  </span>
                 </div>
 
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <FaChevronRight />
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  Last
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {showDetailModal && selectedLog && (
-          <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
-            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3><FaHistory /> Log Details</h3>
-                <button
-                  className="modal-close"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="modal-body">
-                <div className="log-details">
-                  <div className={`action-banner action-${getActionColor(selectedLog.action || '')}`}>
-                    <div className="action-icon-large">
-                      {getActionIcon(selectedLog.action)}
-                    </div>
-                    <div className="action-info">
-                      <h4>{formatActionName(selectedLog.action || 'unknown_action')}</h4>
-                      <span className="module-tag">
-                        {getModuleIcon(selectedLog.module)}
-                        {selectedLog.module || 'system'}
-                      </span>
-                    </div>
+                <div className="audit-logs-summary-grid">
+                  <div className="audit-logs-summary-card">
+                    <p>Entity</p>
+                    <h4>{formatStatus(selectedLog.entityType || 'N/A')}</h4>
                   </div>
 
-                  <div className="detail-section">
-                    <h4><FaUser /> User Information</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>User Name</label>
-                        <p>{getLogUser(selectedLog)?.fullName || 'System'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Mobile</label>
-                        <p>{getLogUser(selectedLog)?.mobile || getLogUser(selectedLog)?.phone || 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Role</label>
-                        <p>
-                          <span className={`role-badge ${selectedLog.userRole || getLogUser(selectedLog)?.role || ''}`}>
-                            {selectedLog.userRole || getLogUser(selectedLog)?.role || 'N/A'}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="detail-item">
-                        <label>User ID</label>
-                        <p className="mono-text">
-                          {getLogUser(selectedLog)?._id || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="audit-logs-summary-card">
+                    <p>Actor Role</p>
+                    <h4>{formatStatus(selectedLog.actorRole || 'N/A')}</h4>
                   </div>
 
-                  <div className="detail-section">
-                    <h4><FaClock /> Timestamp & Location</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Date & Time</label>
-                        <p>{formatDateTime(selectedLog.timestamp || selectedLog.createdAt)}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>IP Address</label>
-                        <p className="mono-text">
-                          <FaGlobe /> {selectedLog.ipAddress || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="detail-item full-width">
-                        <label>User Agent</label>
-                        <p className="user-agent-text">
-                          {selectedLog.userAgent || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="audit-logs-summary-card">
+                    <p>Source Module</p>
+                    <h4>{selectedLog.sourceModule || 'N/A'}</h4>
                   </div>
 
-                  {selectedLog.targetId && (
-                    <div className="detail-section">
-                      <h4><FaFileAlt /> Target Information</h4>
-                      <div className="detail-grid">
-                        <div className="detail-item">
-                          <label>Target ID</label>
-                          <p className="mono-text">{selectedLog.targetId}</p>
-                        </div>
-                        <div className="detail-item">
-                          <label>Module</label>
-                          <p>{selectedLog.module || 'system'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className="audit-logs-summary-card">
+                    <p>Created At</p>
+                    <h4>{selectedLog.createdAt ? formatDateTime(selectedLog.createdAt) : 'N/A'}</h4>
+                  </div>
+                </div>
 
-                  {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
-                    <div className="detail-section">
-                      <h4><FaCog /> Additional Details</h4>
-                      <div className="details-json">
-                        <pre>{JSON.stringify(selectedLog.details, null, 2)}</pre>
-                      </div>
-                    </div>
-                  )}
+                <div className="audit-logs-section-card">
+                  <div className="audit-logs-section-title">
+                    <FaUserShield className="audit-logs-section-icon" />
+                    <h3>Actor Information</h3>
+                  </div>
 
-                  <div className="detail-section">
-                    <h4><FaShieldAlt /> Log Metadata</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Log ID</label>
-                        <p className="mono-text">{selectedLog._id}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Created At</label>
-                        <p>{formatDateTime(selectedLog.timestamp || selectedLog.createdAt)}</p>
-                      </div>
+                  <div className="audit-logs-detail-grid">
+                    <div>
+                      <p>Actor Name</p>
+                      <h4>{selectedLog.actor?.fullName || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Actor Email</p>
+                      <h4>{selectedLog.actor?.email || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Actor Role</p>
+                      <h4>{formatStatus(selectedLog.actorRole || 'N/A')}</h4>
+                    </div>
+
+                    <div>
+                      <p>Entity ID</p>
+                      <h4>{selectedLog.entityId || 'N/A'}</h4>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="modal-footer">
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  Close
-                </button>
+                <div className="audit-logs-section-card">
+                  <div className="audit-logs-section-title">
+                    <FaHistory className="audit-logs-section-icon" />
+                    <h3>Trace Details</h3>
+                  </div>
+
+                  <div className="audit-logs-detail-grid">
+                    <div>
+                      <p>Reason</p>
+                      <h4>{selectedLog.reason || 'No reason provided'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Request ID</p>
+                      <h4>{selectedLog.requestId || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>IP Address</p>
+                      <h4>{selectedLog.ipAddress || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>User Agent</p>
+                      <h4>{selectedLog.userAgent || 'N/A'}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="audit-logs-section-card">
+                  <div className="audit-logs-section-title">
+                    <FaHistory className="audit-logs-section-icon" />
+                    <h3>Changed Fields</h3>
+                  </div>
+
+                  {Array.isArray(selectedLog.changedFields) && selectedLog.changedFields.length > 0 ? (
+                    <div className="audit-logs-chip-list">
+                      {selectedLog.changedFields.map((field) => (
+                        <span key={field} className="audit-logs-field-chip">
+                          {field}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="audit-logs-empty-inline">
+                      No changed fields recorded
+                    </div>
+                  )}
+                </div>
+
+                <div className="audit-logs-json-grid">
+                  <div className="audit-logs-json-card">
+                    <h3>Before State</h3>
+                    <pre>{prettyJson(selectedLog.beforeState)}</pre>
+                  </div>
+
+                  <div className="audit-logs-json-card">
+                    <h3>After State</h3>
+                    <pre>{prettyJson(selectedLog.afterState)}</pre>
+                  </div>
+                </div>
+
+                <div className="audit-logs-json-card single">
+                  <h3>Meta</h3>
+                  <pre>{prettyJson(selectedLog.meta)}</pre>
+                </div>
+              </>
+            ) : (
+              <div className="audit-logs-empty-state details">
+                <FaHistory className="audit-logs-empty-icon" />
+                <h3>Select a log</h3>
+                <p>Choose an audit log from the left side to view full details.</p>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </AdminLayout>
   );

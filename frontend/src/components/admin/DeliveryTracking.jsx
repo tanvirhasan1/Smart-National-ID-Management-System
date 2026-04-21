@@ -1,512 +1,339 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  FaTruck,
+  FaCheckSquare,
   FaSearch,
-  FaFilter,
-  FaEye,
-  FaTimes,
-  FaCheck,
   FaSpinner,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaUser,
-  FaIdCard,
-  FaBox,
-  FaShippingFast,
-  FaHome,
-  FaClock,
-  FaEdit,
-  FaBarcode,
-  FaPhone,
-  FaExclamationTriangle,
-  FaSyncAlt,
-  FaChevronLeft,
-  FaChevronRight,
-  FaFileExport,
-  FaPrint,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaHourglassHalf
+  FaSquare,
+  FaTruck
 } from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
-import { formatDate, formatDateTime } from '../utils/helpers';
+import { formatDate, formatDateTime, formatStatus } from '../utils/helpers';
 import '../styles/DeliveryTracking.css';
 
+const getApplicationsFromResponse = (response) =>
+  response?.data?.applications || response?.data?.data || [];
+
+const normalizeText = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const buildDeliverySearchText = (application) =>
+  normalizeText(
+    [
+      application?.applicationId,
+      application?.fullNameEnglish,
+      application?.fullNameBangla,
+      application?.email,
+      application?.phone,
+      application?.applicationType,
+      application?.status,
+      application?.birthRegistrationNumber,
+      application?.existingNidNumber,
+      application?.applicant?.fullName,
+      application?.applicant?.email,
+      application?.applicant?.phone
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+
+const getDeliveryStatusClass = (status) => {
+  const value = String(status || '').toLowerCase();
+
+  if (value === 'printed') return 'printed';
+  if (value === 'delivered') return 'delivered';
+  if (value === 'cancelled') return 'cancelled';
+  return 'neutral';
+};
+
 const DeliveryTracking = () => {
-  // State management
-  const [deliveries, setDeliveries] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [stats, setStats] = useState(null);
+
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [selectedDelivery, setSelectedDelivery] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalDeliveries, setTotalDeliveries] = useState(0);
-  const deliveriesPerPage = 15;
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
 
-  // Filters
-  const [filters, setFilters] = useState({
-    status: '',
-    deliveryStatus: '',
-    searchQuery: '',
-    startDate: '',
-    endDate: ''
+  const [singleModalOpen, setSingleModalOpen] = useState(false);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+
+  const [singleForm, setSingleForm] = useState({
+    deliveryNote: '',
+    deliveryReference: ''
   });
 
-  // Update form state
-  const [updateForm, setUpdateForm] = useState({
-    trackingNumber: '',
-    deliveryStatus: '',
-    deliveryNotes: '',
-    estimatedDeliveryDate: ''
+  const [bulkForm, setBulkForm] = useState({
+    deliveryNote: '',
+    deliveryReference: ''
   });
 
-  // Statistics
-  const [stats, setStats] = useState({
-    totalApproved: 0,
-    printing: 0,
-    dispatched: 0,
-    inTransit: 0,
-    delivered: 0,
-    pending: 0
-  });
-
-  useEffect(() => {
-    fetchDeliveries();
-    fetchStats();
-  }, [currentPage, filters]);
-
-  const requestWithFallback = async (requests = []) => {
-    let lastError = null;
-
-    for (const requestFn of requests) {
-      try {
-        return await requestFn();
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    throw lastError;
-  };
-
-  const getDeliveryUser = (delivery) => {
-    return (
-      delivery?.userId ||
-      delivery?.user ||
-      delivery?.applicant ||
-      delivery?.createdBy ||
-      {}
-    );
-  };
-
-  const getApplicationNumber = (delivery) => {
-    return (
-      delivery?.applicationNumber ||
-      delivery?.applicationId ||
-      delivery?.application?.applicationId ||
-      delivery?.application?.applicationNumber ||
-      'N/A'
-    );
-  };
-
-  const getApplicationType = (delivery) => {
-    return (
-      delivery?.applicationType ||
-      delivery?.application?.applicationType ||
-      'N/A'
-    );
-  };
-
-  const getDeliveryAddressText = (delivery) => {
-    const user = getDeliveryUser(delivery);
-    const address = user?.presentAddress || user?.permanentAddress || {};
-
-    return [address.district, address.division].filter(Boolean).join(', ') || 'N/A';
-  };
-
-  const normalizeDeliveryListResponse = (response) => {
-    const responseData = response?.data || {};
-
-    const items =
-      responseData.data ||
-      responseData.deliveries ||
-      responseData.applications ||
-      responseData.items ||
-      [];
-
-    const total =
-      responseData.total ||
-      responseData.pagination?.total ||
-      responseData.count ||
-      items.length ||
-      0;
-
-    return {
-      items,
-      total
-    };
-  };
-
-  const fetchSingleDelivery = async (deliveryId) => {
-    const response = await requestWithFallback([
-      () => api.get(`/admin/delivery/${deliveryId}`),
-      () => api.get(`/admin/deliveries/${deliveryId}`),
-      () => api.get(`/admin/applications/${deliveryId}`)
-    ]);
-
-    return response?.data?.delivery || response?.data?.application || response?.data?.data || response?.data;
-  };
-
-  const fetchDeliveries = async () => {
+  // Load the current delivery queue from backend.
+  const fetchApplications = async () => {
     try {
       setLoading(true);
 
-      const queryParams = new URLSearchParams();
-      queryParams.set('page', currentPage);
-      queryParams.set('limit', deliveriesPerPage);
+      const response = await api.get('/admin/delivery/queue');
+      const rows = getApplicationsFromResponse(response);
 
-      if (filters.status) queryParams.set('status', filters.status);
-      if (filters.deliveryStatus) queryParams.set('deliveryStatus', filters.deliveryStatus);
-      if (filters.searchQuery) queryParams.set('search', filters.searchQuery);
-      if (filters.startDate) queryParams.set('startDate', filters.startDate);
-      if (filters.endDate) queryParams.set('endDate', filters.endDate);
+      setApplications(rows);
 
-      const queryString = queryParams.toString();
+      setSelectedApplication((currentSelected) => {
+        if (!rows.length) return null;
+        if (!currentSelected) return rows[0];
 
-      const response = await requestWithFallback([
-        () => api.get(`/admin/delivery?${queryString}`),
-        () => api.get(`/admin/deliveries?${queryString}`),
-        () => api.get(`/admin/delivery/queue?${queryString}`)
-      ]);
+        const stillExists = rows.find((item) => item._id === currentSelected._id);
+        return stillExists || rows[0];
+      });
 
-      const { items, total } = normalizeDeliveryListResponse(response);
-
-      setDeliveries(items);
-      setTotalDeliveries(total);
-      setTotalPages(Math.max(1, Math.ceil(total / deliveriesPerPage)));
+      setSelectedIds((currentIds) =>
+        currentIds.filter((id) => rows.some((item) => item._id === id))
+      );
     } catch (error) {
-      console.error('Error fetching deliveries:', error);
-      toast.error(error?.response?.data?.message || 'Failed to load delivery data');
+      console.error('Error fetching delivery queue:', error);
+      toast.error(error?.response?.data?.message || 'Failed to load delivery queue');
     } finally {
       setLoading(false);
     }
   };
 
+  // Load delivery summary cards for the top area.
   const fetchStats = async () => {
     try {
-      const response = await requestWithFallback([
-        () => api.get('/admin/delivery/stats'),
-        () => api.get('/admin/deliveries/stats')
-      ]);
+      setStatsLoading(true);
 
-      setStats(
-        response?.data?.data || {
-          totalApproved: 0,
-          printing: 0,
-          dispatched: 0,
-          inTransit: 0,
-          delivered: 0,
-          pending: 0
-        }
+      const response = await api.get('/admin/delivery/stats');
+      setStats(response?.data?.data || null);
+    } catch (error) {
+      console.error('Error fetching delivery stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+    fetchStats();
+  }, []);
+
+  const visibleApplications = useMemo(() => {
+    const normalizedSearch = normalizeText(searchInput);
+    const searchTokens = normalizedSearch.split(' ').filter(Boolean);
+
+    return applications.filter((item) => {
+      const searchableText = buildDeliverySearchText(item);
+
+      const matchesSearch =
+        searchTokens.length === 0 ||
+        searchTokens.every((token) => searchableText.includes(token));
+
+      const matchesStatus = !statusFilter || item.status === statusFilter;
+      const matchesType = !typeFilter || item.applicationType === typeFilter;
+
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [applications, searchInput, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!visibleApplications.length) {
+      setSelectedApplication(null);
+      return;
+    }
+
+    setSelectedApplication((currentSelected) => {
+      if (!currentSelected) return visibleApplications[0];
+
+      const stillExists = visibleApplications.find(
+        (item) => item._id === currentSelected._id
       );
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
 
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      status: '',
-      deliveryStatus: '',
-      searchQuery: '',
-      startDate: '',
-      endDate: ''
+      return stillExists || visibleApplications[0];
     });
-    setCurrentPage(1);
-  };
+  }, [visibleApplications]);
 
-  // Move to printing
-  const handleMoveToPrinting = async (applicationId) => {
-    setActionLoading(true);
-    try {
-      await requestWithFallback([
-        () => api.put(`/admin/applications/${applicationId}/printing`),
-        () => api.patch(`/admin/applications/${applicationId}/printing`),
-        () => api.put(`/admin/printing/${applicationId}/start`)
-      ]);
+  const selectedPrintedIds = useMemo(() => {
+    return selectedIds.filter((id) =>
+      applications.some((item) => item._id === id && item.status === 'printed')
+    );
+  }, [selectedIds, applications]);
 
-      toast.success('Moved to printing queue');
-      fetchDeliveries();
-      fetchStats();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update status');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const allVisiblePrintedIds = useMemo(() => {
+    return visibleApplications
+      .filter((item) => item.status === 'printed')
+      .map((item) => item._id);
+  }, [visibleApplications]);
 
-  // Dispatch card
-  const handleDispatch = (delivery) => {
-    setSelectedDelivery(delivery);
-    setUpdateForm({
-      trackingNumber: delivery?.trackingNumber || `TRK${Date.now()}`,
-      deliveryStatus: delivery?.deliveryStatus || 'in_transit',
-      deliveryNotes: '',
-      estimatedDeliveryDate: ''
-    });
-    setShowUpdateModal(true);
-  };
+  const statsCards = useMemo(() => {
+    return [
+      {
+        key: 'ready',
+        title: 'Ready For Delivery',
+        value: statsLoading ? '...' : stats?.readyForDelivery ?? 0,
+        theme: 'yellow'
+      },
+      {
+        key: 'delivered',
+        title: 'Delivered',
+        value: statsLoading ? '...' : stats?.deliveredCount ?? 0,
+        theme: 'green'
+      },
+      {
+        key: 'today',
+        title: 'Delivered Today',
+        value: statsLoading ? '...' : stats?.deliveredToday ?? 0,
+        theme: 'blue'
+      },
+      {
+        key: 'cancelled',
+        title: 'Cancelled',
+        value: statsLoading ? '...' : stats?.cancelledCount ?? 0,
+        theme: 'red'
+      }
+    ];
+  }, [stats, statsLoading]);
 
-  // Update delivery status
-  const handleUpdateDelivery = async (e) => {
-    e.preventDefault();
-
-    if (!selectedDelivery) return;
-
-    setActionLoading(true);
-    try {
-      await requestWithFallback([
-        () =>
-          api.put(`/admin/delivery/${selectedDelivery._id}/dispatch`, {
-            trackingNumber: updateForm.trackingNumber,
-            deliveryStatus: updateForm.deliveryStatus,
-            deliveryNotes: updateForm.deliveryNotes,
-            estimatedDeliveryDate: updateForm.estimatedDeliveryDate
-          }),
-        () =>
-          api.put(`/admin/deliveries/${selectedDelivery._id}/dispatch`, {
-            trackingNumber: updateForm.trackingNumber,
-            deliveryStatus: updateForm.deliveryStatus,
-            deliveryNotes: updateForm.deliveryNotes,
-            estimatedDeliveryDate: updateForm.estimatedDeliveryDate
-          }),
-        () =>
-          api.put(`/admin/applications/${selectedDelivery._id}/dispatch`, {
-            trackingNumber: updateForm.trackingNumber,
-            deliveryStatus: updateForm.deliveryStatus,
-            deliveryNotes: updateForm.deliveryNotes,
-            estimatedDeliveryDate: updateForm.estimatedDeliveryDate
-          }),
-        () =>
-          api.patch(`/admin/applications/${selectedDelivery._id}/dispatch`, {
-            trackingNumber: updateForm.trackingNumber,
-            deliveryStatus: updateForm.deliveryStatus,
-            deliveryNotes: updateForm.deliveryNotes,
-            estimatedDeliveryDate: updateForm.estimatedDeliveryDate
-          })
-      ]);
-
-      toast.success('Delivery status updated successfully');
-      setShowUpdateModal(false);
-      setSelectedDelivery(null);
-      fetchDeliveries();
-      fetchStats();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update delivery');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Mark as delivered
-  const handleMarkDelivered = async (applicationId) => {
-    if (!window.confirm('Confirm that this card has been delivered?')) return;
-
-    setActionLoading(true);
-    try {
-      await requestWithFallback([
-        () => api.put(`/admin/delivery/${applicationId}/delivered`),
-        () => api.put(`/admin/deliveries/${applicationId}/delivered`),
-        () => api.put(`/admin/applications/${applicationId}/delivered`),
-        () => api.patch(`/admin/applications/${applicationId}/delivered`)
-      ]);
-
-      toast.success('Marked as delivered');
-      fetchDeliveries();
-      fetchStats();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update status');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // View details
-  const handleViewDetails = async (delivery) => {
-    try {
-      setActionLoading(true);
-      const fullDelivery = await fetchSingleDelivery(delivery._id);
-      setSelectedDelivery(fullDelivery || delivery);
-      setShowDetailModal(true);
-    } catch (error) {
-      console.error('Error loading delivery details:', error);
-      setSelectedDelivery(delivery);
-      setShowDetailModal(true);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Get status icon
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'approved':
-        return <FaCheckCircle className="status-icon approved" />;
-      case 'printing':
-        return <FaPrint className="status-icon printing" />;
-      case 'dispatched':
-        return <FaShippingFast className="status-icon dispatched" />;
-      case 'delivered':
-        return <FaHome className="status-icon delivered" />;
-      default:
-        return <FaHourglassHalf className="status-icon pending" />;
-    }
-  };
-
-  // Get delivery status badge
-  const getDeliveryStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { label: 'Pending', class: 'pending', icon: FaClock },
-      in_transit: { label: 'In Transit', class: 'in-transit', icon: FaTruck },
-      delivered: { label: 'Delivered', class: 'delivered', icon: FaCheckCircle },
-      failed: { label: 'Failed', class: 'failed', icon: FaTimesCircle }
-    };
-
-    const config = statusConfig[status] || statusConfig.pending;
-    const Icon = config.icon;
-
-    return (
-      <span className={`delivery-badge ${config.class}`}>
-        <Icon /> {config.label}
-      </span>
+  const toggleApplicationSelect = (applicationId) => {
+    setSelectedIds((currentIds) =>
+      currentIds.includes(applicationId)
+        ? currentIds.filter((id) => id !== applicationId)
+        : [...currentIds, applicationId]
     );
   };
 
-  // Generate tracking timeline
-  const getTrackingTimeline = (delivery) => {
-    const timeline = [];
+  const toggleSelectAllVisiblePrinted = () => {
+    const alreadyAllSelected =
+      allVisiblePrintedIds.length > 0 &&
+      allVisiblePrintedIds.every((id) => selectedIds.includes(id));
 
-    if (delivery.reviewedAt) {
-      timeline.push({
-        status: 'Approved',
-        date: delivery.reviewedAt,
-        description: 'Application approved by admin',
-        icon: FaCheckCircle,
-        completed: true
-      });
-    }
-
-    if (delivery.printedAt) {
-      timeline.push({
-        status: 'Printed',
-        date: delivery.printedAt,
-        description: `Card printed. Batch: ${delivery.printBatchNumber || 'N/A'}`,
-        icon: FaPrint,
-        completed: true
-      });
-    }
-
-    if (delivery.dispatchedAt) {
-      timeline.push({
-        status: 'Dispatched',
-        date: delivery.dispatchedAt,
-        description: `Dispatched for delivery. Tracking: ${delivery.trackingNumber || 'N/A'}`,
-        icon: FaShippingFast,
-        completed: true
-      });
-    }
-
-    if (delivery.deliveryStatus === 'in_transit') {
-      timeline.push({
-        status: 'In Transit',
-        date: null,
-        description: 'Package is on the way',
-        icon: FaTruck,
-        completed: false,
-        current: true
-      });
-    }
-
-    if (delivery.deliveredAt) {
-      timeline.push({
-        status: 'Delivered',
-        date: delivery.deliveredAt,
-        description: 'Successfully delivered to recipient',
-        icon: FaHome,
-        completed: true
-      });
-    }
-
-    return timeline;
-  };
-
-  const filteredDeliveries = useMemo(() => {
-    if (!filters.searchQuery) return deliveries;
-
-    const query = filters.searchQuery.toLowerCase();
-
-    return deliveries.filter((delivery) => {
-      const user = getDeliveryUser(delivery);
-
-      return (
-        getApplicationNumber(delivery).toLowerCase().includes(query) ||
-        (user?.fullName || '').toLowerCase().includes(query) ||
-        (user?.mobile || user?.phone || '').toLowerCase().includes(query) ||
-        (delivery?.trackingNumber || '').toLowerCase().includes(query) ||
-        (delivery?.nidNumber || '').toLowerCase().includes(query)
+    if (alreadyAllSelected) {
+      setSelectedIds((currentIds) =>
+        currentIds.filter((id) => !allVisiblePrintedIds.includes(id))
       );
+      return;
+    }
+
+    setSelectedIds((currentIds) => [
+      ...new Set([...currentIds, ...allVisiblePrintedIds])
+    ]);
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setStatusFilter('');
+    setTypeFilter('');
+  };
+
+  const openSingleModal = () => {
+    if (!selectedApplication || selectedApplication.status !== 'printed') {
+      toast.error('Only printed applications can be delivered');
+      return;
+    }
+
+    setSingleForm({
+      deliveryNote: '',
+      deliveryReference: ''
     });
-  }, [deliveries, filters.searchQuery]);
 
-  // Export deliveries
-  const handleExport = async () => {
+    setSingleModalOpen(true);
+  };
+
+  const closeSingleModal = () => {
+    if (actionLoading) return;
+
+    setSingleModalOpen(false);
+    setSingleForm({
+      deliveryNote: '',
+      deliveryReference: ''
+    });
+  };
+
+  const openBulkModal = () => {
+    if (!selectedPrintedIds.length) {
+      toast.error('Select at least one printed application');
+      return;
+    }
+
+    setBulkForm({
+      deliveryNote: '',
+      deliveryReference: ''
+    });
+
+    setBulkModalOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (actionLoading) return;
+
+    setBulkModalOpen(false);
+    setBulkForm({
+      deliveryNote: '',
+      deliveryReference: ''
+    });
+  };
+
+  const handleSingleMarkDelivered = async () => {
+    if (!selectedApplication?._id) return;
+
     try {
-      toast.info('Preparing export...');
+      setActionLoading(true);
 
-      const response = await requestWithFallback([
-        () =>
-          api.get('/admin/delivery/export', {
-            params: filters,
-            responseType: 'blob'
-          }),
-        () =>
-          api.get('/admin/deliveries/export', {
-            params: filters,
-            responseType: 'blob'
-          })
-      ]);
+      await api.patch(`/admin/delivery/${selectedApplication._id}/mark-delivered`, {
+        deliveryNote: singleForm.deliveryNote.trim(),
+        deliveryReference: singleForm.deliveryReference.trim()
+      });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `deliveries-${formatDate(new Date())}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      toast.success('Export completed');
+      toast.success('Application marked as delivered');
+      closeSingleModal();
+      await Promise.all([fetchApplications(), fetchStats()]);
     } catch (error) {
-      toast.error('Failed to export data');
+      console.error('Error marking application as delivered:', error);
+      toast.error(error?.response?.data?.message || 'Failed to mark as delivered');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  if (loading && deliveries.length === 0) {
+  const handleBulkMarkDelivered = async () => {
+    if (!selectedPrintedIds.length) return;
+
+    try {
+      setActionLoading(true);
+
+      await api.patch('/admin/delivery/bulk-mark-delivered', {
+        applicationIds: selectedPrintedIds,
+        actionNote: bulkForm.deliveryNote.trim(),
+        deliveryReference: bulkForm.deliveryReference.trim()
+      });
+
+      toast.success('Bulk delivery action completed');
+      setSelectedIds([]);
+      closeBulkModal();
+      await Promise.all([fetchApplications(), fetchStats()]);
+    } catch (error) {
+      console.error('Error running bulk delivery:', error);
+      toast.error(error?.response?.data?.message || 'Failed to run bulk delivery');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const selectedHistory = selectedApplication?.statusHistory || [];
+
+  if (loading) {
     return (
       <AdminLayout>
-        <div className="admin-loading">
-          <Loader size="large" text="Loading delivery data..." />
+        <div className="delivery-tracking-loading-state">
+          <Loader size="large" text="Loading delivery queue..." />
         </div>
       </AdminLayout>
     );
@@ -515,713 +342,457 @@ const DeliveryTracking = () => {
   return (
     <AdminLayout>
       <div className="delivery-tracking-page">
-        {/* Page Header */}
-        <div className="page-header">
-          <div className="header-content">
-            <h1><FaTruck /> Delivery Tracking</h1>
-            <p>Track and manage NID card deliveries</p>
-          </div>
-          <div className="header-actions">
+        {/* Delivery overview header */}
+        <div className="delivery-tracking-header-card">
+          <div className="delivery-tracking-header-top">
+            <div>
+              <h1 className="delivery-tracking-title">Delivery Tracking</h1>
+              <p className="delivery-tracking-subtitle">
+                Track printed applications and move them into final delivery workflow.
+              </p>
+            </div>
+
             <button
-              className="btn btn-outline"
-              onClick={handleExport}
+              type="button"
+              className="delivery-tracking-primary-button"
+              onClick={openBulkModal}
+              disabled={!selectedPrintedIds.length}
             >
-              <FaFileExport /> Export
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                fetchDeliveries();
-                fetchStats();
-              }}
-            >
-              <FaSyncAlt /> Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="stats-row">
-          <div className="stat-card stat-approved">
-            <div className="stat-icon-wrapper">
-              <FaCheckCircle />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.totalApproved || 0}</span>
-              <span className="stat-label">Total Approved</span>
-            </div>
-          </div>
-
-          <div className="stat-card stat-printing">
-            <div className="stat-icon-wrapper">
-              <FaPrint />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.printing || 0}</span>
-              <span className="stat-label">In Printing</span>
-            </div>
-          </div>
-
-          <div className="stat-card stat-dispatched">
-            <div className="stat-icon-wrapper">
-              <FaShippingFast />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.dispatched || 0}</span>
-              <span className="stat-label">Dispatched</span>
-            </div>
-          </div>
-
-          <div className="stat-card stat-transit">
-            <div className="stat-icon-wrapper">
               <FaTruck />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.inTransit || 0}</span>
-              <span className="stat-label">In Transit</span>
-            </div>
+              <span>Bulk Mark Delivered ({selectedPrintedIds.length})</span>
+            </button>
           </div>
 
-          <div className="stat-card stat-delivered">
-            <div className="stat-icon-wrapper">
-              <FaHome />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.delivered || 0}</span>
-              <span className="stat-label">Delivered</span>
-            </div>
+          <div className="delivery-tracking-stats-grid">
+            {statsCards.map((item) => (
+              <div
+                key={item.key}
+                className={`delivery-tracking-stat-card ${item.theme}`}
+              >
+                <div className="delivery-tracking-stat-icon">
+                  <FaTruck />
+                </div>
+                <div>
+                  <p>{item.title}</p>
+                  <h3>{item.value}</h3>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="filters-card">
-          <div className="filters-header">
-            <h3><FaFilter /> Filters</h3>
-            {Object.values(filters).some((v) => v) && (
-              <button
-                className="clear-filters-btn"
-                onClick={handleClearFilters}
+        {/* Search and filters */}
+        <div className="delivery-tracking-toolbar">
+          <div className="delivery-tracking-search-box">
+            <FaSearch className="delivery-tracking-field-icon" />
+            <input
+              type="text"
+              placeholder="Search by application ID, name, email, phone or BRN"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          </div>
+
+          <div className="delivery-tracking-filter-row">
+            <div className="delivery-tracking-filter-group">
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
               >
-                <FaTimes /> Clear All
-              </button>
+                <option value="">All Status</option>
+                <option value="printed">Printed</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="delivery-tracking-filter-group">
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+              >
+                <option value="">All Types</option>
+                <option value="new">New</option>
+                <option value="correction">Correction</option>
+                <option value="reissue">Reissue</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              className="delivery-tracking-secondary-button"
+              onClick={toggleSelectAllVisiblePrinted}
+            >
+              {allVisiblePrintedIds.length > 0 &&
+              allVisiblePrintedIds.every((id) => selectedIds.includes(id))
+                ? 'Unselect Visible Printed'
+                : 'Select Visible Printed'}
+            </button>
+
+            <button
+              type="button"
+              className="delivery-tracking-secondary-button"
+              onClick={clearFilters}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+
+        <div className="delivery-tracking-content">
+          {/* Queue list */}
+          <div className="delivery-tracking-list-card">
+            <div className="delivery-tracking-card-header">
+              <div>
+                <h3>Printed and Delivered Applications</h3>
+                <p>{visibleApplications.length} applications found</p>
+              </div>
+            </div>
+
+            {visibleApplications.length === 0 ? (
+              <div className="delivery-tracking-empty-state">
+                <FaTruck className="delivery-tracking-empty-icon" />
+                <h3>No applications found</h3>
+                <p>Try changing your search or filter selection.</p>
+              </div>
+            ) : (
+              <div className="delivery-tracking-list">
+                {visibleApplications.map((item) => {
+                  const isSelected = selectedIds.includes(item._id);
+                  const isPrinted = item.status === 'printed';
+
+                  return (
+                    <div
+                      key={item._id}
+                      className={
+                        selectedApplication?._id === item._id
+                          ? 'delivery-tracking-list-item active'
+                          : 'delivery-tracking-list-item'
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="delivery-tracking-list-main"
+                        onClick={() => setSelectedApplication(item)}
+                      >
+                        <div className="delivery-tracking-list-top">
+                          <h4>{item.fullNameEnglish || 'Unnamed Applicant'}</h4>
+
+                          <div className="delivery-tracking-list-badges">
+                            <span
+                              className={`delivery-tracking-status-chip ${getDeliveryStatusClass(
+                                item.status
+                              )}`}
+                            >
+                              {formatStatus(item.status)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <p>{item.applicationId || 'No application ID'}</p>
+
+                        <div className="delivery-tracking-list-meta">
+                          <span className="delivery-tracking-type-chip">
+                            {formatStatus(item.applicationType || 'new')}
+                          </span>
+                          <small>{item.phone || item.applicant?.phone || 'No phone'}</small>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="delivery-tracking-check-button"
+                        onClick={() => toggleApplicationSelect(item._id)}
+                        disabled={!isPrinted}
+                        title={isPrinted ? 'Select application' : 'Only printed items can be selected'}
+                      >
+                        {isSelected ? <FaCheckSquare /> : <FaSquare />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          <div className="filters-grid">
-            {/* Search */}
-            <div className="filter-item filter-search">
-              <label>Search</label>
-              <div className="search-input">
-                <FaSearch />
-                <input
-                  type="text"
-                  placeholder="Search by NID #, name, tracking..."
-                  value={filters.searchQuery}
-                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
-                />
-              </div>
-            </div>
+          {/* Selected application details */}
+          <div className="delivery-tracking-details-card">
+            {selectedApplication ? (
+              <>
+                <div className="delivery-tracking-details-header">
+                  <div>
+                    <h2>{selectedApplication.fullNameEnglish || 'Unnamed Applicant'}</h2>
+                    <p>{selectedApplication.applicationId || 'No application ID'}</p>
+                  </div>
 
-            {/* Application Status Filter */}
-            <div className="filter-item">
-              <label>Application Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="approved">Approved</option>
-                <option value="printing">Printing</option>
-                <option value="dispatched">Dispatched</option>
-                <option value="delivered">Delivered</option>
-              </select>
-            </div>
-
-            {/* Delivery Status Filter */}
-            <div className="filter-item">
-              <label>Delivery Status</label>
-              <select
-                value={filters.deliveryStatus}
-                onChange={(e) => handleFilterChange('deliveryStatus', e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="in_transit">In Transit</option>
-                <option value="delivered">Delivered</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            {/* Start Date */}
-            <div className="filter-item">
-              <label>From Date</label>
-              <input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              />
-            </div>
-
-            {/* End Date */}
-            <div className="filter-item">
-              <label>To Date</label>
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Deliveries Table */}
-        <div className="deliveries-card">
-          <div className="card-header">
-            <h3><FaBox /> Delivery Queue</h3>
-            <span className="deliveries-count">{totalDeliveries} records</span>
-          </div>
-
-          <div className="table-container">
-            <table className="deliveries-table">
-              <thead>
-                <tr>
-                  <th>Application</th>
-                  <th>Recipient</th>
-                  <th>NID Number</th>
-                  <th>Status</th>
-                  <th>Delivery Status</th>
-                  <th>Tracking #</th>
-                  <th>Address</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="8" className="loading-row">
-                      <Loader size="small" />
-                    </td>
-                  </tr>
-                ) : filteredDeliveries.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="empty-row">
-                      <FaTruck className="empty-icon" />
-                      <p>No delivery records found</p>
-                      {Object.values(filters).some((v) => v) && (
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={handleClearFilters}
-                        >
-                          Clear Filters
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDeliveries.map((delivery) => {
-                    const user = getDeliveryUser(delivery);
-
-                    return (
-                      <tr key={delivery._id}>
-                        <td>
-                          <div className="application-cell">
-                            <span className="app-number">#{getApplicationNumber(delivery)}</span>
-                            <span className="app-type">{getApplicationType(delivery)}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="recipient-cell">
-                            <span className="recipient-name">{user?.fullName || 'N/A'}</span>
-                            <span className="recipient-phone">
-                              <FaPhone /> {user?.mobile || user?.phone || 'N/A'}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="nid-number">
-                            {delivery.nidNumber || 'Not Generated'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="status-cell">
-                            {getStatusIcon(delivery.status)}
-                            <span className={`status-text ${delivery.status}`}>
-                              {delivery.status?.replace('_', ' ')}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          {getDeliveryStatusBadge(delivery.deliveryStatus)}
-                        </td>
-                        <td>
-                          <div className="tracking-cell">
-                            {delivery.trackingNumber ? (
-                              <>
-                                <FaBarcode />
-                                <span>{delivery.trackingNumber}</span>
-                              </>
-                            ) : (
-                              <span className="no-tracking">Not assigned</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="address-cell">
-                            <FaMapMarkerAlt />
-                            <span>{getDeliveryAddressText(delivery)}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            {/* View Details */}
-                            <button
-                              className="btn-action btn-view"
-                              onClick={() => handleViewDetails(delivery)}
-                              title="View Details"
-                            >
-                              <FaEye />
-                            </button>
-
-                            {/* Move to Printing */}
-                            {delivery.status === 'approved' && (
-                              <button
-                                className="btn-action btn-print"
-                                onClick={() => handleMoveToPrinting(delivery._id)}
-                                title="Move to Printing"
-                                disabled={actionLoading}
-                              >
-                                <FaPrint />
-                              </button>
-                            )}
-
-                            {/* Dispatch */}
-                            {delivery.status === 'printing' && (
-                              <button
-                                className="btn-action btn-dispatch"
-                                onClick={() => handleDispatch(delivery)}
-                                title="Dispatch"
-                                disabled={actionLoading}
-                              >
-                                <FaShippingFast />
-                              </button>
-                            )}
-
-                            {/* Mark Delivered */}
-                            {delivery.status === 'dispatched' && delivery.deliveryStatus === 'in_transit' && (
-                              <button
-                                className="btn-action btn-deliver"
-                                onClick={() => handleMarkDelivered(delivery._id)}
-                                title="Mark as Delivered"
-                                disabled={actionLoading}
-                              >
-                                <FaCheck />
-                              </button>
-                            )}
-
-                            {/* Update Delivery */}
-                            {['dispatched'].includes(delivery.status) && (
-                              <button
-                                className="btn-action btn-edit"
-                                onClick={() => {
-                                  setSelectedDelivery(delivery);
-                                  setUpdateForm({
-                                    trackingNumber: delivery.trackingNumber || '',
-                                    deliveryStatus: delivery.deliveryStatus || 'pending',
-                                    deliveryNotes: '',
-                                    estimatedDeliveryDate: ''
-                                  });
-                                  setShowUpdateModal(true);
-                                }}
-                                title="Update Delivery"
-                                disabled={actionLoading}
-                              >
-                                <FaEdit />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="pagination">
-              <div className="pagination-info">
-                Showing {((currentPage - 1) * deliveriesPerPage) + 1} to {Math.min(currentPage * deliveriesPerPage, totalDeliveries)} of {totalDeliveries}
-              </div>
-              <div className="pagination-controls">
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  First
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <FaChevronLeft />
-                </button>
-
-                <div className="page-numbers">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                  <span
+                    className={`delivery-tracking-status-chip ${getDeliveryStatusClass(
+                      selectedApplication.status
+                    )}`}
+                  >
+                    {formatStatus(selectedApplication.status)}
+                  </span>
                 </div>
 
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <FaChevronRight />
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  Last
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Delivery Details Modal */}
-        {showDetailModal && selectedDelivery && (
-          <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
-            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3><FaTruck /> Delivery Details</h3>
-                <button
-                  className="modal-close"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="modal-body">
-                <div className="delivery-details">
-                  {/* Status Banner */}
-                  <div className={`status-banner status-${selectedDelivery.status}`}>
-                    <div className="status-icon-large">
-                      {getStatusIcon(selectedDelivery.status)}
-                    </div>
-                    <div className="status-info">
-                      <h4>{selectedDelivery.status?.replace('_', ' ').toUpperCase()}</h4>
-                      <span>Application #{getApplicationNumber(selectedDelivery)}</span>
-                    </div>
-                    <div className="delivery-status-badge">
-                      {getDeliveryStatusBadge(selectedDelivery.deliveryStatus)}
-                    </div>
+                <div className="delivery-tracking-summary-grid">
+                  <div className="delivery-tracking-summary-card">
+                    <p>Application Type</p>
+                    <h4>{formatStatus(selectedApplication.applicationType || 'new')}</h4>
                   </div>
 
-                  {/* Tracking Timeline */}
-                  <div className="detail-section">
-                    <h4><FaClock /> Tracking Timeline</h4>
-                    <div className="tracking-timeline">
-                      {getTrackingTimeline(selectedDelivery).map((item, index) => (
-                        <div
-                          key={index}
-                          className={`timeline-item ${item.completed ? 'completed' : ''} ${item.current ? 'current' : ''}`}
-                        >
-                          <div className="timeline-icon">
-                            <item.icon />
-                          </div>
-                          <div className="timeline-content">
-                            <h5>{item.status}</h5>
-                            <p>{item.description}</p>
-                            {item.date && (
-                              <span className="timeline-date">{formatDateTime(item.date)}</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="delivery-tracking-summary-card">
+                    <p>Phone</p>
+                    <h4>{selectedApplication.phone || selectedApplication.applicant?.phone || 'N/A'}</h4>
                   </div>
 
-                  {/* Recipient Information */}
-                  <div className="detail-section">
-                    <h4><FaUser /> Recipient Information</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Full Name</label>
-                        <p>{getDeliveryUser(selectedDelivery)?.fullName || 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Name (Bangla)</label>
-                        <p>{getDeliveryUser(selectedDelivery)?.fullNameBangla || 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Mobile Number</label>
-                        <p>
-                          <FaPhone /> {getDeliveryUser(selectedDelivery)?.mobile || getDeliveryUser(selectedDelivery)?.phone || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Email</label>
-                        <p>{getDeliveryUser(selectedDelivery)?.email || 'N/A'}</p>
-                      </div>
-                    </div>
+                  <div className="delivery-tracking-summary-card">
+                    <p>Printed At</p>
+                    <h4>
+                      {selectedApplication.printedAt
+                        ? formatDateTime(selectedApplication.printedAt)
+                        : 'Not printed yet'}
+                    </h4>
                   </div>
 
-                  {/* Delivery Address */}
-                  <div className="detail-section">
-                    <h4><FaMapMarkerAlt /> Delivery Address</h4>
-                    <div className="address-card">
-                      <div className="address-icon">
-                        <FaHome />
-                      </div>
-                      <div className="address-content">
-                        <p className="address-line">
-                          {getDeliveryUser(selectedDelivery)?.presentAddress?.village && `${getDeliveryUser(selectedDelivery).presentAddress.village}, `}
-                          {getDeliveryUser(selectedDelivery)?.presentAddress?.union && `${getDeliveryUser(selectedDelivery).presentAddress.union}, `}
-                          {getDeliveryUser(selectedDelivery)?.presentAddress?.upazila}
-                        </p>
-                        <p className="address-line">
-                          {getDeliveryUser(selectedDelivery)?.presentAddress?.district}, {getDeliveryUser(selectedDelivery)?.presentAddress?.division}
-                        </p>
-                        {getDeliveryUser(selectedDelivery)?.presentAddress?.postCode && (
-                          <p className="address-postcode">
-                            Post Code: {getDeliveryUser(selectedDelivery).presentAddress.postCode}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* NID Card Information */}
-                  <div className="detail-section">
-                    <h4><FaIdCard /> NID Card Information</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>NID Number</label>
-                        <p className="nid-number-large">{selectedDelivery.nidNumber || 'Not Generated'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Application Type</label>
-                        <p>{String(getApplicationType(selectedDelivery)).toUpperCase()}</p>
-                      </div>
-                      {(selectedDelivery.printBatchNumber || selectedDelivery.printBatch?.batchNumber) && (
-                        <div className="detail-item">
-                          <label>Print Batch</label>
-                          <p>{selectedDelivery.printBatchNumber || selectedDelivery.printBatch?.batchNumber}</p>
-                        </div>
-                      )}
-                      {selectedDelivery.trackingNumber && (
-                        <div className="detail-item">
-                          <label>Tracking Number</label>
-                          <p className="tracking-number">
-                            <FaBarcode /> {selectedDelivery.trackingNumber}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Timestamps */}
-                  <div className="detail-section">
-                    <h4><FaCalendarAlt /> Important Dates</h4>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Approved On</label>
-                        <p>{selectedDelivery.reviewedAt ? formatDateTime(selectedDelivery.reviewedAt) : 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Printed On</label>
-                        <p>{selectedDelivery.printedAt ? formatDateTime(selectedDelivery.printedAt) : 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Dispatched On</label>
-                        <p>{selectedDelivery.dispatchedAt ? formatDateTime(selectedDelivery.dispatchedAt) : 'N/A'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Delivered On</label>
-                        <p>{selectedDelivery.deliveredAt ? formatDateTime(selectedDelivery.deliveredAt) : 'Pending'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                {selectedDelivery.status === 'approved' && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      handleMoveToPrinting(selectedDelivery._id);
-                      setShowDetailModal(false);
-                    }}
-                    disabled={actionLoading}
-                  >
-                    <FaPrint /> Move to Printing
-                  </button>
-                )}
-                {selectedDelivery.status === 'printing' && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setShowDetailModal(false);
-                      handleDispatch(selectedDelivery);
-                    }}
-                    disabled={actionLoading}
-                  >
-                    <FaShippingFast /> Dispatch
-                  </button>
-                )}
-                {selectedDelivery.status === 'dispatched' && selectedDelivery.deliveryStatus !== 'delivered' && (
-                  <button
-                    className="btn btn-success"
-                    onClick={() => {
-                      handleMarkDelivered(selectedDelivery._id);
-                      setShowDetailModal(false);
-                    }}
-                    disabled={actionLoading}
-                  >
-                    <FaCheck /> Mark as Delivered
-                  </button>
-                )}
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Update Delivery Modal */}
-        {showUpdateModal && selectedDelivery && (
-          <div className="modal-overlay" onClick={() => setShowUpdateModal(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3><FaEdit /> Update Delivery Status</h3>
-                <button
-                  className="modal-close"
-                  onClick={() => setShowUpdateModal(false)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <form onSubmit={handleUpdateDelivery}>
-                <div className="modal-body">
-                  <div className="update-info">
-                    <p>Updating delivery for:</p>
-                    <strong>#{getApplicationNumber(selectedDelivery)}</strong>
-                    <span>{getDeliveryUser(selectedDelivery)?.fullName}</span>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Tracking Number *</label>
-                    <div className="input-with-icon">
-                      <FaBarcode />
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Enter tracking number"
-                        value={updateForm.trackingNumber}
-                        onChange={(e) => setUpdateForm({ ...updateForm, trackingNumber: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Delivery Status *</label>
-                    <select
-                      className="form-select"
-                      value={updateForm.deliveryStatus}
-                      onChange={(e) => setUpdateForm({ ...updateForm, deliveryStatus: e.target.value })}
-                      required
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_transit">In Transit</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="failed">Failed</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Estimated Delivery Date</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={updateForm.estimatedDeliveryDate}
-                      onChange={(e) => setUpdateForm({ ...updateForm, estimatedDeliveryDate: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Delivery Notes</label>
-                    <textarea
-                      className="form-textarea"
-                      placeholder="Add any notes about the delivery..."
-                      rows={3}
-                      value={updateForm.deliveryNotes}
-                      onChange={(e) => setUpdateForm({ ...updateForm, deliveryNotes: e.target.value })}
-                    />
+                  <div className="delivery-tracking-summary-card">
+                    <p>Delivered At</p>
+                    <h4>
+                      {selectedApplication.deliveredAt
+                        ? formatDateTime(selectedApplication.deliveredAt)
+                        : 'Not delivered yet'}
+                    </h4>
                   </div>
                 </div>
 
-                <div className="modal-footer">
+                <div className="delivery-tracking-section-card">
+                  <h3>Applicant Information</h3>
+
+                  <div className="delivery-tracking-detail-grid">
+                    <div>
+                      <p>Email</p>
+                      <h4>{selectedApplication.email || selectedApplication.applicant?.email || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Date of Birth</p>
+                      <h4>
+                        {selectedApplication.dateOfBirth
+                          ? formatDate(selectedApplication.dateOfBirth)
+                          : 'N/A'}
+                      </h4>
+                    </div>
+
+                    <div>
+                      <p>Birth Registration Number</p>
+                      <h4>{selectedApplication.birthRegistrationNumber || 'N/A'}</h4>
+                    </div>
+
+                    <div>
+                      <p>Existing NID Number</p>
+                      <h4>{selectedApplication.existingNidNumber || 'N/A'}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="delivery-tracking-section-card">
+                  <h3>Status History</h3>
+
+                  {selectedHistory.length === 0 ? (
+                    <div className="delivery-tracking-empty-inline">
+                      No status history found yet
+                    </div>
+                  ) : (
+                    <div className="delivery-tracking-history-list">
+                      {[...selectedHistory]
+                        .slice()
+                        .reverse()
+                        .map((historyItem, index) => (
+                          <div
+                            key={`${historyItem.changedAt || index}-${index}`}
+                            className="delivery-tracking-history-item"
+                          >
+                            <div className="delivery-tracking-history-dot" />
+                            <div className="delivery-tracking-history-content">
+                              <div className="delivery-tracking-history-top">
+                                <span>
+                                  {historyItem.fromStatus
+                                    ? `${formatStatus(historyItem.fromStatus)} → ${formatStatus(historyItem.toStatus)}`
+                                    : formatStatus(historyItem.toStatus)}
+                                </span>
+                                <small>
+                                  {historyItem.changedAt
+                                    ? formatDateTime(historyItem.changedAt)
+                                    : 'N/A'}
+                                </small>
+                              </div>
+
+                              <p>{historyItem.reason || historyItem.note || 'No reason added'}</p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="delivery-tracking-action-row">
                   <button
                     type="button"
-                    className="btn btn-outline"
-                    onClick={() => setShowUpdateModal(false)}
+                    className="delivery-tracking-primary-button"
+                    onClick={openSingleModal}
+                    disabled={selectedApplication.status !== 'printed'}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <>
-                        <FaSpinner className="spinner" /> Updating...
-                      </>
-                    ) : (
-                      <>
-                        <FaCheck /> Update Delivery
-                      </>
-                    )}
+                    <FaTruck />
+                    <span>Mark as Delivered</span>
                   </button>
                 </div>
-              </form>
+              </>
+            ) : (
+              <div className="delivery-tracking-empty-state details">
+                <FaTruck className="delivery-tracking-empty-icon" />
+                <h3>Select an application</h3>
+                <p>Choose an application from the left side to see full delivery details.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Single delivery modal */}
+        {singleModalOpen ? (
+          <div className="delivery-tracking-modal-backdrop" onClick={closeSingleModal}>
+            <div
+              className="delivery-tracking-modal-card"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="delivery-tracking-modal-header">
+                <h3>Mark Application as Delivered</h3>
+                <p>Add delivery trace so handover stays auditable.</p>
+              </div>
+
+              <div className="delivery-tracking-modal-body">
+                <div className="delivery-tracking-modal-field">
+                  <label>Delivery Note</label>
+                  <textarea
+                    rows={4}
+                    value={singleForm.deliveryNote}
+                    onChange={(event) =>
+                      setSingleForm((prev) => ({
+                        ...prev,
+                        deliveryNote: event.target.value
+                      }))
+                    }
+                    placeholder="Write a delivery note..."
+                  />
+                </div>
+
+                <div className="delivery-tracking-modal-field">
+                  <label>Delivery Reference</label>
+                  <input
+                    type="text"
+                    value={singleForm.deliveryReference}
+                    onChange={(event) =>
+                      setSingleForm((prev) => ({
+                        ...prev,
+                        deliveryReference: event.target.value
+                      }))
+                    }
+                    placeholder="Enter delivery reference"
+                  />
+                </div>
+              </div>
+
+              <div className="delivery-tracking-modal-footer">
+                <button
+                  type="button"
+                  className="delivery-tracking-secondary-button"
+                  onClick={closeSingleModal}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="delivery-tracking-primary-button"
+                  onClick={handleSingleMarkDelivered}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? <FaSpinner className="spin" /> : null}
+                  <span>Confirm Delivery</span>
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        ) : null}
+
+        {/* Bulk delivery modal */}
+        {bulkModalOpen ? (
+          <div className="delivery-tracking-modal-backdrop" onClick={closeBulkModal}>
+            <div
+              className="delivery-tracking-modal-card"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="delivery-tracking-modal-header">
+                <h3>Bulk Mark Delivered</h3>
+                <p>
+                  You are about to deliver {selectedPrintedIds.length} printed applications.
+                </p>
+              </div>
+
+              <div className="delivery-tracking-modal-body">
+                <div className="delivery-tracking-modal-field">
+                  <label>Delivery Note</label>
+                  <textarea
+                    rows={4}
+                    value={bulkForm.deliveryNote}
+                    onChange={(event) =>
+                      setBulkForm((prev) => ({
+                        ...prev,
+                        deliveryNote: event.target.value
+                      }))
+                    }
+                    placeholder="Write a bulk delivery note..."
+                  />
+                </div>
+
+                <div className="delivery-tracking-modal-field">
+                  <label>Delivery Reference</label>
+                  <input
+                    type="text"
+                    value={bulkForm.deliveryReference}
+                    onChange={(event) =>
+                      setBulkForm((prev) => ({
+                        ...prev,
+                        deliveryReference: event.target.value
+                      }))
+                    }
+                    placeholder="Enter delivery reference"
+                  />
+                </div>
+              </div>
+
+              <div className="delivery-tracking-modal-footer">
+                <button
+                  type="button"
+                  className="delivery-tracking-secondary-button"
+                  onClick={closeBulkModal}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="delivery-tracking-primary-button"
+                  onClick={handleBulkMarkDelivered}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? <FaSpinner className="spin" /> : null}
+                  <span>Confirm Bulk Delivery</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AdminLayout>
   );

@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  FaCheckCircle,
+  FaCircle,
+  FaClock,
+  FaEdit,
   FaEnvelope,
-  FaFilter,
+  FaMapSigns,
   FaPhoneAlt,
   FaPlus,
   FaSearch,
   FaShieldAlt,
   FaSpinner,
+  FaTrashAlt,
   FaUserCheck,
   FaUserClock,
   FaUserShield,
@@ -27,6 +30,52 @@ const inferMainAdmin = (user) =>
 const getUsersFromResponse = (response) =>
   response?.data?.data || response?.data?.users || [];
 
+const isRootMainAdminUser = (user) =>
+  Boolean(user?.role === 'admin' && !user?.createdBy);
+
+const getWorkingStatusText = (user) =>
+  user?.liveStatus?.isLive ? 'Live Now' : 'Offline';
+
+const getSafeCurrentRoute = (user) =>
+  user?.liveStatus?.currentRoute || 'No active route';
+
+const getLastSeenText = (user) => {
+  if (user?.liveStatus?.isLive) {
+    return 'Working now';
+  }
+
+  if (user?.liveStatus?.lastSeenAt) {
+    return formatDateTime(user.liveStatus.lastSeenAt);
+  }
+
+  return 'No recent activity';
+};
+
+// Normalize any value so search stays consistent.
+const normalizeText = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// Build one searchable text block for each internal user.
+const buildUserSearchText = (user) =>
+  normalizeText(
+    [
+      user?.fullName,
+      user?.email,
+      user?.phone,
+      user?.role,
+      user?.accountStatus || user?.status,
+      user?.liveStatus?.isLive ? 'live now working active online' : 'offline inactive',
+      user?.createdBy?.fullName,
+      user?.createdBy?.email,
+      getSafeCurrentRoute(user)
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+
 const AdminUsers = () => {
   const { user } = useAuth();
 
@@ -35,12 +84,18 @@ const AdminUsers = () => {
 
   const [loading, setLoading] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [removeLoading, setRemoveLoading] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [workingFilter, setWorkingFilter] = useState('');
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [removeModalOpen, setRemoveModalOpen] = useState(false);
+
   const [createForm, setCreateForm] = useState({
     fullName: '',
     email: '',
@@ -50,14 +105,27 @@ const AdminUsers = () => {
     role: 'support_staff'
   });
 
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    role: 'support_staff',
+    status: 'active',
+    updateReason: ''
+  });
+
+  const [removeForm, setRemoveForm] = useState({
+    archiveReason: ''
+  });
+
   const isMainAdmin = inferMainAdmin(user);
 
-  // Load internal users for the control panel view.
+  // Load the internal user control list from backend.
   const fetchUsers = async () => {
     try {
       setLoading(true);
 
-      const response = await api.get('/admin/users?limit=300&sort=-createdAt');
+      const response = await api.get('/admin/users');
       const internalUsers = getUsersFromResponse(response);
 
       setUsers(internalUsers);
@@ -93,27 +161,43 @@ const AdminUsers = () => {
       supervisors: users.filter((item) => item.role === 'system_supervisor')
         .length,
       supportStaff: users.filter((item) => item.role === 'support_staff').length,
-      active: users.filter((item) => item.status !== 'blocked').length,
-      blocked: users.filter((item) => item.status === 'blocked').length
+      liveNow: users.filter((item) => item.liveStatus?.isLive).length,
+      offline: users.filter((item) => !item.liveStatus?.isLive).length
     };
   }, [users]);
 
   const visibleUsers = useMemo(() => {
-    return users.filter((item) => {
-      const searchValue = searchInput.trim().toLowerCase();
+    const normalizedSearch = normalizeText(searchInput);
+    const searchTokens = normalizedSearch.split(' ').filter(Boolean);
 
+    return users.filter((item) => {
+      const searchableText = buildUserSearchText(item);
+
+      // Match all typed words so search feels smarter.
       const matchesSearch =
-        !searchValue ||
-        item.fullName?.toLowerCase().includes(searchValue) ||
-        item.email?.toLowerCase().includes(searchValue) ||
-        item.phone?.toLowerCase().includes(searchValue);
+        searchTokens.length === 0 ||
+        searchTokens.every((token) => searchableText.includes(token));
 
       const matchesRole = !roleFilter || item.role === roleFilter;
-      const matchesStatus = !statusFilter || item.status === statusFilter;
 
-      return matchesSearch && matchesRole && matchesStatus;
+      const matchesStatus =
+        !statusFilter ||
+        item.accountStatus === statusFilter ||
+        item.status === statusFilter;
+
+      const matchesWorkingStatus =
+        !workingFilter ||
+        (workingFilter === 'live' && item.liveStatus?.isLive) ||
+        (workingFilter === 'offline' && !item.liveStatus?.isLive);
+
+      return (
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus &&
+        matchesWorkingStatus
+      );
     });
-  }, [users, searchInput, roleFilter, statusFilter]);
+  }, [users, searchInput, roleFilter, statusFilter, workingFilter]);
 
   useEffect(() => {
     if (!visibleUsers.length) {
@@ -132,6 +216,9 @@ const AdminUsers = () => {
     });
   }, [visibleUsers]);
 
+  const selectedIsRootMainAdmin = isRootMainAdminUser(selectedUser);
+  const selectedIsSelf = selectedUser?._id === user?._id;
+
   const openCreateModal = () => {
     setCreateForm({
       fullName: '',
@@ -141,6 +228,7 @@ const AdminUsers = () => {
       confirmPassword: '',
       role: 'support_staff'
     });
+
     setCreateModalOpen(true);
   };
 
@@ -155,6 +243,54 @@ const AdminUsers = () => {
       password: '',
       confirmPassword: '',
       role: 'support_staff'
+    });
+  };
+
+  const openEditModal = () => {
+    if (!selectedUser) return;
+
+    setEditForm({
+      fullName: selectedUser.fullName || '',
+      email: selectedUser.email || '',
+      phone: selectedUser.phone || '',
+      role: selectedUser.role || 'support_staff',
+      status: selectedUser.accountStatus || selectedUser.status || 'active',
+      updateReason: ''
+    });
+
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (editLoading) return;
+
+    setEditModalOpen(false);
+    setEditForm({
+      fullName: '',
+      email: '',
+      phone: '',
+      role: 'support_staff',
+      status: 'active',
+      updateReason: ''
+    });
+  };
+
+  const openRemoveModal = () => {
+    if (!selectedUser) return;
+
+    setRemoveForm({
+      archiveReason: ''
+    });
+
+    setRemoveModalOpen(true);
+  };
+
+  const closeRemoveModal = () => {
+    if (removeLoading) return;
+
+    setRemoveModalOpen(false);
+    setRemoveForm({
+      archiveReason: ''
     });
   };
 
@@ -179,8 +315,8 @@ const AdminUsers = () => {
       return;
     }
 
-    if (createForm.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (createForm.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
 
@@ -213,10 +349,89 @@ const AdminUsers = () => {
     }
   };
 
+  const handleEditUser = async () => {
+    if (!selectedUser?._id) return;
+
+    if (!editForm.fullName.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+
+    if (!editForm.email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+
+    if (!editForm.phone.trim()) {
+      toast.error('Phone is required');
+      return;
+    }
+
+    if (!editForm.updateReason.trim()) {
+      toast.error('Update reason is required');
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+
+      await api.put(`/admin/users/${selectedUser._id}`, {
+        fullName: editForm.fullName.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        role: editForm.role,
+        status: editForm.status,
+        updateReason: editForm.updateReason.trim()
+      });
+
+      toast.success('Internal user updated successfully');
+      closeEditModal();
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error updating internal user:', error);
+      toast.error(
+        error?.response?.data?.message || 'Failed to update internal user'
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleRemoveUser = async () => {
+    if (!selectedUser?._id) return;
+
+    if (!removeForm.archiveReason.trim()) {
+      toast.error('Remove reason is required');
+      return;
+    }
+
+    try {
+      setRemoveLoading(true);
+
+      await api.delete(`/admin/users/${selectedUser._id}`, {
+        data: {
+          archiveReason: removeForm.archiveReason.trim()
+        }
+      });
+
+      toast.success('Internal user removed from active control');
+      closeRemoveModal();
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error removing internal user:', error);
+      toast.error(
+        error?.response?.data?.message || 'Failed to remove internal user'
+      );
+    } finally {
+      setRemoveLoading(false);
+    }
+  };
+
   const clearFilters = () => {
     setSearchInput('');
     setRoleFilter('');
     setStatusFilter('');
+    setWorkingFilter('');
   };
 
   if (loading) {
@@ -232,7 +447,7 @@ const AdminUsers = () => {
   return (
     <AdminLayout>
       <div className="admin-users-page">
-        {/* Page header and control summary */}
+        {/* Header block for overall internal control */}
         <div className="admin-users-header-card">
           <div className="admin-users-header-top">
             <div>
@@ -295,16 +510,36 @@ const AdminUsers = () => {
                 <h3>{summary.supportStaff}</h3>
               </div>
             </div>
+
+            <div className="admin-users-stat-card live">
+              <div className="admin-users-stat-icon">
+                <FaCircle />
+              </div>
+              <div>
+                <p>Live Now</p>
+                <h3>{summary.liveNow}</h3>
+              </div>
+            </div>
+
+            <div className="admin-users-stat-card offline">
+              <div className="admin-users-stat-icon">
+                <FaUserClock />
+              </div>
+              <div>
+                <p>Offline</p>
+                <h3>{summary.offline}</h3>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Search and quick filters */}
+        {/* Search and control filters */}
         <div className="admin-users-toolbar">
           <div className="admin-users-search-box">
             <FaSearch className="admin-users-field-icon" />
             <input
               type="text"
-              placeholder="Search by name, email or phone"
+              placeholder="Search by name, email, phone, role or working status"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
@@ -312,7 +547,6 @@ const AdminUsers = () => {
 
           <div className="admin-users-filter-row">
             <div className="admin-users-filter-group">
-              <FaFilter className="admin-users-field-icon" />
               <select
                 value={roleFilter}
                 onChange={(event) => setRoleFilter(event.target.value)}
@@ -325,15 +559,25 @@ const AdminUsers = () => {
             </div>
 
             <div className="admin-users-filter-group">
-              <FaFilter className="admin-users-field-icon" />
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
               >
-                <option value="">All Status</option>
+                <option value="">All Account Status</option>
                 <option value="active">Active</option>
-                <option value="pending">Pending</option>
                 <option value="blocked">Blocked</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+
+            <div className="admin-users-filter-group">
+              <select
+                value={workingFilter}
+                onChange={(event) => setWorkingFilter(event.target.value)}
+              >
+                <option value="">All Working Status</option>
+                <option value="live">Live Now</option>
+                <option value="offline">Offline</option>
               </select>
             </div>
 
@@ -348,7 +592,7 @@ const AdminUsers = () => {
         </div>
 
         <div className="admin-users-content">
-          {/* User list side */}
+          {/* Directory list */}
           <div className="admin-users-list-card">
             <div className="admin-users-card-header">
               <div>
@@ -378,11 +622,26 @@ const AdminUsers = () => {
                   >
                     <div className="admin-users-list-top">
                       <h4>{item.fullName || 'Unnamed User'}</h4>
-                      <span
-                        className={`admin-users-status-chip ${item.status || 'active'}`}
-                      >
-                        {formatStatus(item.status || 'active')}
-                      </span>
+
+                      <div className="admin-users-list-badges">
+                        <span
+                          className={
+                            item.liveStatus?.isLive
+                              ? 'admin-users-working-chip live'
+                              : 'admin-users-working-chip offline'
+                          }
+                        >
+                          {item.liveStatus?.isLive ? 'Live Now' : 'Offline'}
+                        </span>
+
+                        <span
+                          className={`admin-users-status-chip ${
+                            item.accountStatus || item.status || 'active'
+                          }`}
+                        >
+                          {formatStatus(item.accountStatus || item.status || 'active')}
+                        </span>
+                      </div>
                     </div>
 
                     <p>{item.email || 'No email'}</p>
@@ -392,6 +651,10 @@ const AdminUsers = () => {
                         {formatStatus(item.role)}
                       </span>
                       <small>{item.phone || 'No phone'}</small>
+                    </div>
+
+                    <div className="admin-users-list-footer">
+                      <span>Last seen: {getLastSeenText(item)}</span>
                     </div>
                   </button>
                 ))}
@@ -408,15 +671,29 @@ const AdminUsers = () => {
                     <h2>{selectedUser.fullName || 'Unnamed User'}</h2>
                     <p>
                       {formatStatus(selectedUser.role)} ·{' '}
-                      {formatStatus(selectedUser.status || 'active')}
+                      {formatStatus(selectedUser.accountStatus || selectedUser.status || 'active')}
                     </p>
                   </div>
 
-                  <span
-                    className={`admin-users-status-chip ${selectedUser.status || 'active'}`}
-                  >
-                    {formatStatus(selectedUser.status || 'active')}
-                  </span>
+                  <div className="admin-users-details-badges">
+                    <span
+                      className={
+                        selectedUser.liveStatus?.isLive
+                          ? 'admin-users-working-chip live'
+                          : 'admin-users-working-chip offline'
+                      }
+                    >
+                      {getWorkingStatusText(selectedUser)}
+                    </span>
+
+                    <span
+                      className={`admin-users-status-chip ${
+                        selectedUser.accountStatus || selectedUser.status || 'active'
+                      }`}
+                    >
+                      {formatStatus(selectedUser.accountStatus || selectedUser.status || 'active')}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="admin-users-summary-grid">
@@ -426,8 +703,22 @@ const AdminUsers = () => {
                   </div>
 
                   <div className="admin-users-summary-card">
-                    <p>Status</p>
-                    <h4>{formatStatus(selectedUser.status || 'active')}</h4>
+                    <p>Account Status</p>
+                    <h4>
+                      {formatStatus(
+                        selectedUser.accountStatus || selectedUser.status || 'active'
+                      )}
+                    </h4>
+                  </div>
+
+                  <div className="admin-users-summary-card">
+                    <p>Working Status</p>
+                    <h4>{getWorkingStatusText(selectedUser)}</h4>
+                  </div>
+
+                  <div className="admin-users-summary-card">
+                    <p>Last Seen</p>
+                    <h4>{getLastSeenText(selectedUser)}</h4>
                   </div>
                 </div>
 
@@ -464,7 +755,21 @@ const AdminUsers = () => {
 
                     <div className="admin-users-access-item">
                       <span>Account Status</span>
-                      <strong>{formatStatus(selectedUser.status || 'active')}</strong>
+                      <strong>
+                        {formatStatus(
+                          selectedUser.accountStatus || selectedUser.status || 'active'
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Working Status</span>
+                      <strong>{getWorkingStatusText(selectedUser)}</strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Current Route</span>
+                      <strong>{getSafeCurrentRoute(selectedUser)}</strong>
                     </div>
 
                     <div className="admin-users-access-item">
@@ -508,11 +813,52 @@ const AdminUsers = () => {
                   </div>
                 ) : null}
 
+                <div className="admin-users-section-card">
+                  <div className="admin-users-section-title">
+                    <FaMapSigns className="admin-users-section-icon" />
+                    <h3>Main Admin Controls</h3>
+                  </div>
+
+                  <div className="admin-users-control-actions">
+                    <button
+                      type="button"
+                      className="admin-users-action-button edit"
+                      onClick={openEditModal}
+                      disabled={selectedIsRootMainAdmin}
+                    >
+                      <FaEdit />
+                      <span>Edit User</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="admin-users-action-button remove"
+                      onClick={openRemoveModal}
+                      disabled={selectedIsRootMainAdmin || selectedIsSelf}
+                    >
+                      <FaTrashAlt />
+                      <span>Remove User</span>
+                    </button>
+                  </div>
+
+                  {selectedIsRootMainAdmin ? (
+                    <div className="admin-users-inline-note">
+                      Root main admin account cannot be edited or removed from this panel.
+                    </div>
+                  ) : null}
+
+                  {selectedIsSelf ? (
+                    <div className="admin-users-inline-note">
+                      You cannot remove your own account from this panel.
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="admin-users-note-card">
                   <p>Main admin note</p>
                   <h4>
                     Keep role creation limited, traceable and need-based so the
-                    admin tree stays clean and controllable.
+                    admin tree stays clean, observable and controllable.
                   </h4>
                 </div>
               </>
@@ -655,6 +1001,202 @@ const AdminUsers = () => {
                 >
                   {createLoading ? <FaSpinner className="spin" /> : null}
                   <span>Create User</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Edit user modal */}
+        {editModalOpen ? (
+          <div className="admin-users-modal-backdrop" onClick={closeEditModal}>
+            <div
+              className="admin-users-modal-card"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="admin-users-modal-header">
+                <h3>Edit Internal User</h3>
+                <p>
+                  Update user information carefully so role and accountability stay clean.
+                </p>
+              </div>
+
+              <div className="admin-users-modal-body">
+                <div className="admin-users-modal-grid">
+                  <div className="admin-users-modal-field">
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      value={editForm.fullName}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          fullName: event.target.value
+                        }))
+                      }
+                      placeholder="Enter full name"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          email: event.target.value
+                        }))
+                      }
+                      placeholder="Enter email"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Phone *</label>
+                    <input
+                      type="text"
+                      value={editForm.phone}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          phone: event.target.value
+                        }))
+                      }
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Role *</label>
+                    <select
+                      value={editForm.role}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          role: event.target.value
+                        }))
+                      }
+                    >
+                      <option value="support_staff">Support Staff</option>
+                      <option value="system_supervisor">System Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Account Status *</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          status: event.target.value
+                        }))
+                      }
+                    >
+                      <option value="active">Active</option>
+                      <option value="pending">Pending</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-users-modal-field full">
+                    <label>Update Reason *</label>
+                    <textarea
+                      rows={4}
+                      value={editForm.updateReason}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          updateReason: event.target.value
+                        }))
+                      }
+                      placeholder="Write why this internal user is being updated..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-users-modal-footer">
+                <button
+                  type="button"
+                  className="admin-users-secondary-button"
+                  onClick={closeEditModal}
+                  disabled={editLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-users-primary-button"
+                  onClick={handleEditUser}
+                  disabled={editLoading}
+                >
+                  {editLoading ? <FaSpinner className="spin" /> : null}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Remove user modal */}
+        {removeModalOpen ? (
+          <div className="admin-users-modal-backdrop" onClick={closeRemoveModal}>
+            <div
+              className="admin-users-modal-card small"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="admin-users-modal-header danger">
+                <h3>Remove Internal User</h3>
+                <p>
+                  This will remove the user from active control, block the account
+                  and keep a full trace in audit records.
+                </p>
+              </div>
+
+              <div className="admin-users-modal-body">
+                <div className="admin-users-danger-summary">
+                  <strong>{selectedUser?.fullName}</strong>
+                  <span>{selectedUser?.email}</span>
+                </div>
+
+                <div className="admin-users-modal-field">
+                  <label>Remove Reason *</label>
+                  <textarea
+                    rows={5}
+                    value={removeForm.archiveReason}
+                    onChange={(event) =>
+                      setRemoveForm({
+                        archiveReason: event.target.value
+                      })
+                    }
+                    placeholder="Write why this user is being removed from active control..."
+                  />
+                </div>
+              </div>
+
+              <div className="admin-users-modal-footer">
+                <button
+                  type="button"
+                  className="admin-users-secondary-button"
+                  onClick={closeRemoveModal}
+                  disabled={removeLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-users-danger-button"
+                  onClick={handleRemoveUser}
+                  disabled={removeLoading}
+                >
+                  {removeLoading ? <FaSpinner className="spin" /> : null}
+                  <span>Confirm Remove</span>
                 </button>
               </div>
             </div>
