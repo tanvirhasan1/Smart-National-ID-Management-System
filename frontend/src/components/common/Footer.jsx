@@ -17,6 +17,72 @@ const Footer = () => {
 
   const isLandingPage = location.pathname === '/';
 
+  const authenticatedCitizenPaths = [
+    '/dashboard',
+    '/profile',
+    '/apply',
+    '/track-application',
+    '/support'
+  ];
+
+  const isCitizenAppPage =
+    authenticatedCitizenPaths.includes(location.pathname) ||
+    location.pathname.startsWith('/book-appointment/') ||
+    location.pathname.startsWith('/digital-nid/');
+
+  const isAdminAppPage =
+    location.pathname.startsWith('/admin/') && location.pathname !== '/admin/login';
+
+  const isCompactFooter = isCitizenAppPage || isAdminAppPage;
+
+  if (isCompactFooter) {
+    return (
+      <footer className="site-footer site-footer-compact">
+        <div className="footer-container">
+          <div className="footer-compact-row">
+            <div className="footer-compact-brand">
+              <div className="footer-compact-brand-icon">
+                <FaIdCard />
+              </div>
+
+              <div className="footer-compact-brand-text">
+                <h3>Smart NID</h3>
+                <p>Trusted digital identity services</p>
+              </div>
+            </div>
+
+            <div className="footer-compact-links">
+              <Link to="/dashboard">Dashboard</Link>
+              <Link to="/track-application">Track Status</Link>
+              <Link to="/support">Support</Link>
+            </div>
+
+            <div className="footer-compact-contact">
+              <a href="mailto:support@smartnid.gov.bd">
+                <FaEnvelope />
+                <span>support@smartnid.gov.bd</span>
+              </a>
+
+              <a href="tel:+8801234567890">
+                <FaPhoneAlt />
+                <span>+880 1234-567890</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="footer-compact-bottom">
+            <p>© {currentYear} Smart NID Management System. All rights reserved.</p>
+
+            <div className="footer-compact-bottom-links">
+              <a href="#">Privacy Policy</a>
+              <a href="#">Terms of Service</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className={`site-footer ${isLandingPage ? 'site-footer-no-margin' : ''}`}>
       <div className="footer-top">
@@ -138,3 +204,4 @@ const Footer = () => {
 };
 
 export default Footer;
+
