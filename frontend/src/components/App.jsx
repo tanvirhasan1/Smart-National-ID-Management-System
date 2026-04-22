@@ -3,15 +3,16 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Context
+// Auth context
 import { AuthProvider } from './context/AuthContext';
 
-// Common Components
+// Shared components
 import ProtectedRoute from './common/ProtectedRoute';
+import PublicRoute from './common/PublicRoute';
 import Navbar from './common/Navbar';
 import Footer from './common/Footer';
 
-// Public Pages
+// Public pages
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -20,7 +21,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import AdminLogin from './admin/AdminLogin';
 import NotFound from './pages/NotFound';
 
-// Citizen Pages
+// Citizen pages
 import CitizenDashboard from './citizen/Dashboard';
 import Profile from './pages/Profile';
 import ApplicationForm from './citizen/ApplicationForm';
@@ -29,15 +30,16 @@ import ApplicationTracker from './citizen/ApplicationTracker';
 import DigitalNID from './citizen/DigitalNID';
 import SupportTicket from './citizen/SupportTicket';
 
-// Admin Pages
+// Admin pages
 import AdminDashboard from './admin/AdminDashboard';
+import AdminUsers from './admin/AdminUsers';
 import ApplicationReview from './admin/ApplicationReview';
+import ApplicationReviewDetails from './admin/ApplicationReviewDetails';
 import AppointmentManagement from './admin/AppointmentManagement';
 import PrintingQueue from './admin/PrintingQueue';
 import DeliveryTracking from './admin/DeliveryTracking';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
-import AdminUsers from './admin/AdminUsers';
 
 const AppShell = () => {
   const location = useLocation();
@@ -49,13 +51,55 @@ const AppShell = () => {
 
       <main className={isAdminRoute ? '' : 'main-content'}>
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verify-otp" element={<OTPVerification />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
 
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/verify-otp"
+            element={
+              <PublicRoute>
+                <OTPVerification />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/admin/login"
+            element={
+              <PublicRoute>
+                <AdminLogin />
+              </PublicRoute>
+            }
+          />
+
+          {/* Citizen routes */}
           <Route
             path="/dashboard"
             element={
@@ -64,14 +108,18 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/profile"
             element={
-              <ProtectedRoute allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}>
+              <ProtectedRoute
+                allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}
+              >
                 <Profile />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/apply"
             element={
@@ -80,6 +128,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/book-appointment/:applicationId"
             element={
@@ -88,6 +137,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/track-application"
             element={
@@ -96,6 +146,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/digital-nid/:id"
             element={
@@ -104,6 +155,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/support"
             element={
@@ -113,6 +165,7 @@ const AppShell = () => {
             }
           />
 
+          {/* Admin routes */}
           <Route
             path="/admin/dashboard"
             element={
@@ -130,6 +183,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/applications"
             element={
@@ -138,6 +192,16 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/applications/review/:id"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ApplicationReviewDetails />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/appointments"
             element={
@@ -146,6 +210,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/printing"
             element={
@@ -154,6 +219,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/delivery"
             element={
@@ -162,6 +228,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/support"
             element={
@@ -170,6 +237,7 @@ const AppShell = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin/audit-logs"
             element={
@@ -179,6 +247,7 @@ const AppShell = () => {
             }
           />
 
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

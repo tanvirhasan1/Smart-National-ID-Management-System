@@ -1,16 +1,16 @@
-.profile-save-button,
-.profile-form-input {
+.profile-page-wrapper .profile-save-button,
+.profile-page-wrapper .profile-form-input {
   outline: none;
 }
 
-.profile-save-button:focus-visible,
-.profile-form-input:focus-visible {
+.profile-page-wrapper .profile-save-button:focus-visible,
+.profile-page-wrapper .profile-form-input:focus-visible {
   outline: 2px solid #16a34a;
   outline-offset: 2px;
 }
 
 @media (max-width: 767px) {
-  .profile-page-title {
+  .profile-page-wrapper .profile-page-title {
     font-size: 1.55rem;
   }
 }

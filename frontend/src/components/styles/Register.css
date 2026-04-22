@@ -1,0 +1,42 @@
+.register-page-wrapper .register-card-panel {
+  backdrop-filter: blur(2px);
+}
+
+.register-page-wrapper .register-brand-logo {
+  display: block;
+}
+
+.register-page-wrapper .register-password-toggle {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.register-page-wrapper .register-step-completed .register-step-number {
+  background-color: #15803d;
+}
+
+.register-page-wrapper .register-password-toggle:focus-visible,
+.register-page-wrapper .register-next-button:focus-visible,
+.register-page-wrapper .register-prev-button:focus-visible,
+.register-page-wrapper .register-submit-button:focus-visible,
+.register-page-wrapper .register-login-link:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .register-page-wrapper .register-card-panel {
+    border-radius: 1rem;
+    padding: 1.5rem;
+  }
+
+  .register-page-wrapper .register-title-text {
+    font-size: 1.5rem;
+  }
+
+  .register-page-wrapper .register-subtitle-text {
+    font-size: 0.9rem;
+  }
+}

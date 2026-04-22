@@ -1,449 +1,1108 @@
-// Admin Dashboard Page Start
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FaUsers,
-  FaFileAlt,
-  FaClock,
+  FaBuilding,
+  FaCalendarAlt,
+  FaChartBar,
   FaCheckCircle,
-  FaTimesCircle,
+  FaClock,
+  FaExclamationTriangle,
+  FaFileAlt,
+  FaHistory,
   FaPrint,
-  FaTruck,
-  FaTicketAlt,
   FaSyncAlt,
-  FaExclamationTriangle
+  FaTicketAlt,
+  FaTimesCircle,
+  FaTruck,
+  FaUserShield,
+  FaUsers
 } from 'react-icons/fa';
-import api from '../api/axios';
-import Loader from '../common/Loader';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { formatDate, formatStatus, getStatusColor } from '../utils/helpers';
+import api from '../api/axios';
+import AdminLayout from './AdminLayout';
+import Loader from '../common/Loader';
+import { formatDate, formatDateTime, formatStatus } from '../utils/helpers';
 import '../styles/AdminDashboard.css';
 
-const AdminDashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+const inferMainAdmin = (user) =>
+  Boolean(user?.isMainAdmin) || (user?.role === 'admin' && !user?.createdBy);
 
-  const canViewRecentApplications = user?.role === 'admin';
+const buildFallbackAccess = (user) => {
+  const viewerRole = user?.role || 'admin';
+  const isMainAdmin = inferMainAdmin(user);
 
-  const fetchDashboardSummary = async () => {
-    try {
-      setLoading(true);
+  return {
+    viewerRole,
+    isMainAdmin,
+    canManageUsers: viewerRole === 'admin' && isMainAdmin,
+    canManageApplications: viewerRole === 'admin',
+    canManageAppointments: viewerRole === 'admin',
+    canManagePrinting: viewerRole === 'admin',
+    canManageDelivery: viewerRole === 'admin',
+    canManageSupport: ['admin', 'support_staff'].includes(viewerRole),
+    canViewAudit: ['admin', 'system_supervisor'].includes(viewerRole),
+    canViewAnalytics: ['admin', 'system_supervisor'].includes(viewerRole)
+  };
+};
 
-      const response = await api.get('/admin/dashboard/summary');
-      const summary =
-        response?.data?.data ||
-        response?.data?.summary ||
-        response?.data ||
-        {};
+const normalizeSummaryData = (summaryData = {}, user = null) => {
+  const access = summaryData?.access || buildFallbackAccess(user);
 
-      setDashboardData(summary);
-    } catch (error) {
-      console.error('Error fetching admin dashboard summary:', error);
-    } finally {
-      setLoading(false);
-    }
+  const applications = {
+    total: summaryData?.applications?.total || 0,
+    submitted: summaryData?.applications?.submitted || 0,
+    underReview: summaryData?.applications?.underReview || 0,
+    approved: summaryData?.applications?.approved || 0,
+    rejected: summaryData?.applications?.rejected || 0,
+    printed: summaryData?.applications?.printed || 0,
+    delivered: summaryData?.applications?.delivered || 0,
+    cancelled: summaryData?.applications?.cancelled || 0,
+    newToday: summaryData?.applications?.newToday || 0,
+    rejectedToday: summaryData?.applications?.rejectedToday || 0
   };
 
-  // Load dashboard summary after authenticated role is available.
-  useEffect(() => {
-    if (user?.role) {
-      fetchDashboardSummary();
-    }
-  }, [user?.role]);
+  const appointments = {
+    total: summaryData?.appointments?.total || 0,
+    booked: summaryData?.appointments?.booked || 0,
+    completed: summaryData?.appointments?.completed || 0,
+    cancelled: summaryData?.appointments?.cancelled || 0,
+    today: summaryData?.appointments?.today || 0
+  };
 
-  // Make response shape flexible so backend mismatch na hoy
-  const normalizedData = useMemo(() => {
-    const source = dashboardData || {};
+  const supportTickets = {
+    total: summaryData?.supportTickets?.total || 0,
+    open: summaryData?.supportTickets?.open || 0,
+    inProgress: summaryData?.supportTickets?.inProgress || 0,
+    resolved: summaryData?.supportTickets?.resolved || 0,
+    closed: summaryData?.supportTickets?.closed || 0,
+    highPriority: summaryData?.supportTickets?.highPriority || 0,
+    urgent: summaryData?.supportTickets?.urgent || 0,
+    unassigned: summaryData?.supportTickets?.unassigned || 0,
+    newToday: summaryData?.supportTickets?.newToday || 0
+  };
 
-    return {
-      totals: {
-        users:
-          source?.totals?.users ??
-          source?.users?.total ??
-          source?.stats?.users ??
-          0,
-        applications:
-          source?.totals?.applications ??
-          source?.applications?.total ??
-          source?.stats?.applications ??
-          0,
-        pendingApplications:
-          source?.totals?.pendingApplications ??
-          source?.applications?.submitted ??
-          source?.applications?.under_review ??
-          0,
-        approvedApplications:
-          source?.totals?.approvedApplications ??
-          source?.applications?.approved ??
-          0,
-        rejectedApplications:
-          source?.totals?.rejectedApplications ??
-          source?.applications?.rejected ??
-          0,
-        printing:
-          source?.totals?.printing ??
-          source?.printing?.pending ??
-          source?.printing?.total ??
-          0,
-        delivery:
-          source?.totals?.delivery ??
-          source?.delivery?.pending ??
-          source?.delivery?.total ??
-          0,
-        supportTickets:
-          source?.totals?.supportTickets ??
-          source?.supportTickets?.total ??
-          source?.support?.total ??
-          0
+  const centers = {
+    total: summaryData?.centers?.total || 0,
+    active: summaryData?.centers?.active || 0,
+    inactive: summaryData?.centers?.inactive || 0
+  };
+
+  const users = {
+    total: summaryData?.users?.total || 0,
+    citizens: summaryData?.users?.citizens || 0,
+    internal: summaryData?.users?.internal || 0,
+    admins: summaryData?.users?.admins || 0,
+    systemSupervisors: summaryData?.users?.systemSupervisors || 0,
+    supportStaff: summaryData?.users?.supportStaff || 0,
+    blocked: summaryData?.users?.blocked || 0,
+    pending: summaryData?.users?.pending || 0
+  };
+
+  const queues = {
+    review:
+      summaryData?.queues?.review ??
+      (applications.submitted + applications.underReview),
+    printing: summaryData?.queues?.printing ?? applications.approved,
+    delivery: summaryData?.queues?.delivery ?? applications.printed
+  };
+
+  const alerts = {
+    urgentSupportTickets:
+      summaryData?.alerts?.urgentSupportTickets || supportTickets.urgent || 0,
+    unassignedSupportTickets:
+      summaryData?.alerts?.unassignedSupportTickets ||
+      supportTickets.unassigned ||
+      0,
+    applicationsRejectedToday:
+      summaryData?.alerts?.applicationsRejectedToday ||
+      applications.rejectedToday ||
+      0,
+    applicationsSubmittedToday:
+      summaryData?.alerts?.applicationsSubmittedToday ||
+      applications.newToday ||
+      0,
+    appointmentsToday:
+      summaryData?.alerts?.appointmentsToday || appointments.today || 0
+  };
+
+  const governance = {
+    auditLogsLast24Hours: summaryData?.governance?.auditLogsLast24Hours || 0
+  };
+
+  const roleFocus =
+    summaryData?.roleFocus ||
+    (() => {
+      if (access.viewerRole === 'support_staff') {
+        return {
+          primaryModule: 'support',
+          headline: 'Support operations',
+          priorityItems: [
+            {
+              key: 'open_tickets',
+              label: 'Open tickets',
+              value: supportTickets.open
+            },
+            {
+              key: 'in_progress_tickets',
+              label: 'In progress tickets',
+              value: supportTickets.inProgress
+            },
+            {
+              key: 'urgent_tickets',
+              label: 'Urgent tickets',
+              value: supportTickets.urgent
+            },
+            {
+              key: 'unassigned_tickets',
+              label: 'Unassigned tickets',
+              value: supportTickets.unassigned
+            }
+          ]
+        };
+      }
+
+      if (access.viewerRole === 'system_supervisor') {
+        return {
+          primaryModule: 'supervision',
+          headline: 'System supervision',
+          priorityItems: [
+            { key: 'review_queue', label: 'Review queue', value: queues.review },
+            {
+              key: 'delivery_queue',
+              label: 'Delivery queue',
+              value: queues.delivery
+            },
+            {
+              key: 'urgent_tickets',
+              label: 'Urgent tickets',
+              value: supportTickets.urgent
+            },
+            {
+              key: 'audit_last_24h',
+              label: 'Audit events (24h)',
+              value: governance.auditLogsLast24Hours
+            }
+          ]
+        };
+      }
+
+      return {
+        primaryModule: access.isMainAdmin ? 'main_admin' : 'admin_operations',
+        headline: access.isMainAdmin
+          ? 'Main admin control'
+          : 'Admin operations',
+        priorityItems: [
+          { key: 'review_queue', label: 'Review queue', value: queues.review },
+          {
+            key: 'printing_queue',
+            label: 'Printing queue',
+            value: queues.printing
+          },
+          {
+            key: 'delivery_queue',
+            label: 'Delivery queue',
+            value: queues.delivery
+          },
+          {
+            key: 'open_tickets',
+            label: 'Open tickets',
+            value: supportTickets.open
+          }
+        ]
+      };
+    })();
+
+  const meta = {
+    generatedAt:
+      summaryData?.meta?.generatedAt || new Date().toISOString(),
+    lastUpdatedAt:
+      summaryData?.meta?.lastUpdatedAt ||
+      summaryData?.meta?.generatedAt ||
+      new Date().toISOString()
+  };
+
+  return {
+    access,
+    applications,
+    appointments,
+    supportTickets,
+    centers,
+    users,
+    queues,
+    alerts,
+    governance,
+    roleFocus,
+    meta
+  };
+};
+
+const getDashboardTitle = (role, isMainAdmin) => {
+  if (role === 'support_staff') return 'Support Operations Dashboard';
+  if (role === 'system_supervisor') return 'System Supervision Dashboard';
+  if (role === 'admin' && isMainAdmin) return 'Main Admin Control Dashboard';
+  return 'Admin Operations Dashboard';
+};
+
+const getPrimaryCards = (summary) => {
+  const { access, applications, supportTickets, queues, users, governance, centers, alerts } =
+    summary;
+
+  if (access.viewerRole === 'support_staff') {
+    return [
+      {
+        key: 'open',
+        title: 'Open Tickets',
+        value: supportTickets.open,
+        subtitle: `${supportTickets.newToday} new today`,
+        icon: FaTicketAlt,
+        theme: 'orange',
+        to: '/admin/support'
       },
-      applications: source?.applications || {},
-      appointments: source?.appointments || {},
-      supportTickets: source?.supportTickets || source?.support || {},
-      printing: source?.printing || {},
-      delivery: source?.delivery || {},
-      recentApplications:
-        canViewRecentApplications
-          ? source?.recentApplications ||
-            source?.latestApplications ||
-            source?.applications?.recent ||
-            []
-          : []
-    };
-  }, [dashboardData, canViewRecentApplications]);
+      {
+        key: 'progress',
+        title: 'In Progress',
+        value: supportTickets.inProgress,
+        subtitle: 'Actively handled tickets',
+        icon: FaClock,
+        theme: 'blue',
+        to: '/admin/support'
+      },
+      {
+        key: 'urgent',
+        title: 'Urgent Tickets',
+        value: supportTickets.urgent,
+        subtitle: 'Need immediate attention',
+        icon: FaExclamationTriangle,
+        theme: 'red',
+        to: '/admin/support'
+      },
+      {
+        key: 'unassigned',
+        title: 'Unassigned Tickets',
+        value: supportTickets.unassigned,
+        subtitle: 'Assign these first',
+        icon: FaUserShield,
+        theme: 'yellow',
+        to: '/admin/support'
+      },
+      {
+        key: 'resolved',
+        title: 'Resolved Tickets',
+        value: supportTickets.resolved,
+        subtitle: 'Resolved cases',
+        icon: FaCheckCircle,
+        theme: 'green',
+        to: '/admin/support'
+      },
+      {
+        key: 'high',
+        title: 'High Priority',
+        value: supportTickets.highPriority,
+        subtitle: 'High-risk requests',
+        icon: FaHistory,
+        theme: 'purple',
+        to: '/admin/support'
+      }
+    ];
+  }
 
-  const statCards = [
+  if (access.viewerRole === 'system_supervisor') {
+    return [
+      {
+        key: 'review',
+        title: 'Review Queue',
+        value: queues.review,
+        subtitle: `${alerts.applicationsSubmittedToday} submitted today`,
+        icon: FaFileAlt,
+        theme: 'yellow',
+        to: null
+      },
+      {
+        key: 'delivery',
+        title: 'Delivery Queue',
+        value: queues.delivery,
+        subtitle: 'Printed cards awaiting movement',
+        icon: FaTruck,
+        theme: 'indigo',
+        to: null
+      },
+      {
+        key: 'audit',
+        title: 'Audit Events',
+        value: governance.auditLogsLast24Hours,
+        subtitle: 'Last 24 hours',
+        icon: FaHistory,
+        theme: 'teal',
+        to: '/admin/audit-logs'
+      },
+      {
+        key: 'rejected',
+        title: 'Rejected Today',
+        value: alerts.applicationsRejectedToday,
+        subtitle: 'Track unusual spikes',
+        icon: FaTimesCircle,
+        theme: 'red',
+        to: null
+      },
+      {
+        key: 'urgent',
+        title: 'Urgent Tickets',
+        value: alerts.urgentSupportTickets,
+        subtitle: 'Support escalation signal',
+        icon: FaTicketAlt,
+        theme: 'orange',
+        to: '/admin/audit-logs'
+      },
+      {
+        key: 'centers',
+        title: 'Active Centers',
+        value: centers.active,
+        subtitle: `${centers.inactive} inactive`,
+        icon: FaBuilding,
+        theme: 'green',
+        to: null
+      }
+    ];
+  }
+
+  return [
     {
-      key: 'users',
-      title: 'Total Users',
-      value: normalizedData.totals.users,
-      icon: FaUsers,
-      colorClass: 'admin-dashboard-stat-users'
-    },
-    {
-      key: 'applications',
-      title: 'Total Applications',
-      value: normalizedData.totals.applications,
-      icon: FaFileAlt,
-      colorClass: 'admin-dashboard-stat-applications'
-    },
-    {
-      key: 'pendingApplications',
+      key: 'review',
       title: 'Pending Review',
-      value: normalizedData.totals.pendingApplications,
+      value: applications.submitted,
+      subtitle: `${queues.review} in total review queue`,
       icon: FaClock,
-      colorClass: 'admin-dashboard-stat-pending'
+      theme: 'yellow',
+      to: '/admin/applications?status=submitted'
     },
     {
-      key: 'approvedApplications',
-      title: 'Approved',
-      value: normalizedData.totals.approvedApplications,
-      icon: FaCheckCircle,
-      colorClass: 'admin-dashboard-stat-approved'
+      key: 'underReview',
+      title: 'Under Review',
+      value: applications.underReview,
+      subtitle: 'Applications being processed',
+      icon: FaFileAlt,
+      theme: 'blue',
+      to: '/admin/applications?status=under_review'
     },
     {
       key: 'printing',
       title: 'Printing Queue',
-      value: normalizedData.totals.printing,
+      value: queues.printing,
+      subtitle: 'Approved cards ready next',
       icon: FaPrint,
-      colorClass: 'admin-dashboard-stat-printing'
+      theme: 'purple',
+      to: '/admin/printing'
     },
     {
       key: 'delivery',
       title: 'Delivery Queue',
-      value: normalizedData.totals.delivery,
+      value: queues.delivery,
+      subtitle: 'Printed cards awaiting dispatch',
       icon: FaTruck,
-      colorClass: 'admin-dashboard-stat-delivery'
+      theme: 'indigo',
+      to: '/admin/delivery'
     },
     {
-      key: 'supportTickets',
-      title: 'Support Tickets',
-      value: normalizedData.totals.supportTickets,
+      key: 'tickets',
+      title: 'Open Tickets',
+      value: supportTickets.open,
+      subtitle: `${supportTickets.unassigned} unassigned`,
       icon: FaTicketAlt,
-      colorClass: 'admin-dashboard-stat-support'
+      theme: 'orange',
+      to: '/admin/support'
     },
     {
-      key: 'rejectedApplications',
-      title: 'Rejected',
-      value: normalizedData.totals.rejectedApplications,
-      icon: FaTimesCircle,
-      colorClass: 'admin-dashboard-stat-rejected'
+      key: 'users',
+      title: access.canManageUsers ? 'Registered Users' : 'Audit Events',
+      value: access.canManageUsers ? users.total : governance.auditLogsLast24Hours,
+      subtitle: access.canManageUsers
+        ? `${users.internal} internal users`
+        : 'Last 24 hours',
+      icon: access.canManageUsers ? FaUsers : FaHistory,
+      theme: access.canManageUsers ? 'teal' : 'green',
+      to: access.canManageUsers ? '/admin/users' : '/admin/audit-logs'
     }
   ];
+};
 
-  if (loading) {
-    return (
-      <div className="admin-dashboard-loading-wrapper flex min-h-[60vh] items-center justify-center">
-        <Loader size="large" text="Loading admin dashboard..." />
+const getQuickActions = (summary) => {
+  const { access, applications, supportTickets, queues, governance, users } =
+    summary;
+
+  const items = [];
+
+  if (access.canManageApplications) {
+    items.push({
+      key: 'applications',
+      title: 'Review Applications',
+      description: `${applications.submitted} pending review`,
+      to: '/admin/applications?status=submitted',
+      icon: FaFileAlt,
+      theme: 'blue'
+    });
+  }
+
+  if (access.canManageAppointments) {
+    items.push({
+      key: 'appointments',
+      title: 'Manage Appointments',
+      description: 'View today’s booking flow',
+      to: '/admin/appointments',
+      icon: FaCalendarAlt,
+      theme: 'green'
+    });
+  }
+
+  if (access.canManagePrinting) {
+    items.push({
+      key: 'printing',
+      title: 'Printing Queue',
+      description: `${queues.printing} cards waiting`,
+      to: '/admin/printing',
+      icon: FaPrint,
+      theme: 'purple'
+    });
+  }
+
+  if (access.canManageDelivery) {
+    items.push({
+      key: 'delivery',
+      title: 'Delivery Control',
+      description: `${queues.delivery} pending dispatch`,
+      to: '/admin/delivery',
+      icon: FaTruck,
+      theme: 'indigo'
+    });
+  }
+
+  if (access.canManageSupport) {
+    items.push({
+      key: 'support',
+      title: 'Support Tickets',
+      description: `${supportTickets.open} open · ${supportTickets.unassigned} unassigned`,
+      to: '/admin/support',
+      icon: FaTicketAlt,
+      theme: 'orange'
+    });
+  }
+
+  if (access.canManageUsers) {
+    items.push({
+      key: 'users',
+      title: 'Internal Users',
+      description: `${users.internal} staff accounts`,
+      to: '/admin/users',
+      icon: FaUsers,
+      theme: 'teal'
+    });
+  }
+
+  if (access.canViewAudit) {
+    items.push({
+      key: 'audit',
+      title: 'Audit Logs',
+      description: `${governance.auditLogsLast24Hours} events in last 24h`,
+      to: '/admin/audit-logs',
+      icon: FaHistory,
+      theme: 'red'
+    });
+  }
+
+  return items;
+};
+
+const getDistributionConfig = (summary) => {
+  if (summary.access.viewerRole === 'support_staff') {
+    return {
+      title: 'Ticket Status Distribution',
+      data: [
+        { name: 'Open', value: summary.supportTickets.open, color: '#F97316' },
+        {
+          name: 'In Progress',
+          value: summary.supportTickets.inProgress,
+          color: '#3B82F6'
+        },
+        {
+          name: 'Resolved',
+          value: summary.supportTickets.resolved,
+          color: '#10B981'
+        },
+        { name: 'Closed', value: summary.supportTickets.closed, color: '#64748B' }
+      ]
+    };
+  }
+
+  return {
+    title: 'Application Status Distribution',
+    data: [
+      { name: 'Submitted', value: summary.applications.submitted, color: '#3B82F6' },
+      {
+        name: 'Under Review',
+        value: summary.applications.underReview,
+        color: '#F59E0B'
+      },
+      { name: 'Approved', value: summary.applications.approved, color: '#10B981' },
+      { name: 'Rejected', value: summary.applications.rejected, color: '#EF4444' }
+    ]
+  };
+};
+
+const getOperationalLoadData = (summary) => {
+  if (summary.access.viewerRole === 'support_staff') {
+    return [
+      { name: 'Open', total: summary.supportTickets.open },
+      { name: 'In Progress', total: summary.supportTickets.inProgress },
+      { name: 'Urgent', total: summary.supportTickets.urgent },
+      { name: 'Unassigned', total: summary.supportTickets.unassigned },
+      { name: 'Resolved', total: summary.supportTickets.resolved }
+    ];
+  }
+
+  return [
+    { name: 'Review', total: summary.queues.review },
+    { name: 'Printing', total: summary.queues.printing },
+    { name: 'Delivery', total: summary.queues.delivery },
+    { name: 'Tickets', total: summary.supportTickets.open },
+    { name: 'Today', total: summary.appointments.today }
+  ];
+};
+
+const getPriorityAlerts = (summary) => {
+  const { access, alerts } = summary;
+  const alertItems = [];
+
+  if (access.canManageApplications) {
+    alertItems.push({
+      key: 'submittedToday',
+      label: 'Submitted today',
+      value: alerts.applicationsSubmittedToday,
+      to: '/admin/applications'
+    });
+
+    alertItems.push({
+      key: 'rejectedToday',
+      label: 'Rejected today',
+      value: alerts.applicationsRejectedToday,
+      to: '/admin/applications?status=rejected'
+    });
+  }
+
+  if (access.canManageSupport) {
+    alertItems.push({
+      key: 'urgentTickets',
+      label: 'Urgent tickets',
+      value: alerts.urgentSupportTickets,
+      to: '/admin/support'
+    });
+
+    alertItems.push({
+      key: 'unassignedTickets',
+      label: 'Unassigned tickets',
+      value: alerts.unassignedSupportTickets,
+      to: '/admin/support'
+    });
+  }
+
+  if (access.canManageAppointments) {
+    alertItems.push({
+      key: 'appointmentsToday',
+      label: 'Appointments today',
+      value: alerts.appointmentsToday,
+      to: '/admin/appointments'
+    });
+  }
+
+  return alertItems.filter((item) => item.value > 0);
+};
+
+const DashboardStatCard = ({ item }) => {
+  const Icon = item.icon;
+
+  const content = (
+    <>
+      <div className={`dashboard-stat-icon dashboard-theme-${item.theme}`}>
+        <Icon />
       </div>
+
+      <div className="dashboard-stat-content">
+        <span className="dashboard-stat-value">{item.value}</span>
+        <span className="dashboard-stat-title">{item.title}</span>
+        <span className="dashboard-stat-subtitle">{item.subtitle}</span>
+      </div>
+    </>
+  );
+
+  if (item.to) {
+    return (
+      <Link to={item.to} className="dashboard-stat-card dashboard-stat-link">
+        {content}
+      </Link>
     );
   }
 
+  return <div className="dashboard-stat-card">{content}</div>;
+};
+
+const AdminDashboard = () => {
+  const { user } = useAuth();
+
+  const [summaryData, setSummaryData] = useState(null);
+  const [recentApplications, setRecentApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const summary = useMemo(
+    () => normalizeSummaryData(summaryData || {}, user),
+    [summaryData, user]
+  );
+
+  const primaryCards = useMemo(() => getPrimaryCards(summary), [summary]);
+  const quickActions = useMemo(() => getQuickActions(summary), [summary]);
+  const distributionConfig = useMemo(
+    () => getDistributionConfig(summary),
+    [summary]
+  );
+  const operationalLoadData = useMemo(
+    () => getOperationalLoadData(summary),
+    [summary]
+  );
+  const priorityAlerts = useMemo(() => getPriorityAlerts(summary), [summary]);
+
+  const fetchDashboardData = async (silent = false) => {
+    try {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError('');
+
+      const summaryResponse = await api.get('/admin/dashboard/summary');
+      setSummaryData(summaryResponse.data?.data || {});
+
+      if (user?.role === 'admin') {
+        try {
+          const appsResponse = await api.get(
+            '/admin/applications?limit=5&sort=-createdAt'
+          );
+          setRecentApplications(appsResponse.data?.data || []);
+        } catch (appsError) {
+          console.error('Error fetching recent applications:', appsError);
+          setRecentApplications([]);
+        }
+      } else {
+        setRecentApplications([]);
+      }
+    } catch (fetchError) {
+      console.error('Error fetching dashboard data:', fetchError);
+      setError(
+        fetchError?.response?.data?.message ||
+          'Unable to load dashboard data right now.'
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role) {
+      fetchDashboardData();
+    }
+  }, [user?.role]);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="admin-dashboard-loading">
+          <Loader size="large" text="Loading dashboard..." />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const dashboardTitle = getDashboardTitle(
+    summary.access.viewerRole,
+    summary.access.isMainAdmin
+  );
+
+  const controlScope = [
+    summary.access.canManageApplications && 'Applications',
+    summary.access.canManageAppointments && 'Appointments',
+    summary.access.canManagePrinting && 'Printing',
+    summary.access.canManageDelivery && 'Delivery',
+    summary.access.canManageSupport && 'Support',
+    summary.access.canManageUsers && 'Users',
+    summary.access.canViewAudit && 'Audit'
+  ].filter(Boolean);
+
+  const showRecentApplications = summary.access.canManageApplications;
+
   return (
-    <div className="admin-dashboard-page-wrapper">
-      {/* Dashboard top header */}
-      <div className="admin-dashboard-header-panel mb-8 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="admin-dashboard-title mb-1 text-[1.9rem] font-bold text-[#1F2937]">
-              Admin Dashboard
-            </h1>
-            <p className="admin-dashboard-subtitle text-[#6B7280]">
-              Overview of applications, printing, delivery and support activity.
+    <AdminLayout>
+      <div className="admin-dashboard-page">
+        <div className="dashboard-page-header">
+          <div className="dashboard-page-header-left">
+            <div className="dashboard-page-title-row">
+              <h1>{dashboardTitle}</h1>
+              <span className="dashboard-role-badge">
+                {summary.access.isMainAdmin
+                  ? 'Main Admin'
+                  : formatStatus(summary.access.viewerRole)}
+              </span>
+            </div>
+
+            <p className="dashboard-page-subtitle">
+              {summary.roleFocus.headline} · Live operational summary for Smart
+              NID administration
             </p>
           </div>
 
-          <div className="header-actions flex flex-wrap items-center gap-3">
-            {user?.role === 'admin' && user?.isMainAdmin && (
-              <Link
-                to="/admin/users"
-                className="inline-flex items-center rounded-lg bg-[#16A34A] px-4 py-2 text-sm font-medium text-white no-underline transition hover:bg-[#15803D]"
-              >
-                Manage Users
-              </Link>
-            )}
+          <div className="dashboard-page-header-right">
+            <span className="dashboard-last-updated">
+              Last updated: {formatDateTime(summary.meta.lastUpdatedAt)}
+            </span>
 
             <button
               type="button"
-              className="admin-dashboard-refresh-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-              onClick={fetchDashboardSummary}
+              className="dashboard-refresh-button"
+              onClick={() => fetchDashboardData(true)}
+              disabled={refreshing}
             >
-              <FaSyncAlt />
-              <span>Refresh Data</span>
+              <FaSyncAlt className={refreshing ? 'spin' : ''} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Summary cards */}
-      <div className="admin-dashboard-stats-grid mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => {
-          const Icon = card.icon;
+        {error ? (
+          <div className="dashboard-error-box">
+            <FaExclamationTriangle />
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-          return (
-            <div
-              key={card.key}
-              className="admin-dashboard-stat-card rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition hover:-translate-y-[2px] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-[#6B7280]">
-                    {card.title}
-                  </p>
-                  <h3 className="text-[2rem] font-bold text-[#1F2937]">
-                    {card.value}
-                  </h3>
-                </div>
+        <div className="dashboard-priority-strip">
+          <div className="dashboard-priority-strip-header">
+            <FaExclamationTriangle />
+            <span>Priority control signals</span>
+          </div>
 
-                <div
-                  className={`admin-dashboard-stat-icon ${card.colorClass} flex h-[56px] w-[56px] items-center justify-center rounded-2xl text-2xl text-white`}
+          <div className="dashboard-priority-chip-list">
+            {priorityAlerts.length === 0 ? (
+              <span className="dashboard-priority-empty">
+                No urgent alert right now
+              </span>
+            ) : (
+              priorityAlerts.map((item) => (
+                <Link
+                  key={item.key}
+                  to={item.to}
+                  className="dashboard-priority-chip"
                 >
-                  <Icon />
+                  <span className="dashboard-priority-chip-label">
+                    {item.label}
+                  </span>
+                  <span className="dashboard-priority-chip-value">
+                    {item.value}
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="dashboard-stat-grid">
+          {primaryCards.map((item) => (
+            <DashboardStatCard key={item.key} item={item} />
+          ))}
+        </div>
+
+        <div className="dashboard-chart-grid">
+          <div className="dashboard-panel-card">
+            <div className="dashboard-panel-header">
+              <h3>{distributionConfig.title}</h3>
+              <span className="dashboard-panel-meta">
+                Live summary breakdown
+              </span>
+            </div>
+
+            <div className="dashboard-panel-body">
+              {distributionConfig.data.every((item) => item.value === 0) ? (
+                <div className="dashboard-no-data">
+                  No distribution data available yet
+                </div>
+              ) : (
+                <>
+                  <div className="dashboard-chart-wrap">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie
+                          data={distributionConfig.data}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={65}
+                          outerRadius={95}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {distributionConfig.data.map((entry) => (
+                            <Cell
+                              key={entry.name}
+                              fill={entry.color}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="dashboard-legend-list">
+                    {distributionConfig.data.map((item) => (
+                      <div key={item.name} className="dashboard-legend-item">
+                        <span
+                          className="dashboard-legend-color"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="dashboard-legend-label">
+                          {item.name}
+                        </span>
+                        <span className="dashboard-legend-value">
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="dashboard-panel-card">
+            <div className="dashboard-panel-header">
+              <h3>Operational Load</h3>
+              <span className="dashboard-panel-meta">
+                Queue and workload snapshot
+              </span>
+            </div>
+
+            <div className="dashboard-panel-body">
+              {operationalLoadData.every((item) => item.total === 0) ? (
+                <div className="dashboard-no-data">
+                  No operational load data available yet
+                </div>
+              ) : (
+                <div className="dashboard-chart-wrap">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={operationalLoadData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis dataKey="name" stroke="#6B7280" />
+                      <YAxis stroke="#6B7280" allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="total" fill="#16A34A" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-panel-grid">
+          <div className="dashboard-panel-card">
+            <div className="dashboard-panel-header">
+              <h3>
+                {showRecentApplications
+                  ? 'Recent Applications'
+                  : 'Role Priority Items'}
+              </h3>
+
+              {showRecentApplications ? (
+                <Link to="/admin/applications" className="dashboard-view-link">
+                  View all
+                </Link>
+              ) : null}
+            </div>
+
+            <div className="dashboard-panel-body">
+              {showRecentApplications ? (
+                recentApplications.length === 0 ? (
+                  <div className="dashboard-no-data">
+                    No recent applications found in the latest load
+                  </div>
+                ) : (
+                  <div className="dashboard-table-wrap">
+                    <table className="dashboard-mini-table">
+                      <thead>
+                        <tr>
+                          <th>Application</th>
+                          <th>Applicant</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentApplications.map((app) => (
+                          <tr key={app._id}>
+                            <td>
+                              <Link
+                                to={`/admin/applications?id=${app._id}`}
+                                className="dashboard-table-link"
+                              >
+                                #{app.applicationNumber || app._id?.slice(-6)}
+                              </Link>
+                            </td>
+                            <td>{app.userId?.fullName || 'N/A'}</td>
+                            <td>
+                              <span className={`dashboard-status-badge ${app.status}`}>
+                                {formatStatus(app.status)}
+                              </span>
+                            </td>
+                            <td>{formatDate(app.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                <div className="dashboard-focus-list">
+                  {summary.roleFocus.priorityItems?.length ? (
+                    summary.roleFocus.priorityItems.map((item) => (
+                      <div key={item.key} className="dashboard-focus-item">
+                        <div>
+                          <h4>{item.label}</h4>
+                          <p>Operational priority item</p>
+                        </div>
+                        <span>{item.value}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="dashboard-no-data">
+                      No role priority items available yet
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="dashboard-side-column">
+            <div className="dashboard-panel-card">
+              <div className="dashboard-panel-header">
+                <h3>Quick Actions</h3>
+              </div>
+
+              <div className="dashboard-panel-body">
+                <div className="dashboard-quick-action-list">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+
+                    return (
+                      <Link
+                        key={action.key}
+                        to={action.to}
+                        className="dashboard-quick-action-card"
+                      >
+                        <div
+                          className={`dashboard-quick-action-icon dashboard-theme-${action.theme}`}
+                        >
+                          <Icon />
+                        </div>
+
+                        <div className="dashboard-quick-action-text">
+                          <h4>{action.title}</h4>
+                          <p>{action.description}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      <div className="admin-dashboard-content-grid grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        {/* Status overview */}
-        <div className="admin-dashboard-overview-panel rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-          <h2 className="mb-5 text-xl font-semibold text-[#1F2937]">
-            Status Overview
-          </h2>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Applications
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Submitted</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.submitted || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Under Review</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.under_review || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Approved</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.approved || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Rejected</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.applications.rejected || 0}
-                  </span>
-                </div>
+            <div className="dashboard-panel-card">
+              <div className="dashboard-panel-header">
+                <h3>Control Scope</h3>
               </div>
-            </div>
 
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Appointments
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Booked</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.booked || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Completed</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.completed || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Cancelled</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.appointments.cancelled || 0}
-                  </span>
-                </div>
-              </div>
-            </div>
+              <div className="dashboard-panel-body">
+                <div className="dashboard-scope-card">
+                  <div className="dashboard-scope-top">
+                    <span className="dashboard-scope-label">Role focus</span>
+                    <span className="dashboard-scope-value">
+                      {summary.roleFocus.headline}
+                    </span>
+                  </div>
 
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Support Tickets
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Open</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.open || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">In Progress</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.in_progress || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Resolved</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.supportTickets.resolved || 0}
-                  </span>
-                </div>
-              </div>
-            </div>
+                  <div className="dashboard-scope-top">
+                    <span className="dashboard-scope-label">Access level</span>
+                    <span className="dashboard-scope-value">
+                      {summary.access.isMainAdmin
+                        ? 'Full internal admin control'
+                        : formatStatus(summary.access.viewerRole)}
+                    </span>
+                  </div>
 
-            <div className="admin-dashboard-section-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                Printing & Delivery
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Printed</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.printing.completed ||
-                      normalizedData.applications.printed ||
-                      0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Pending Delivery</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.delivery.pending || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#6B7280]">Delivered</span>
-                  <span className="font-semibold text-[#1F2937]">
-                    {normalizedData.delivery.completed ||
-                      normalizedData.applications.delivered ||
-                      0}
-                  </span>
+                  <div className="dashboard-scope-divider" />
+
+                  <div className="dashboard-scope-list">
+                    {controlScope.map((scopeItem) => (
+                      <span key={scopeItem} className="dashboard-scope-chip">
+                        {scopeItem}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="dashboard-scope-divider" />
+
+                  <div className="dashboard-control-metrics">
+                    <div className="dashboard-control-metric">
+                      <span>Centers</span>
+                      <strong>{summary.centers.active}/{summary.centers.total}</strong>
+                    </div>
+
+                    <div className="dashboard-control-metric">
+                      <span>Appointments today</span>
+                      <strong>{summary.appointments.today}</strong>
+                    </div>
+
+                    {summary.access.canViewAudit ? (
+                      <div className="dashboard-control-metric">
+                        <span>Audit last 24h</span>
+                        <strong>{summary.governance.auditLogsLast24Hours}</strong>
+                      </div>
+                    ) : null}
+
+                    {summary.access.canManageUsers ? (
+                      <div className="dashboard-control-metric">
+                        <span>Internal users</span>
+                        <strong>{summary.users.internal}</strong>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Recent applications */}
-        <div className="admin-dashboard-recent-panel rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-          <h2 className="mb-5 text-xl font-semibold text-[#1F2937]">
-            Recent Applications
-          </h2>
-
-          {!canViewRecentApplications ? (
-            <div className="admin-dashboard-empty-state flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 text-center">
-              <FaExclamationTriangle className="mb-4 text-4xl text-[#D1D5DB]" />
-              <h3 className="mb-2 text-lg font-semibold text-[#374151]">
-                Limited access
-              </h3>
-              <p className="text-sm text-[#6B7280]">
-                Recent application details are available for admin only.
-              </p>
-            </div>
-          ) : normalizedData.recentApplications.length === 0 ? (
-            <div className="admin-dashboard-empty-state flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 text-center">
-              <FaExclamationTriangle className="mb-4 text-4xl text-[#D1D5DB]" />
-              <h3 className="mb-2 text-lg font-semibold text-[#374151]">
-                No recent applications
-              </h3>
-              <p className="text-sm text-[#6B7280]">
-                Recent application activity will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="admin-dashboard-recent-list flex flex-col gap-4">
-              {normalizedData.recentApplications.slice(0, 6).map((application) => (
-                <div
-                  key={application._id || application.applicationId}
-                  className="admin-dashboard-recent-card rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-base font-semibold text-[#1F2937]">
-                        {application.fullNameEnglish || 'Unnamed Applicant'}
-                      </h4>
-                      <p className="text-sm text-[#6B7280]">
-                        {application.applicationId || 'N/A'}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`badge badge-${getStatusColor(application.status)}`}
-                    >
-                      {formatStatus(application.status)}
-                    </span>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-[#6B7280]">Type</p>
-                      <p className="text-sm font-medium text-[#1F2937]">
-                        {formatStatus(application.applicationType || 'new')}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[#6B7280]">Created</p>
-                      <p className="text-sm font-medium text-[#1F2937]">
-                        {application.createdAt
-                          ? formatDate(application.createdAt)
-                          : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import '../styles/Auth.css';
+import '../styles/Login.css';
 
 const Login = () => {
   const { login } = useAuth();
@@ -22,19 +22,24 @@ const Login = () => {
     formState: { errors }
   } = useForm();
 
-  const onSubmit = async (data) => {
-    setIsLoading(true);
+const onSubmit = async (data) => {
+  setIsLoading(true);
 
-    try {
-      await login(data.email, data.password);
-      toast.success('Login successful!');
-      navigate(from, { replace: true });
-    } catch (error) {
-      toast.error(error.message || 'Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    const result = await login(data.email, data.password);
+
+    const isInternalUser = ['admin', 'system_supervisor', 'support_staff'].includes(
+      result?.user?.role
+    );
+
+    toast.success('Login successful!');
+    navigate(isInternalUser ? '/admin/dashboard' : from, { replace: true });
+  } catch (error) {
+    toast.error(error.message || 'Login failed. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="login-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8 flex items-center justify-center">

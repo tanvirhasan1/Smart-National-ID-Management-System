@@ -1,0 +1,124 @@
+.digital-nid-page-wrapper .digital-nid-card-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.digital-nid-page-wrapper .digital-nid-card-shell::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.digital-nid-page-wrapper .digital-nid-card-shell::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.digital-nid-page-wrapper .digital-nid-card-panel,
+.digital-nid-page-wrapper .digital-nid-photo-box,
+.digital-nid-page-wrapper .digital-nid-qr-card,
+.digital-nid-page-wrapper .digital-nid-info-card,
+.digital-nid-page-wrapper .digital-nid-note-card {
+  position: relative;
+  z-index: 1;
+}
+
+.digital-nid-page-wrapper .digital-nid-photo {
+  display: block;
+}
+
+.digital-nid-page-wrapper .digital-nid-detail-value {
+  word-break: break-word;
+}
+
+.digital-nid-page-wrapper .digital-nid-back-button,
+.digital-nid-page-wrapper .digital-nid-back-link,
+.digital-nid-page-wrapper .digital-nid-download-button {
+  text-decoration: none;
+  outline: none;
+}
+
+.digital-nid-page-wrapper .digital-nid-back-button:focus-visible,
+.digital-nid-page-wrapper .digital-nid-back-link:focus-visible,
+.digital-nid-page-wrapper .digital-nid-download-button:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+.digital-nid-page-wrapper .digital-nid-loading-card,
+.digital-nid-page-wrapper .digital-nid-empty-card,
+.digital-nid-page-wrapper .digital-nid-main-panel,
+.digital-nid-page-wrapper .digital-nid-info-card,
+.digital-nid-page-wrapper .digital-nid-note-card,
+.digital-nid-page-wrapper .digital-nid-card-shell {
+  will-change: transform, box-shadow;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .digital-nid-page-wrapper,
+  .digital-nid-page-wrapper * {
+    visibility: visible;
+  }
+
+  .digital-nid-topbar,
+  .site-footer,
+  .navbar,
+  .main-navbar {
+    display: none !important;
+  }
+
+  .digital-nid-page-wrapper {
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-layout {
+    display: block !important;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-main-panel {
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-card-shell {
+    margin: 0 auto;
+    max-width: 100%;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .digital-nid-page-wrapper .digital-nid-card-body {
+    grid-template-columns: 1fr !important;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-info-block {
+    width: 100%;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .digital-nid-page-wrapper .digital-nid-qr-box {
+    width: 100%;
+  }
+}
