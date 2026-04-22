@@ -3,16 +3,16 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Context
+// Auth context
 import { AuthProvider } from './context/AuthContext';
 
-// Common Components
+// Shared components
 import ProtectedRoute from './common/ProtectedRoute';
 import PublicRoute from './common/PublicRoute';
 import Navbar from './common/Navbar';
 import Footer from './common/Footer';
 
-// Public Pages
+// Public pages
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -21,7 +21,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import AdminLogin from './admin/AdminLogin';
 import NotFound from './pages/NotFound';
 
-// Citizen Pages
+// Citizen pages
 import CitizenDashboard from './citizen/Dashboard';
 import Profile from './pages/Profile';
 import ApplicationForm from './citizen/ApplicationForm';
@@ -30,15 +30,16 @@ import ApplicationTracker from './citizen/ApplicationTracker';
 import DigitalNID from './citizen/DigitalNID';
 import SupportTicket from './citizen/SupportTicket';
 
-// Admin Pages
+// Admin pages
 import AdminDashboard from './admin/AdminDashboard';
+import AdminUsers from './admin/AdminUsers';
 import ApplicationReview from './admin/ApplicationReview';
+import ApplicationReviewDetails from './admin/ApplicationReviewDetails';
 import AppointmentManagement from './admin/AppointmentManagement';
 import PrintingQueue from './admin/PrintingQueue';
 import DeliveryTracking from './admin/DeliveryTracking';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
-import AdminUsers from './admin/AdminUsers';
 
 const AppShell = () => {
   const location = useLocation();
@@ -50,7 +51,7 @@ const AppShell = () => {
 
       <main className={isAdminRoute ? '' : 'main-content'}>
         <Routes>
-          {/* Public Pages */}
+          {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
 
           <Route
@@ -98,7 +99,7 @@ const AppShell = () => {
             }
           />
 
-          {/* Citizen Routes */}
+          {/* Citizen routes */}
           <Route
             path="/dashboard"
             element={
@@ -111,7 +112,9 @@ const AppShell = () => {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}>
+              <ProtectedRoute
+                allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}
+              >
                 <Profile />
               </ProtectedRoute>
             }
@@ -162,7 +165,7 @@ const AppShell = () => {
             }
           />
 
-          {/* Admin Routes */}
+          {/* Admin routes */}
           <Route
             path="/admin/dashboard"
             element={
@@ -186,6 +189,15 @@ const AppShell = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <ApplicationReview />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/applications/review/:id"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ApplicationReviewDetails />
               </ProtectedRoute>
             }
           />
@@ -235,6 +247,7 @@ const AppShell = () => {
             }
           />
 
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

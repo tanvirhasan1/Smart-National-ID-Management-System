@@ -1,786 +1,350 @@
-/* Application review page layout */
-.application-review-page-wrapper {
+.gov-queue-page {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 24px;
 }
 
-/* Top header card */
-.application-review-header-panel {
+.gov-queue-header-card,
+.gov-queue-toolbar-card,
+.gov-queue-table-card {
   background: #ffffff;
-  border-radius: 1.25rem;
-  padding: 1.5rem;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-  border: 1px solid #eef2f7;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
-.application-review-header-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+.gov-queue-header-card,
+.gov-queue-toolbar-card {
+  padding: 28px;
 }
 
-.application-review-title {
-  margin: 0 0 0.4rem;
-  font-size: 1.95rem;
-  font-weight: 700;
-  color: #111827;
+.gov-queue-header-card h1 {
+  margin: 0 0 8px;
+  font-size: 48px;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
 }
 
-.application-review-subtitle {
+.gov-queue-header-card p {
   margin: 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  max-width: 960px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #64748b;
 }
 
-.application-review-stats-grid {
-  margin-top: 1.25rem;
+.gov-queue-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 20px;
 }
 
-.application-review-stat-card {
-  border-radius: 1rem;
-  padding: 1rem;
-  border: 1px solid #eef2f7;
+.gov-queue-stat-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 24px 22px;
+  background: #ffffff;
 }
 
-.application-review-stat-card p {
-  margin: 0 0 0.35rem;
-  font-size: 0.84rem;
-  color: #6b7280;
+.gov-queue-stat-card p {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: #64748b;
 }
 
-.application-review-stat-card h3 {
+.gov-queue-stat-card h3 {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 36px;
   line-height: 1.1;
-  color: #111827;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.application-review-stat-neutral {
-  background: #f9fafb;
+.gov-queue-stat-card.neutral {
+  background: #f8fafc;
 }
 
-.application-review-stat-blue {
+.gov-queue-stat-card.blue {
   background: #eff6ff;
 }
 
-.application-review-stat-yellow {
+.gov-queue-stat-card.yellow {
   background: #fffbeb;
 }
 
-.application-review-stat-green {
+.gov-queue-stat-card.green {
   background: #f0fdf4;
 }
 
-/* Toolbar area */
-.application-review-toolbar {
+.gov-queue-search-form {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.application-review-search-form {
-  display: flex;
-  gap: 0.85rem;
   align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
-.application-review-search-box,
-.application-review-filter-group {
+.gov-queue-search-box,
+.gov-queue-filter-box {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 0 18px;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.95rem;
-  padding: 0.85rem 1rem;
-  min-height: 52px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.application-review-search-box {
+.gov-queue-search-box {
   flex: 1;
-  min-width: 320px;
+  min-width: 340px;
 }
 
-.application-review-search-box:focus-within,
-.application-review-filter-group:focus-within {
+.gov-queue-search-box:focus-within,
+.gov-queue-filter-box:focus-within {
   border-color: #16a34a;
   box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.08);
 }
 
-.application-review-field-icon {
-  color: #9ca3af;
+.gov-queue-field-icon {
+  color: #94a3b8;
   flex-shrink: 0;
 }
 
-.application-review-search-box input,
-.application-review-filter-group select {
+.gov-queue-search-box input,
+.gov-queue-filter-box select {
   width: 100%;
-  border: none;
-  background: transparent;
-  color: #111827;
+  border: 0;
   outline: none;
-  font-size: 0.92rem;
+  background: transparent;
+  font-size: 15px;
+  color: #0f172a;
 }
 
-.application-review-filter-row {
-  display: flex;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-}
-
-.application-review-filter-group {
-  min-width: 220px;
-}
-
-.application-review-toolbar-button {
-  min-height: 52px;
-  border-radius: 0.95rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid transparent;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.application-review-toolbar-button.primary {
-  background: #16a34a;
-  color: #ffffff;
-}
-
-.application-review-toolbar-button.primary:hover {
-  background: #15803d;
-}
-
-.application-review-toolbar-button.secondary {
-  background: #ffffff;
-  color: #374151;
-  border-color: #d1d5db;
-}
-
-.application-review-toolbar-button.secondary:hover {
-  background: #f9fafb;
-}
-
-.application-review-toolbar-button.approve {
-  background: #16a34a;
-  color: #ffffff;
-}
-
-.application-review-toolbar-button.approve:hover {
-  background: #15803d;
-}
-
-.application-review-toolbar-button.review {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.application-review-toolbar-button.review:hover {
-  background: #1d4ed8;
-}
-
-.application-review-toolbar-button.reject {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.application-review-toolbar-button.reject:hover {
-  background: #b91c1c;
-}
-
-.application-review-toolbar-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* Main content split */
-.application-review-content {
+.gov-queue-filter-row {
+  margin-top: 14px;
   display: grid;
-  gap: 1.5rem;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-/* Shared card look */
-.application-review-table-card,
-.application-review-details-card {
+.gov-queue-btn {
+  min-height: 58px;
+  border-radius: 16px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
+}
+
+.gov-queue-btn:hover {
+  transform: translateY(-1px);
+}
+
+.gov-queue-btn.primary {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.gov-queue-btn.primary:hover {
+  background: #15803d;
+}
+
+.gov-queue-btn.secondary {
   background: #ffffff;
-  border-radius: 1.25rem;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-  border: 1px solid #eef2f7;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.gov-queue-btn.secondary:hover {
+  background: #f8fafc;
+}
+
+.gov-queue-table-card {
   overflow: hidden;
 }
 
-.application-review-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
-  border-bottom: 1px solid #edf2f7;
+.gov-queue-table-head {
+  padding: 24px 28px;
+  border-bottom: 1px solid #eef2f7;
 }
 
-.application-review-card-header h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #1f2937;
+.gov-queue-table-head h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #0f172a;
 }
 
-.application-review-card-header p {
+.gov-queue-table-head p {
   margin: 0;
-  color: #6b7280;
-  font-size: 0.83rem;
+  font-size: 15px;
+  color: #64748b;
 }
 
-/* Table styles */
-.application-review-table-wrap {
-  width: 100%;
-  overflow-x: auto;
+.gov-queue-loader-wrap,
+.gov-queue-empty-state {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
 }
 
-.application-review-table {
+.gov-queue-empty-state h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.gov-queue-empty-state p {
+  margin: 0;
+  color: #64748b;
+}
+
+.gov-queue-table-wrap {
+  overflow: auto;
+}
+
+.gov-queue-table {
   width: 100%;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
-.application-review-table th,
-.application-review-table td {
-  white-space: nowrap;
+.gov-queue-table thead th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
   text-align: left;
-  padding: 0.95rem 0.9rem;
-  border-top: 1px solid #f1f5f9;
-  font-size: 0.88rem;
+  white-space: nowrap;
+  padding: 16px 20px;
 }
 
-.application-review-table th {
-  background: #f9fafb;
-  color: #6b7280;
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.gov-queue-table tbody td {
+  padding: 20px;
+  border-top: 1px solid #eef2f7;
+  vertical-align: middle;
 }
 
-.application-review-row {
-  transition: background-color 0.2s ease;
+.gov-queue-table tbody tr:hover {
+  background: #fafafa;
 }
 
-.application-review-row:hover {
-  background: #f9fafb;
-}
-
-.application-review-row.active {
-  background: #f0fdf4;
-}
-
-.application-review-primary-text {
-  font-weight: 700;
-  color: #16a34a;
-}
-
-.application-review-user-cell {
+.gov-queue-cell {
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
+  gap: 4px;
 }
 
-.application-review-user-cell span {
-  font-weight: 600;
-  color: #111827;
+.gov-queue-cell strong {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.application-review-user-cell small {
-  color: #6b7280;
+.gov-queue-cell small {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
 }
 
-.application-review-type-chip {
+.gov-pill,
+.gov-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #374151;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.73rem;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1;
   font-weight: 700;
+  white-space: nowrap;
 }
 
-.application-review-icon-button {
-  width: 38px;
-  height: 38px;
-  border-radius: 0.75rem;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #374151;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.gov-pill.neutral {
+  background: #f1f5f9;
+  color: #334155;
 }
 
-.application-review-icon-button:hover {
-  background: #f9fafb;
-  border-color: #16a34a;
-  color: #16a34a;
+.gov-status.neutral {
+  background: #f1f5f9;
+  color: #334155;
 }
 
-.application-review-empty-cell {
-  text-align: center;
-  color: #9ca3af;
-  padding: 2.25rem 1rem !important;
+.gov-status.info {
+  background: #e0f2fe;
+  color: #075985;
 }
 
-.application-review-loading-state {
-  min-height: 260px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.gov-status.warning {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.application-review-loading-state.large {
-  min-height: 520px;
+.gov-status.success {
+  background: #dcfce7;
+  color: #166534;
 }
 
-/* Pagination */
-.application-review-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.application-review-page-numbers {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.application-review-page-number,
-.application-review-page-nav {
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 0.75rem;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #374151;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0 0.85rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.application-review-page-number:hover,
-.application-review-page-nav:hover {
-  background: #f9fafb;
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
-.application-review-page-number.active {
-  background: #16a34a;
-  color: #ffffff;
-  border-color: #16a34a;
-}
-
-.application-review-page-number:disabled,
-.application-review-page-nav:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-/* Details panel */
-.application-review-details-card {
-  padding: 1.25rem;
-  min-height: 640px;
-}
-
-.application-review-details-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #edf2f7;
-  margin-bottom: 1rem;
-}
-
-.application-review-details-header h2 {
-  margin: 0 0 0.3rem;
-  font-size: 1.55rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.application-review-details-header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.86rem;
-}
-
-.application-review-summary-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 1rem;
-}
-
-.application-review-summary-card,
-.application-review-section-card {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  border-radius: 1rem;
-}
-
-.application-review-summary-card {
-  padding: 1rem;
-}
-
-.application-review-summary-card p {
-  margin: 0 0 0.35rem;
-  font-size: 0.82rem;
-  color: #6b7280;
-}
-
-.application-review-summary-card h4 {
-  margin: 0;
-  font-size: 0.95rem;
-  color: #111827;
-}
-
-.application-review-section-card {
-  padding: 1rem;
-  margin-bottom: 1rem;
-}
-
-.application-review-section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 0.9rem;
-}
-
-.application-review-section-title h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.application-review-section-icon {
-  color: #16a34a;
-}
-
-.application-review-detail-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.application-review-detail-grid p {
-  margin: 0 0 0.3rem;
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.application-review-detail-grid h4 {
-  margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.45;
-  color: #111827;
-  font-weight: 600;
-}
-
-.application-review-alert-card {
-  margin-bottom: 1rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  border-radius: 1rem;
-  padding: 1rem;
-}
-
-.application-review-alert-card p {
-  margin: 0 0 0.35rem;
-  font-size: 0.82rem;
+.gov-status.danger {
+  background: #fee2e2;
   color: #991b1b;
 }
 
-.application-review-alert-card h4 {
-  margin: 0;
-  color: #7f1d1d;
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-/* Status history timeline */
-.application-review-history-empty {
-  color: #9ca3af;
-  text-align: center;
-  padding: 1rem 0;
-  font-size: 0.9rem;
-}
-
-.application-review-history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.application-review-history-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-}
-
-.application-review-history-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #16a34a;
-  margin-top: 0.35rem;
-  flex-shrink: 0;
-}
-
-.application-review-history-content {
-  flex: 1;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  border-radius: 0.95rem;
-  padding: 0.9rem;
-}
-
-.application-review-history-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.45rem;
-}
-
-.application-review-history-top span {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.application-review-history-top small {
-  color: #6b7280;
-  font-size: 0.76rem;
-}
-
-.application-review-history-content p {
-  margin: 0 0 0.55rem;
-  color: #374151;
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-
-.application-review-history-meta {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.application-review-history-meta span {
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-/* Action buttons */
-.application-review-action-row {
-  display: flex;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-  padding-top: 0.25rem;
-}
-
-.application-review-action-button {
-  border: none;
-  border-radius: 0.95rem;
-  padding: 0.9rem 1rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #ffffff;
+.gov-queue-review-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.application-review-action-button.approve {
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
   background: #16a34a;
-}
-
-.application-review-action-button.approve:hover {
-  background: #15803d;
-}
-
-.application-review-action-button.reject {
-  background: #dc2626;
-}
-
-.application-review-action-button.reject:hover {
-  background: #b91c1c;
-}
-
-.application-review-action-button.neutral {
-  background: #2563eb;
-}
-
-.application-review-action-button.neutral:hover {
-  background: #1d4ed8;
-}
-
-.application-review-action-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-/* Empty details state */
-.application-review-empty-details {
-  min-height: 560px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px dashed #d1d5db;
-  border-radius: 1rem;
-  background: #f9fafb;
-  text-align: center;
-  padding: 2rem;
-}
-
-.application-review-empty-icon {
-  font-size: 3rem;
-  color: #d1d5db;
-  margin-bottom: 1rem;
-}
-
-.application-review-empty-details h3 {
-  margin: 0 0 0.5rem;
-  color: #374151;
-  font-size: 1.2rem;
-}
-
-.application-review-empty-details p {
-  margin: 0;
-  color: #6b7280;
-  max-width: 380px;
-}
-
-/* Action modal */
-.application-review-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.application-review-modal-card {
-  width: 100%;
-  max-width: 620px;
-  background: #ffffff;
-  border-radius: 1.25rem;
-  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.2);
-  overflow: hidden;
-}
-
-.application-review-modal-header {
-  padding: 1.25rem 1.35rem 1rem;
-  border-bottom: 1px solid #edf2f7;
-}
-
-.application-review-modal-header h3 {
-  margin: 0 0 0.35rem;
-  color: #111827;
-  font-size: 1.2rem;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
   font-weight: 700;
+  transition: background 0.16s ease, transform 0.16s ease;
 }
 
-.application-review-modal-header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.9rem;
+.gov-queue-review-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
 }
 
-.application-review-modal-body {
-  padding: 1.25rem 1.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.gov-queue-load-anchor {
+  height: 1px;
 }
 
-.application-review-modal-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.application-review-modal-field label {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.application-review-modal-field textarea {
-  width: 100%;
-  resize: vertical;
-  border-radius: 0.95rem;
-  border: 1px solid #d1d5db;
-  padding: 0.9rem 1rem;
-  font-size: 0.92rem;
-  color: #111827;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.application-review-modal-field textarea:focus {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.08);
-}
-
-.application-review-modal-footer {
+.gov-queue-load-state,
+.gov-queue-load-more-wrap {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.85rem;
-  padding: 1rem 1.35rem 1.25rem;
-  border-top: 1px solid #edf2f7;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .spin {
-  animation: application-review-spin 0.8s linear infinite;
+  animation: gov-spin 0.9s linear infinite;
 }
 
-@keyframes application-review-spin {
+@keyframes gov-spin {
   from {
-    transform: rotate(0);
+    transform: rotate(0deg);
   }
 
   to {
@@ -788,55 +352,33 @@
   }
 }
 
-/* Responsive cleanup */
-@media (max-width: 1280px) {
-  .application-review-content {
-    grid-template-columns: 1fr;
-  }
-
-  .application-review-stats-grid {
+@media (max-width: 1200px) {
+  .gov-queue-stats-grid,
+  .gov-queue-filter-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 768px) {
-  .application-review-title {
-    font-size: 1.55rem;
+  .gov-queue-header-card h1 {
+    font-size: 34px;
   }
 
-  .application-review-stats-grid,
-  .application-review-summary-grid,
-  .application-review-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .application-review-search-form,
-  .application-review-filter-row,
-  .application-review-pagination,
-  .application-review-modal-footer,
-  .application-review-history-top {
+  .gov-queue-search-form {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .application-review-search-box {
+  .gov-queue-search-box {
     min-width: 100%;
   }
 
-  .application-review-page-nav,
-  .application-review-page-number,
-  .application-review-toolbar-button,
-  .application-review-action-button {
+  .gov-queue-stats-grid,
+  .gov-queue-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gov-queue-btn {
     width: 100%;
-    justify-content: center;
-  }
-
-  .application-review-details-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .application-review-details-card {
-    min-height: auto;
   }
 }
