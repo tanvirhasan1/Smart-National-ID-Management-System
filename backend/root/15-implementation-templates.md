@@ -101,7 +101,7 @@ const createApplication = asyncHandler(async (req, res) => {
 const { AppError } = require('../../shared/errors/app-error');
 
 async function reviewApplication({ actor, applicationId, input }) {
-  if (!['admin', 'super_admin'].includes(actor.role)) {
+  if (!['admin'].includes(actor.role)) {
     throw new AppError({
       statusCode: 403,
       code: 'FORBIDDEN',

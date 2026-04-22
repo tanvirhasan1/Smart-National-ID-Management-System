@@ -19,6 +19,7 @@ const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const applicationRoutes = require('./routes/applications');
 const supportRoutes = require('./routes/support');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -66,6 +67,15 @@ app.use('/api/', limiter);
 
 // Body parser
 app.use(express.json());
+
+// Trust proxy in production deployments
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Parse cookies from incoming requests
+app.use(cookieParser());
+
 app.use(express.urlencoded({ extended: true }));
 
 // Logger

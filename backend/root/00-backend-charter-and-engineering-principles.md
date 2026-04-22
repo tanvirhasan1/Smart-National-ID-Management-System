@@ -83,7 +83,8 @@ The project defines three roles:
 
 - `citizen`
 - `admin`
-- `super_admin`
+- `system_supervisor`
+- `support_stuff`
 
 Public registration creates only `citizen` accounts.
 Privileged roles are provisioned through protected internal workflows.

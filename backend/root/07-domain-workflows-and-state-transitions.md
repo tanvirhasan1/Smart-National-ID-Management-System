@@ -147,12 +147,12 @@ Optional controlled action:
 ### Response rules
 
 - citizen may respond only to own ticket
-- admin/super_admin may respond to tickets in scope
+- admin may respond to tickets in scope
 - closed tickets reject new responses unless reopened
 
 ### Assignment rule
 
-Assignment may happen only to `admin` or `super_admin`.
+Assignment may happen only to `admin`.
 
 ### Resolution rule
 

@@ -8,7 +8,8 @@ The system defines three roles:
 
 - `citizen`
 - `admin`
-- `super_admin`
+- `system_supervisor`
+- `support_stuff`
 
 Role assignment is controlled strictly by backend policy.
 
@@ -38,7 +39,7 @@ Disallowed public registration payload:
 
 ### Admin provisioning policy
 
-`admin` and `super_admin` accounts may be created only through one of these mechanisms:
+`admin` accounts may be created only through one of these mechanisms:
 
 - protected internal seed script
 - protected super-admin-only user management endpoint

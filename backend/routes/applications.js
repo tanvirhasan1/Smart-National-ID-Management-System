@@ -2,6 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
+  uploadApplicationDocument,
+  getApplicationPrefill,
   getMyApplications,
   getSingleApplication,
   updateApplication,
@@ -12,6 +14,9 @@ const {
   getAdminDashboardStats
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
+const {
+  uploadSingleApplicationDocument
+} = require('../middleware/applicationDocumentUpload');
 
 const router = express.Router();
 
@@ -71,9 +76,18 @@ router.post(
   createApplication
 );
 
+router.post(
+  '/:id/documents/:documentType',
+  protect,
+  authorize('citizen'),
+  uploadSingleApplicationDocument,
+  uploadApplicationDocument
+);
+
+router.put('/:id', protect, updateApplication);
+router.get('/prefill', protect, getApplicationPrefill);
+router.patch('/:id/cancel', protect, cancelApplication);
 router.get('/my', protect, getMyApplications);
 router.get('/:id', protect, getSingleApplication);
-router.put('/:id', protect, updateApplication);
-router.patch('/:id/cancel', protect, cancelApplication);
 
 module.exports = router;

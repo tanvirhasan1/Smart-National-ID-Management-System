@@ -1,9 +1,12 @@
 const express = require('express');
+
 const {
   getAdminDashboard,
   getAdminDashboardSummary,
   getInternalUsers,
   createInternalUser,
+  updateInternalUser,
+  archiveInternalUser,
   getAllSupportTickets,
   getSupportStats,
   assignSupportTicket,
@@ -29,6 +32,13 @@ const {
   exportDeliveryReport,
   exportAuditReport
 } = require('../controllers/adminController');
+
+const {
+  getApplicationReviewQueue,
+  getApplicationReviewDetails,
+  updateApplicationReviewDecision
+} = require('../controllers/adminApplicationReviewController');
+
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -55,35 +65,59 @@ router.get(
   getAdminDashboardSummary
 );
 
-// Application routes
+// Application stats
 router.get(
   '/applications/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getApplicationStatsForAdmin
 );
 
+// Old application routes
 router.get(
   '/applications',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/applications/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleApplicationForAdmin
 );
 
 router.patch(
   '/applications/:id/review',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   reviewApplicationByAdmin
 );
-// Internal user management
+
+// New review workspace routes
+router.get(
+  '/application-review/queue',
+  protect,
+  authorize('admin'),
+  getApplicationReviewQueue
+);
+
+router.get(
+  '/application-review/:id',
+  protect,
+  authorize('admin'),
+  getApplicationReviewDetails
+);
+
+router.patch(
+  '/application-review/:id/decision',
+  protect,
+  authorize('admin'),
+  updateApplicationReviewDecision
+);
+
+// Internal users
 router.get(
   '/users',
   protect,
@@ -97,7 +131,22 @@ router.post(
   authorize('admin'),
   createInternalUser
 );
-// Support routes
+
+router.put(
+  '/users/:id',
+  protect,
+  authorize('admin'),
+  updateInternalUser
+);
+
+router.delete(
+  '/users/:id',
+  protect,
+  authorize('admin'),
+  archiveInternalUser
+);
+
+// Support
 router.get(
   '/support/tickets',
   protect,
@@ -126,58 +175,58 @@ router.put(
   updateSupportTicketStatus
 );
 
-// Center routes
+// Centers
 router.post(
   '/centers',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   createCenter
 );
 
 router.get(
   '/centers',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getAllCenters
 );
 
 router.get(
   '/centers/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getSingleCenter
 );
 
 router.put(
   '/centers/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   updateCenter
 );
 
 router.patch(
   '/centers/:id/toggle-status',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   toggleCenterStatus
 );
 
-// Delivery routes
+// Delivery
 router.get(
   '/delivery/queue',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   getDeliveryQueue
 );
 
 router.patch(
   '/delivery/:id/mark-delivered',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   markApplicationAsDelivered
 );
 
-// Audit routes
+// Audit
 router.get(
   '/audit/recent',
   protect,
@@ -185,23 +234,6 @@ router.get(
   getRecentAuditLogs
 );
 
-// Printing stats
-router.get(
-  '/printing/stats',
-  protect,
-  authorize('admin', 'super_admin'),
-  getPrintingStats
-);
-
-// Delivery stats
-router.get(
-  '/delivery/stats',
-  protect,
-  authorize('admin', 'super_admin'),
-  getDeliveryStats
-);
-
-// Audit stats
 router.get(
   '/audit/stats',
   protect,
@@ -209,42 +241,56 @@ router.get(
   getAuditStats
 );
 
-// Bulk printing
+// Printing
+router.get(
+  '/printing/stats',
+  protect,
+  authorize('admin'),
+  getPrintingStats
+);
+
 router.patch(
   '/printing/bulk-mark-printed',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   bulkMarkApplicationsAsPrinted
 );
 
-// Bulk delivery
-router.patch(
-  '/delivery/bulk-mark-delivered',
-  protect,
-  authorize('admin', 'super_admin'),
-  bulkMarkApplicationsAsDelivered
-);
-
-
-// Export routes
 router.get(
   '/printing/export',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   exportPrintingReport
+);
+
+// Delivery extra
+router.get(
+  '/delivery/stats',
+  protect,
+  authorize('admin'),
+  getDeliveryStats
+);
+
+router.patch(
+  '/delivery/bulk-mark-delivered',
+  protect,
+  authorize('admin'),
+  bulkMarkApplicationsAsDelivered
 );
 
 router.get(
   '/delivery/export',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin'),
   exportDeliveryReport
 );
 
+// Exports
 router.get(
   '/audit/export',
   protect,
   authorize('admin', 'system_supervisor'),
   exportAuditReport
 );
+
 module.exports = router;

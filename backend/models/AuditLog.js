@@ -9,7 +9,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ['admin', 'system_supervisor', 'support_staff'],
+      enum: ['citizen', 'admin', 'system_supervisor', 'support_staff'],
       required: true
     },
     action: {
@@ -28,7 +28,50 @@ const auditLogSchema = new mongoose.Schema(
     },
     message: {
       type: String,
-      trim: true
+      trim: true,
+      default: ''
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    severity: {
+      type: String,
+      enum: ['info', 'warning', 'critical'],
+      default: 'info'
+    },
+    sourceModule: {
+      type: String,
+      trim: true,
+      default: 'api'
+    },
+    requestId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    ipAddress: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    userAgent: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    beforeState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    afterState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    changedFields: {
+      type: [String],
+      default: []
     },
     meta: {
       type: mongoose.Schema.Types.Mixed,
@@ -39,6 +82,14 @@ const auditLogSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+auditLogSchema.index({ createdAt: -1 });
+auditLogSchema.index({ actor: 1, createdAt: -1 });
+auditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ severity: 1, createdAt: -1 });
+auditLogSchema.index({ sourceModule: 1, createdAt: -1 });
+auditLogSchema.index({ requestId: 1 }, { sparse: true });
 
 module.exports =
   mongoose.models.AuditLog ||
