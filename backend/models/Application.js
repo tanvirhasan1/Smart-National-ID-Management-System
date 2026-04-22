@@ -313,7 +313,6 @@ const applicationSchema = new mongoose.Schema(
       enum: ['new', 'correction', 'reissue'],
       default: 'new'
     },
-
     fullNameEnglish: {
       type: String,
       required: [true, 'Full name in English is required'],
@@ -377,7 +376,6 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
-
     presentAddress: {
       type: addressSchema,
       required: true
@@ -386,17 +384,14 @@ const applicationSchema = new mongoose.Schema(
       type: addressSchema,
       required: true
     },
-
     documents: {
       type: legacyDocumentSchema,
       default: () => ({})
     },
-
     documentAssets: {
       type: documentAssetsSchema,
       default: () => ({})
     },
-
     status: {
       type: String,
       enum: [
@@ -445,7 +440,7 @@ const applicationSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
-        latestStatusChangedAt: {
+    latestStatusChangedAt: {
       type: Date,
       default: null
     }
@@ -459,7 +454,11 @@ applicationSchema.index({ applicant: 1, createdAt: -1 });
 applicationSchema.index({ applicant: 1, status: 1, updatedAt: -1 });
 applicationSchema.index({ status: 1, updatedAt: -1 });
 applicationSchema.index({ latestStatusChangedAt: -1 });
-
+applicationSchema.index({ status: 1, createdAt: -1, _id: -1 });
+applicationSchema.index({ status: 1, updatedAt: -1, _id: -1 });
+applicationSchema.index({ phone: 1, createdAt: -1 });
+applicationSchema.index({ birthRegistrationNumber: 1, createdAt: -1 });
+applicationSchema.index({ existingNidNumber: 1, createdAt: -1 });
 
 module.exports =
   mongoose.models.Application ||
