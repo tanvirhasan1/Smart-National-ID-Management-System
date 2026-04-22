@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
+// const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
@@ -23,10 +23,15 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 
-// Connect database
+// connect database
 connectDB();
 
-// Security
+// trust proxy for production
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// basic security
 app.use(helmet());
 
 const allowedOrigins = Array.from(
@@ -35,26 +40,34 @@ const allowedOrigins = Array.from(
     'http://localhost:5173',
     ...(process.env.FRONTEND_URL || '')
       .split(',')
-      .map((origin) => origin.trim())
+      .map((origin) => origin.trim().replace(/\/$/, ''))
       .filter(Boolean)
   ])
 );
 
-// CORS
+// cors config
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) {
         return callback(null, true);
       }
 
-      return callback(new Error('Not allowed by CORS'));
+      const normalizedOrigin = origin.replace(/\/$/, '');
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true
   })
 );
 
-// Rate limit
+// testing purpose only
+// rate limit fully disabled
+/*
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -64,31 +77,26 @@ const limiter = rateLimit({
   }
 });
 app.use('/api/', limiter);
+*/
 
-// Body parser
+// body parser
 app.use(express.json());
-
-// Trust proxy in production deployments
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
-
-// Parse cookies from incoming requests
-app.use(cookieParser());
-
 app.use(express.urlencoded({ extended: true }));
 
-// Logger
+// cookie parser
+app.use(cookieParser());
+
+// logger
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Test route
+// root route
 app.get('/', (req, res) => {
   res.send('Smart NID Backend is running');
 });
 
-// Health route
+// health route
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -96,7 +104,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes
+// api routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
