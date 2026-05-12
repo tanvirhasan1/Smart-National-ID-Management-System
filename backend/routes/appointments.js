@@ -1,56 +1,78 @@
 const express = require('express');
 const {
   getAvailableCenters,
+  getAppointmentAvailability,
   bookAppointment,
   getMyAppointments,
   getAllAppointmentsForAdmin,
   getSingleAppointmentForAdmin,
   getAppointmentStatsForAdmin,
-  updateAppointmentStatusByAdmin
+  updateAppointmentStatusByAdmin,
+  getAppointmentConfigForAdmin,
+  upsertAppointmentConfigForAdmin
 } = require('../controllers/appointmentController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Citizen center list
+// Citizen appointment discovery
 router.get('/centers', protect, getAvailableCenters);
+router.get('/availability', protect, getAppointmentAvailability);
 
-// Admin stats
+// Admin appointment settings
+router.get(
+  '/admin/settings/:centerId',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAppointmentConfigForAdmin
+);
+
+router.put(
+  '/admin/settings/:centerId',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  upsertAppointmentConfigForAdmin
+);
+
+// Admin appointment stats/list/details
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getAppointmentStatsForAdmin
 );
 
-// Admin all appointments
+// Keep both routes so old and new frontend calls work.
 router.get(
-  '/admin/all',
+  '/admin',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getAllAppointmentsForAdmin
 );
 
-// Admin single appointment
+router.get(
+  '/admin/all',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAllAppointmentsForAdmin
+);
+
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getSingleAppointmentForAdmin
 );
 
-// Admin update status
 router.patch(
   '/admin/:id/status',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   updateAppointmentStatusByAdmin
 );
 
-// Citizen book appointment
-router.post('/', protect, bookAppointment);
-
-// Citizen my appointments
-router.get('/my', protect, getMyAppointments);
+// Citizen booking/history
+router.post('/', protect, authorize('citizen'), bookAppointment);
+router.get('/my', protect, authorize('citizen'), getMyAppointments);
 
 module.exports = router;
