@@ -356,7 +356,7 @@ const Register = () => {
                   <div className="register-form-group">
                     <label className="register-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
                       <FaEnvelope className="text-[#16A34A]" />
-                      <span>Email (Optional)</span>
+                      <span>Email</span>
                     </label>
                     <input
                       type="email"
