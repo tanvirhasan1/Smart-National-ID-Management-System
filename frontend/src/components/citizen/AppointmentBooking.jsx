@@ -3,58 +3,83 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
-  FaCalendarAlt,
-  FaClock,
-  FaMapMarkerAlt,
-  FaCheckCircle,
-  FaSpinner,
-  FaExclamationTriangle,
   FaArrowLeft,
   FaArrowRight,
-  FaIdCard
+  FaCalendarAlt,
+  FaCheckCircle,
+  FaClock,
+  FaExclamationTriangle,
+  FaIdCard,
+  FaInfoCircle,
+  FaMapMarkerAlt,
+  FaSpinner,
+  FaSyncAlt,
+  FaUsers
 } from 'react-icons/fa';
 import api from '../api/axios';
 import Loader from '../common/Loader';
-import { formatDate, formatStatus, getStatusColor } from '../utils/helpers';
+import { formatStatus, getStatusColor } from '../utils/helpers';
 import '../styles/AppointmentBooking.css';
 
+const formatDateKey = (dateKey) => {
+  if (!dateKey) return 'N/A';
+
+  const parsedDate = new Date(`${dateKey}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) return dateKey;
+
+  return parsedDate.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const getDayStatusLabel = (day) => {
+  const labels = {
+    available: `${day.remaining} left`,
+    weekly_off: 'Off day',
+    closed: 'Closed',
+    full: 'Full',
+    too_early: 'Too early',
+    outside_window: 'Not open',
+    not_configured: 'Not configured'
+  };
+
+  return labels[day?.status] || 'Unavailable';
+};
+
 const AppointmentBooking = () => {
-  // Route and page state
   const navigate = useNavigate();
   const { applicationId } = useParams();
 
   const [application, setApplication] = useState(null);
   const [centers, setCenters] = useState([]);
   const [selectedCenter, setSelectedCenter] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState('');
+  const [availability, setAvailability] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState(null);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
   const [appointment, setAppointment] = useState(null);
 
-  // Static time slots
-  const timeSlots = useMemo(
-    () => [
-      '09:00 AM - 09:30 AM',
-      '09:30 AM - 10:00 AM',
-      '10:00 AM - 10:30 AM',
-      '10:30 AM - 11:00 AM',
-      '11:00 AM - 11:30 AM',
-      '11:30 AM - 12:00 PM',
-      '02:00 PM - 02:30 PM',
-      '02:30 PM - 03:00 PM',
-      '03:00 PM - 03:30 PM',
-      '03:30 PM - 04:00 PM'
-    ],
-    []
-  );
-
-  // Load application and available centers
   useEffect(() => {
     fetchInitialData();
   }, [applicationId]);
+
+  const isApplicationApproved = application?.status === 'approved';
+
+  const calendarDays = availability?.calendarDays || [];
+  const slots = availability?.slots || [];
+  const selectedDay = availability?.selectedDay || null;
+
+  const firstBookableDay = useMemo(() => {
+    return calendarDays.find((day) => day.isBookable);
+  }, [calendarDays]);
 
   const fetchInitialData = async () => {
     try {
@@ -65,13 +90,9 @@ const AppointmentBooking = () => {
         api.get('/appointments/centers')
       ]);
 
-      const applicationData = applicationResponse?.data?.application;
-      const centerList = centersResponse?.data?.centers || [];
-
-      setApplication(applicationData);
-      setCenters(centerList);
+      setApplication(applicationResponse?.data?.application || null);
+      setCenters(centersResponse?.data?.centers || []);
     } catch (error) {
-      console.error('Error fetching appointment booking data:', error);
       toast.error(
         error?.response?.data?.message || 'Failed to load appointment booking page'
       );
@@ -80,50 +101,99 @@ const AppointmentBooking = () => {
     }
   };
 
-  const handleCenterSelect = (center) => {
+  const fetchAvailability = async (centerId, dateKey = '') => {
+    try {
+      setAvailabilityLoading(true);
+
+      const params = new URLSearchParams({
+        centerId,
+        days: '60'
+      });
+
+      if (dateKey) {
+        params.set('date', dateKey);
+      }
+
+      const response = await api.get(`/appointments/availability?${params.toString()}`);
+      const data = response?.data || null;
+
+      setAvailability(data);
+
+      const nextSelectedDate = data?.selectedDay?.dateKey || dateKey || '';
+      setSelectedDate(nextSelectedDate);
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || 'Failed to load appointment availability'
+      );
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const handleCenterSelect = async (center) => {
     setSelectedCenter(center);
-    setSelectedSlot('');
+    setSelectedDate('');
+    setSelectedSlot(null);
+    setAvailability(null);
     setBookingStep(2);
+    await fetchAvailability(center._id);
+  };
+
+  const handleDateSelect = async (day) => {
+    if (!day?.isBookable || !selectedCenter?._id) {
+      return;
+    }
+
+    setSelectedDate(day.dateKey);
+    setSelectedSlot(null);
+    await fetchAvailability(selectedCenter._id, day.dateKey);
+  };
+
+  const handleRefreshAvailability = async () => {
+    if (!selectedCenter?._id) return;
+    await fetchAvailability(selectedCenter._id, selectedDate);
   };
 
   const handleContinueToConfirm = () => {
-    if (!selectedDate || !selectedSlot) {
-      toast.error('Please select appointment date and time slot');
+    if (!selectedCenter || !selectedDay?.isBookable || !selectedDate || !selectedSlot) {
+      toast.error('Please select an available date and time slot');
       return;
     }
 
     setBookingStep(3);
   };
 
-  // Final appointment booking request
   const handleBookingConfirm = async () => {
     if (!applicationId || !selectedCenter || !selectedDate || !selectedSlot) {
       toast.error('Please complete all booking information');
       return;
     }
 
-    setBookingLoading(true);
-
     try {
-      const bookingData = {
+      setBookingLoading(true);
+
+      const response = await api.post('/appointments', {
         applicationId,
-        appointmentDate: selectedDate,
-        timeSlot: selectedSlot,
-        centerName: selectedCenter.name,
-        centerDistrict: selectedCenter.district,
+        centerId: selectedCenter._id,
+        appointmentDateKey: selectedDate,
+        slotKey: selectedSlot.slotKey,
         notes: notes || ''
-      };
+      });
 
-      const response = await api.post('/appointments', bookingData);
-      const createdAppointment = response?.data?.appointment;
-
-      setAppointment(createdAppointment);
+      setAppointment(response?.data?.appointment || null);
       toast.success('Appointment booked successfully!');
     } catch (error) {
-      console.error('Booking error:', error);
-      toast.error(
-        error?.response?.data?.message || 'Failed to book appointment'
-      );
+      const statusCode = error?.response?.status;
+      const message = error?.response?.data?.message || 'Failed to book appointment';
+
+      toast.error(message);
+
+      if (statusCode === 409 && selectedCenter?._id) {
+        setBookingStep(2);
+        setSelectedSlot(null);
+        await fetchAvailability(selectedCenter._id, selectedDate);
+      }
     } finally {
       setBookingLoading(false);
     }
@@ -135,36 +205,23 @@ const AppointmentBooking = () => {
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const isApplicationApproved = application?.status === 'approved';
-
-  // Loading state
   if (loading) {
     return (
-      <div className="appointment-booking-loading-wrapper flex min-h-[60vh] items-center justify-center">
+      <div className="appointment-booking appointment-booking--loading">
         <Loader size="large" text="Loading appointment booking..." />
       </div>
     );
   }
 
-  // Invalid application state
   if (!application) {
     return (
-      <div className="appointment-booking-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
-        <div className="appointment-booking-shell mx-auto max-w-[920px]">
-          <div className="appointment-booking-empty rounded-2xl bg-white p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-            <FaExclamationTriangle className="mx-auto mb-4 text-4xl text-red-500" />
-            <h2 className="mb-2 text-2xl font-bold text-[#1F2937]">
-              Application not found
-            </h2>
-            <p className="mb-6 text-[#6B7280]">
-              We could not find the selected application for appointment booking.
-            </p>
-            <button
-              type="button"
-              className="inline-flex items-center rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-              onClick={() => navigate('/track-application')}
-            >
+      <div className="appointment-booking">
+        <div className="appointment-booking__shell appointment-booking__shell--narrow">
+          <div className="appointment-booking__empty-card">
+            <FaExclamationTriangle className="appointment-booking__empty-icon" />
+            <h2>Application not found</h2>
+            <p>We could not find the selected application for appointment booking.</p>
+            <button type="button" className="btn btn-primary" onClick={() => navigate('/track-application')}>
               Back to Applications
             </button>
           </div>
@@ -173,59 +230,39 @@ const AppointmentBooking = () => {
     );
   }
 
-  // Only approved applications can book appointments
   if (!isApplicationApproved && !appointment) {
     return (
-      <div className="appointment-booking-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
-        <div className="appointment-booking-shell mx-auto max-w-[920px]">
-          <div className="appointment-booking-alert rounded-2xl bg-white p-8 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-            <div className="mb-5 flex items-start gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl text-red-500">
+      <div className="appointment-booking">
+        <div className="appointment-booking__shell appointment-booking__shell--narrow">
+          <div className="appointment-booking__notice-card">
+            <div className="appointment-booking__notice-head">
+              <span className="appointment-booking__notice-icon appointment-booking__notice-icon--danger">
                 <FaExclamationTriangle />
+              </span>
+              <div>
+                <h2>Appointment not available yet</h2>
+                <p>You can only book an appointment after your application is approved.</p>
+              </div>
+            </div>
+
+            <div className="appointment-booking__summary-grid">
+              <div>
+                <span>Application ID</span>
+                <strong>{application.applicationId}</strong>
               </div>
               <div>
-                <h2 className="mb-2 text-2xl font-bold text-[#1F2937]">
-                  Appointment not available yet
-                </h2>
-                <p className="text-[#6B7280]">
-                  You can only book an appointment after your application is approved.
-                </p>
+                <span>Current Status</span>
+                <strong className={`badge badge-${getStatusColor(application.status)}`}>
+                  {formatStatus(application.status)}
+                </strong>
               </div>
             </div>
 
-            <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-              <h3 className="mb-3 text-lg font-semibold text-[#1F2937]">
-                Application Summary
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-[#6B7280]">Application ID</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {application.applicationId}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#6B7280]">Current Status</p>
-                  <span className={`badge badge-${getStatusColor(application.status)}`}>
-                    {formatStatus(application.status)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="inline-flex items-center rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-                onClick={() => navigate('/track-application')}
-              >
+            <div className="appointment-booking__actions">
+              <button type="button" className="btn btn-outline" onClick={() => navigate('/track-application')}>
                 Track Application
               </button>
-              <button
-                type="button"
-                className="inline-flex items-center rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-                onClick={() => navigate('/dashboard')}
-              >
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/dashboard')}>
                 Back to Dashboard
               </button>
             </div>
@@ -233,242 +270,304 @@ const AppointmentBooking = () => {
         </div>
       </div>
     );
-  };
+  }
 
-  // Step 1: center selection
-  const renderStep1 = () => (
-    <div className="appointment-booking-step space-y-6">
-      <div className="appointment-booking-section-header">
-        <h3 className="text-xl font-semibold text-[#1F2937]">
-          <span className="inline-flex items-center gap-2">
-            <FaMapMarkerAlt className="text-[#16A34A]" />
-            Select a Center
-          </span>
-        </h3>
-        <p className="mt-2 text-[#6B7280]">
-          Choose your preferred biometric enrollment center.
-        </p>
-      </div>
-
-      <div className="appointment-booking-centers-grid grid gap-5 md:grid-cols-2">
-        {centers.map((center) => (
-          <button
-            key={center._id}
-            type="button"
-            className={`appointment-booking-center-card text-left rounded-xl border bg-white p-5 transition ${
-              selectedCenter?._id === center._id
-                ? 'border-[#16A34A] shadow-[0_4px_12px_rgba(22,163,74,0.12)]'
-                : 'border-[#E5E7EB] hover:border-[#16A34A]'
-            }`}
-            onClick={() => handleCenterSelect(center)}
-          >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#F0FDF4] text-xl text-[#16A34A]">
-              <FaMapMarkerAlt />
-            </div>
-
-            <h4 className="mb-2 text-lg font-semibold text-[#1F2937]">
-              {center.name}
-            </h4>
-            <p className="mb-2 text-sm text-[#6B7280]">{center.address}</p>
-            <p className="mb-2 text-sm text-[#6B7280]">
-              District: {center.district}
-            </p>
-            <p className="text-sm text-[#6B7280]">
-              Daily Capacity: {center.dailyCapacity || 'N/A'}
-            </p>
-          </button>
-        ))}
-      </div>
+  const renderProgress = () => (
+    <div className="appointment-booking__progress" aria-label="Booking progress">
+      {[
+        { step: 1, label: 'Center' },
+        { step: 2, label: 'Date & Slot' },
+        { step: 3, label: 'Confirm' }
+      ].map((item) => (
+        <div
+          key={item.step}
+          className={`appointment-booking__progress-item ${bookingStep >= item.step ? 'is-active' : ''}`}
+        >
+          <span>{item.step}</span>
+          <strong>{item.label}</strong>
+        </div>
+      ))}
     </div>
   );
 
-  // Step 2: date and slot selection
-  const renderStep2 = () => (
-    <div className="appointment-booking-step space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          className="appointment-booking-back-button inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-          onClick={handleBack}
-        >
-          <FaArrowLeft />
-          <span>Back</span>
-        </button>
-
-        <div className="text-right">
-          <h3 className="text-xl font-semibold text-[#1F2937]">
-            <span className="inline-flex items-center gap-2">
-              <FaCalendarAlt className="text-[#16A34A]" />
-              Choose Date & Time
-            </span>
+  const renderStep1 = () => (
+    <div className="appointment-booking__step">
+      <div className="appointment-booking__section-title">
+        <div>
+          <h3>
+            <FaMapMarkerAlt />
+            Select a Center
           </h3>
+          <p>Choose the biometric enrollment center where you want to visit.</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-5">
-        <h4 className="mb-2 text-lg font-semibold text-[#1F2937]">
-          {selectedCenter?.name}
-        </h4>
-        <p className="text-sm text-[#6B7280]">{selectedCenter?.address}</p>
-        <p className="mt-1 text-sm text-[#6B7280]">
-          District: {selectedCenter?.district}
-        </p>
-      </div>
-
-      <div className="appointment-booking-date-section">
-        <label className="mb-2 block text-sm font-medium text-[#374151]">
-          Appointment Date *
-        </label>
-        <input
-          type="date"
-          min={today}
-          value={selectedDate}
-          onChange={(event) => setSelectedDate(event.target.value)}
-          className="appointment-booking-date-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-        />
-      </div>
-
-      <div className="appointment-booking-slot-section">
-        <h4 className="mb-4 text-lg font-semibold text-[#1F2937]">
-          Available Time Slots
-        </h4>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {timeSlots.map((slot) => (
+      {centers.length === 0 ? (
+        <div className="appointment-booking__empty-card">
+          <FaInfoCircle className="appointment-booking__empty-icon" />
+          <h3>No appointment center is available</h3>
+          <p>Please try again later or contact support.</p>
+        </div>
+      ) : (
+        <div className="appointment-booking__center-grid">
+          {centers.map((center) => (
             <button
-              key={slot}
+              key={center._id}
               type="button"
-              className={`appointment-booking-slot-card rounded-xl border px-4 py-4 text-left transition ${
-                selectedSlot === slot
-                  ? 'border-[#16A34A] bg-[#F0FDF4]'
-                  : 'border-[#E5E7EB] bg-white hover:border-[#16A34A]'
-              }`}
-              onClick={() => setSelectedSlot(slot)}
+              className={`appointment-booking__center-card ${selectedCenter?._id === center._id ? 'is-selected' : ''}`}
+              onClick={() => handleCenterSelect(center)}
             >
-              <div className="mb-2 flex items-center gap-2 text-[#16A34A]">
-                <FaClock />
-                <span className="text-sm font-medium">Slot</span>
+              <span className="appointment-booking__center-icon">
+                <FaMapMarkerAlt />
+              </span>
+              <div>
+                <h4>{center.name}</h4>
+                <p>{center.address || 'Address not provided'}</p>
+                <ul>
+                  <li>District: {center.district || 'N/A'}</li>
+                  <li>Office hours: {center.officeHours || 'N/A'}</li>
+                  <li>
+                    Booking window:{' '}
+                    {center.appointmentConfig
+                      ? `${center.appointmentConfig.minLeadDays} - ${center.appointmentConfig.maxAdvanceDays} days`
+                      : 'Not configured'}
+                  </li>
+                </ul>
               </div>
-              <p className="font-semibold text-[#1F2937]">{slot}</p>
             </button>
           ))}
         </div>
+      )}
+    </div>
+  );
+
+  const renderDateCalendar = () => (
+    <div className="appointment-booking__calendar-card">
+      <div className="appointment-booking__section-title appointment-booking__section-title--compact">
+        <div>
+          <h3>
+            <FaCalendarAlt />
+            Select Date
+          </h3>
+          <p>Unavailable dates are disabled. Weekly off days and holidays are marked clearly.</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={handleRefreshAvailability}
+          disabled={availabilityLoading}
+        >
+          {availabilityLoading ? <FaSpinner className="appointment-booking__spin" /> : <FaSyncAlt />}
+          Refresh
+        </button>
       </div>
 
-      <div className="appointment-booking-notes-section">
-        <label className="mb-2 block text-sm font-medium text-[#374151]">
-          Notes (Optional)
-        </label>
+      {availabilityLoading && !availability ? (
+        <div className="appointment-booking__inline-loader">
+          <FaSpinner className="appointment-booking__spin" />
+          Loading available dates...
+        </div>
+      ) : (
+        <div className="appointment-booking__date-grid">
+          {calendarDays.map((day) => (
+            <button
+              key={day.dateKey}
+              type="button"
+              disabled={!day.isBookable || availabilityLoading}
+              className={`appointment-booking__date-card ${selectedDate === day.dateKey ? 'is-selected' : ''} is-${day.status} ${day.isSpecialDate ? 'is-special' : ''}`}
+              title={day.reason || ''}
+              onClick={() => handleDateSelect(day)}
+            >
+              <span className="appointment-booking__date-day">{day.dayName}</span>
+              <strong>{day.dateKey.slice(8, 10)}</strong>
+              <span>{day.dateKey.slice(0, 7)}</span>
+              <em>{getDayStatusLabel(day)}</em>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!firstBookableDay && calendarDays.length > 0 && (
+        <div className="appointment-booking__warning-box">
+          <FaExclamationTriangle />
+          No available appointment date found in this booking window.
+        </div>
+      )}
+    </div>
+  );
+
+  const renderSlotPicker = () => (
+    <div className="appointment-booking__slot-card">
+      <div className="appointment-booking__section-title appointment-booking__section-title--compact">
+        <div>
+          <h3>
+            <FaClock />
+            Select Time Slot
+          </h3>
+          <p>
+            {selectedDay?.isBookable
+              ? `${formatDateKey(selectedDay.dateKey)} has ${selectedDay.remaining} appointment place left.`
+              : selectedDay?.reason || 'Please select an available date.'}
+          </p>
+        </div>
+      </div>
+
+      {!selectedDay?.isBookable ? (
+        <div className="appointment-booking__warning-box appointment-booking__warning-box--soft">
+          <FaInfoCircle />
+          Select an available date first.
+        </div>
+      ) : slots.length === 0 ? (
+        <div className="appointment-booking__warning-box">
+          <FaExclamationTriangle />
+          No slot is configured for this date.
+        </div>
+      ) : (
+        <div className="appointment-booking__slot-grid">
+          {slots.map((slot) => (
+            <button
+              key={slot.slotKey}
+              type="button"
+              disabled={!slot.isAvailable || availabilityLoading}
+              className={`appointment-booking__slot-option ${selectedSlot?.slotKey === slot.slotKey ? 'is-selected' : ''} ${!slot.isAvailable ? 'is-disabled' : ''}`}
+              onClick={() => setSelectedSlot(slot)}
+            >
+              <span>
+                <FaClock />
+                {slot.label}
+              </span>
+              <strong>{slot.remaining > 0 ? `${slot.remaining} left` : 'Full'}</strong>
+              <small>
+                Capacity {slot.capacity} / Booked {slot.bookedCount}
+              </small>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="appointment-booking__step">
+      <div className="appointment-booking__step-bar">
+        <button type="button" className="btn btn-outline btn-sm" onClick={handleBack}>
+          <FaArrowLeft />
+          Back
+        </button>
+        <div>
+          <h3>Choose Date & Time</h3>
+          <p>{selectedCenter?.name}</p>
+        </div>
+      </div>
+
+      <div className="appointment-booking__center-summary">
+        <FaMapMarkerAlt />
+        <div>
+          <strong>{selectedCenter?.name}</strong>
+          <span>{selectedCenter?.address || 'Address not provided'}</span>
+          <small>District: {selectedCenter?.district || 'N/A'}</small>
+        </div>
+      </div>
+
+      {renderDateCalendar()}
+      {renderSlotPicker()}
+
+      <div className="appointment-booking__form-group">
+        <label htmlFor="appointment-notes">Notes (Optional)</label>
         <textarea
+          id="appointment-notes"
           rows="4"
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           placeholder="Add any note for the appointment"
-          className="appointment-booking-notes-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+          className="form-textarea"
         />
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          className="appointment-booking-next-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-          onClick={handleContinueToConfirm}
-        >
-          <span>Continue</span>
+      <div className="appointment-booking__actions appointment-booking__actions--right">
+        <button type="button" className="btn btn-primary" onClick={handleContinueToConfirm}>
+          Continue
           <FaArrowRight />
         </button>
       </div>
     </div>
   );
 
-  // Step 3: final confirmation
   const renderStep3 = () => (
-    <div className="appointment-booking-step space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          className="appointment-booking-back-button inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-          onClick={handleBack}
-        >
+    <div className="appointment-booking__step">
+      <div className="appointment-booking__step-bar">
+        <button type="button" className="btn btn-outline btn-sm" onClick={handleBack}>
           <FaArrowLeft />
-          <span>Back</span>
+          Back
         </button>
-
-        <div className="text-right">
-          <h3 className="text-xl font-semibold text-[#1F2937]">
-            <span className="inline-flex items-center gap-2">
-              <FaCheckCircle className="text-[#16A34A]" />
-              Confirm Appointment
-            </span>
-          </h3>
+        <div>
+          <h3>Confirm Appointment</h3>
+          <p>Please check all information before submitting.</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#F0FDF4] text-3xl text-[#16A34A]">
+      <div className="appointment-booking__confirm-card">
+        <div className="appointment-booking__confirm-icon">
           <FaCheckCircle />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="appointment-booking__summary-grid">
           <div>
-            <p className="text-sm text-[#6B7280]">Application ID</p>
-            <p className="font-semibold text-[#1F2937]">
-              {application?.applicationId}
-            </p>
+            <span>Application ID</span>
+            <strong>{application?.applicationId}</strong>
           </div>
-
           <div>
-            <p className="text-sm text-[#6B7280]">Application Type</p>
-            <p className="font-semibold text-[#1F2937]">
-              {(application?.applicationType || 'N/A').toUpperCase()}
-            </p>
+            <span>Application Type</span>
+            <strong>{(application?.applicationType || 'N/A').toUpperCase()}</strong>
           </div>
-
           <div>
-            <p className="text-sm text-[#6B7280]">Center</p>
-            <p className="font-semibold text-[#1F2937]">{selectedCenter?.name}</p>
+            <span>Center</span>
+            <strong>{selectedCenter?.name}</strong>
           </div>
-
           <div>
-            <p className="text-sm text-[#6B7280]">District</p>
-            <p className="font-semibold text-[#1F2937]">
-              {selectedCenter?.district}
-            </p>
+            <span>District</span>
+            <strong>{selectedCenter?.district || 'N/A'}</strong>
           </div>
-
           <div>
-            <p className="text-sm text-[#6B7280]">Appointment Date</p>
-            <p className="font-semibold text-[#1F2937]">{selectedDate}</p>
+            <span>Appointment Date</span>
+            <strong>{formatDateKey(selectedDate)}</strong>
           </div>
-
           <div>
-            <p className="text-sm text-[#6B7280]">Time Slot</p>
-            <p className="font-semibold text-[#1F2937]">{selectedSlot}</p>
+            <span>Time Slot</span>
+            <strong>{selectedSlot?.label || 'N/A'}</strong>
           </div>
+          <div>
+            <span>Available Places</span>
+            <strong>{selectedSlot?.remaining || 0}</strong>
+          </div>
+          <div>
+            <span>Notes</span>
+            <strong>{notes || 'N/A'}</strong>
+          </div>
+        </div>
 
-          <div className="md:col-span-2">
-            <p className="text-sm text-[#6B7280]">Notes</p>
-            <p className="font-semibold text-[#1F2937]">{notes || 'N/A'}</p>
-          </div>
+        <div className="appointment-booking__safe-note">
+          <FaInfoCircle />
+          If another citizen books this same slot before you submit, the system will refresh availability and ask you to pick another slot.
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="appointment-booking__actions appointment-booking__actions--right">
         <button
           type="button"
-          className="appointment-booking-confirm-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn btn-primary"
           onClick={handleBookingConfirm}
           disabled={bookingLoading}
         >
           {bookingLoading ? (
             <>
-              <FaSpinner className="animate-spin" />
-              <span>Confirming...</span>
+              <FaSpinner className="appointment-booking__spin" />
+              Confirming...
             </>
           ) : (
             <>
               <FaCheckCircle />
-              <span>Confirm Appointment</span>
+              Confirm Appointment
             </>
           )}
         </button>
@@ -477,154 +576,92 @@ const AppointmentBooking = () => {
   );
 
   return (
-    <div className="appointment-booking-page appointment-booking-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
-      <div className="appointment-booking-shell mx-auto w-full max-w-[960px]">
+    <div className="appointment-booking">
+      <div className="appointment-booking__shell">
         {!appointment ? (
           <>
-            <div className="appointment-booking-header mb-8 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h1 className="mb-2 text-[1.9rem] font-bold text-[#1F2937]">
-                    Appointment Booking
-                  </h1>
-                  <p className="text-[#6B7280]">
-                    Book your biometric appointment for Smart NID processing.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-                  onClick={() => navigate('/track-application')}
-                >
-                  <FaArrowLeft />
-                  <span>Back to Applications</span>
-                </button>
+            <div className="appointment-booking__header-card">
+              <div>
+                <h1>Appointment Booking</h1>
+                <p>Book your biometric appointment for Smart NID processing.</p>
               </div>
+              <button type="button" className="btn btn-outline" onClick={() => navigate('/track-application')}>
+                <FaArrowLeft />
+                Back to Applications
+              </button>
+            </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl bg-[#F9FAFB] p-4">
-                  <p className="mb-1 text-sm text-[#6B7280]">Application</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {application.applicationId}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-[#F9FAFB] p-4">
-                  <p className="mb-1 text-sm text-[#6B7280]">Applicant</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {application.fullNameEnglish}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-[#F9FAFB] p-4">
-                  <p className="mb-1 text-sm text-[#6B7280]">Status</p>
-                  <span className={`badge badge-${getStatusColor(application.status)}`}>
-                    {formatStatus(application.status)}
-                  </span>
-                </div>
+            <div className="appointment-booking__application-card">
+              <div>
+                <FaIdCard />
+                <span>Application</span>
+                <strong>{application.applicationId}</strong>
+              </div>
+              <div>
+                <FaUsers />
+                <span>Applicant</span>
+                <strong>{application.fullNameEnglish || application.fullNameBangla || 'N/A'}</strong>
+              </div>
+              <div>
+                <FaCheckCircle />
+                <span>Status</span>
+                <strong className={`badge badge-${getStatusColor(application.status)}`}>
+                  {formatStatus(application.status)}
+                </strong>
               </div>
             </div>
 
-            <div className="appointment-booking-progress mb-8 flex items-center justify-center gap-3 overflow-x-auto px-1">
-              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${bookingStep >= 1 ? 'bg-[#16A34A] text-white' : 'bg-white text-[#6B7280]'}`}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-                  1
-                </span>
-                <span>Select Center</span>
-              </div>
-              <div className="h-[2px] w-10 bg-[#D1D5DB]" />
-              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${bookingStep >= 2 ? 'bg-[#16A34A] text-white' : 'bg-white text-[#6B7280]'}`}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-                  2
-                </span>
-                <span>Date & Time</span>
-              </div>
-              <div className="h-[2px] w-10 bg-[#D1D5DB]" />
-              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${bookingStep >= 3 ? 'bg-[#16A34A] text-white' : 'bg-white text-[#6B7280]'}`}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-                  3
-                </span>
-                <span>Confirm</span>
-              </div>
-            </div>
+            {renderProgress()}
 
-            <div className="appointment-booking-card rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-8">
+            <div className="appointment-booking__content-card">
               {bookingStep === 1 && renderStep1()}
               {bookingStep === 2 && renderStep2()}
               {bookingStep === 3 && renderStep3()}
             </div>
           </>
         ) : (
-          <div className="appointment-booking-success-card rounded-2xl bg-white p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDF4] text-4xl text-[#16A34A]">
+          <div className="appointment-booking__success-card">
+            <div className="appointment-booking__success-icon">
               <FaCheckCircle />
             </div>
+            <h1>Appointment Booked Successfully</h1>
+            <p>Your biometric appointment has been scheduled. Please arrive on time with required documents.</p>
 
-            <h2 className="mb-2 text-3xl font-bold text-[#1F2937]">
-              Appointment Confirmed!
-            </h2>
-            <p className="mb-8 text-[#6B7280]">
-              Your biometric appointment has been booked successfully.
-            </p>
-
-            <div className="mx-auto mb-8 max-w-[640px] rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 text-left">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-[#6B7280]">Application</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {appointment?.application?.applicationId || application?.applicationId}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-[#6B7280]">Appointment Date</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {formatDate(appointment?.appointmentDate)}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-[#6B7280]">Time Slot</p>
-                  <p className="font-semibold text-[#1F2937]">{appointment?.timeSlot}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-[#6B7280]">Center</p>
-                  <p className="font-semibold text-[#1F2937]">{appointment?.centerName}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-[#6B7280]">District</p>
-                  <p className="font-semibold text-[#1F2937]">
-                    {appointment?.centerDistrict || 'N/A'}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-[#6B7280]">Status</p>
-                  <span className={`badge badge-${getStatusColor(appointment?.status || 'booked')}`}>
-                    {formatStatus(appointment?.status || 'booked')}
-                  </span>
-                </div>
+            <div className="appointment-booking__summary-grid">
+              <div>
+                <span>Application ID</span>
+                <strong>{application?.applicationId}</strong>
+              </div>
+              <div>
+                <span>Center</span>
+                <strong>{appointment.centerName || selectedCenter?.name}</strong>
+              </div>
+              <div>
+                <span>Date</span>
+                <strong>{formatDateKey(appointment.appointmentDateKey)}</strong>
+              </div>
+              <div>
+                <span>Time Slot</span>
+                <strong>{appointment.timeSlot}</strong>
+              </div>
+              <div>
+                <span>Serial</span>
+                <strong>#{appointment.slotSerial}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong className={`badge badge-${getStatusColor(appointment.status)}`}>
+                  {formatStatus(appointment.status)}
+                </strong>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                className="inline-flex items-center rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-                onClick={() => window.print()}
-              >
-                Print
+            <div className="appointment-booking__actions">
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/track-application')}>
+                Track Application
               </button>
-
-              <button
-                type="button"
-                className="inline-flex items-center rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-                onClick={() => navigate('/dashboard')}
-              >
-                Go to Dashboard
+              <button type="button" className="btn btn-outline" onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
               </button>
             </div>
           </div>
