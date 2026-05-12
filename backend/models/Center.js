@@ -27,16 +27,15 @@ const centerSchema = new mongoose.Schema(
     },
     dailyCapacity: {
       type: Number,
-      default: 100
+      min: [1, 'Daily capacity must be at least 1']
+      // Legacy field only. Appointment capacity now comes from AppointmentConfig.
     },
     isActive: {
       type: Boolean,
       default: true
     }
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
 module.exports =
