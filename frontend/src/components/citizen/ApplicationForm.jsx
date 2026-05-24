@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import {
-  FaUser,
   FaIdCard,
   FaCamera,
   FaSignature,
@@ -16,16 +16,76 @@ import {
   FaPhone,
   FaEnvelope,
   FaCalendar,
-  FaVenusMars
+  FaVenusMars,
+  FaQrcode,
+  FaMobileAlt,
+  FaTimes,
+  FaLaptop
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { bangladeshLocations } from '../utils/helpers';
 import api from '../api/axios';
+import LivenessVerificationModal from './LivenessVerificationModal';
 import {
   uploadCitizenApplicationDocument,
   getCitizenDocumentLabel
 } from '../../services/applicationDocumentService';
 import '../styles/ApplicationForm.css';
+
+const FACE_FAILURE_MESSAGE =
+  'Face verification failed. Please upload a recent passport-size photo and try again.';
+
+const BIOMETRIC_ERROR_MESSAGES = {
+  BIOMETRIC_TOO_MANY_ATTEMPTS:
+    'Too many face verification attempts. Please restart verification and try again.',
+  BIOMETRIC_TOO_MANY_QR_OPENS:
+    'This face verification link has been opened too many times. Please restart verification.',
+  BIOMETRIC_SESSION_EXPIRED:
+    'Face verification session expired. Please try again.',
+  BIOMETRIC_VERIFICATION_IN_PROGRESS:
+    'Face verification is already in progress. Please wait and try again.',
+  BIOMETRIC_CHALLENGE_SEQUENCE_INVALID:
+    'Challenge sequence is invalid. Please restart verification.',
+  FACE_VERIFICATION_QUALITY_FAILED:
+    'Face verification failed. Please ensure your face is clear and try again.',
+  FACE_MATCH_FAILED: FACE_FAILURE_MESSAGE,
+  LIVENESS_FAILED:
+    'Face verification failed. Please ensure your face is clear and try again.',
+  MODEL_FILE_MISSING:
+    'Face verification service is not ready. Please try again later.',
+  FACE_VERIFICATION_SERVICE_UNAVAILABLE:
+    'Face verification service is not ready. Please try again later.'
+};
+
+const APPLICATION_ERROR_MESSAGES = {
+  APPLICATION_BIOMETRIC_SESSION_REQUIRED:
+    'Face verification is required before application submission.',
+  APPLICATION_BIOMETRIC_SESSION_NOT_FOUND:
+    'Face verification session was not found. Please restart verification.',
+  APPLICATION_BIOMETRIC_SESSION_NOT_PASSED:
+    'Application can be submitted only after face verification passes.',
+  APPLICATION_BIOMETRIC_SESSION_EXPIRED:
+    'Face verification session expired. Please restart verification.',
+  APPLICATION_BIOMETRIC_SESSION_ALREADY_USED:
+    'Face verification session has already been used. Please restart verification.',
+  APPLICATION_BIOMETRIC_OWNER_MISMATCH:
+    'Face verification session does not belong to this citizen.',
+  APPLICATION_VALIDATION_FAILED:
+    'Application validation failed. Please review the form and try again.'
+};
+
+const getBiometricErrorMessage = (error) => {
+  const code = error?.response?.data?.code;
+
+  return (
+    BIOMETRIC_ERROR_MESSAGES[code] ||
+    APPLICATION_ERROR_MESSAGES[code] ||
+    error?.response?.data?.message ||
+    error?.response?.data?.errors?.[0]?.msg ||
+    error?.message ||
+    'Failed to create application'
+  );
+};
 
 const ApplicationForm = () => {
   const { user } = useAuth();
@@ -45,9 +105,25 @@ const ApplicationForm = () => {
     birthCertificate: null
   });
 
+  const [hasIssuedNid, setHasIssuedNid] = useState(false);
+  const [isNidEligibilityLoading, setIsNidEligibilityLoading] = useState(true);
+
+  const [livenessSession, setLivenessSession] = useState(null);
+  const [qrSession, setQrSession] = useState(null);
+  const [qrStatus, setQrStatus] = useState('pending');
+  const [qrErrorMessage, setQrErrorMessage] = useState('');
+  const [verificationMethodChoiceOpen, setVerificationMethodChoiceOpen] =
+    useState(false);
+
   const photoInputRef = useRef(null);
   const signatureInputRef = useRef(null);
   const birthCertInputRef = useRef(null);
+
+  const livenessResolverRef = useRef(null);
+  const qrResolverRef = useRef(null);
+  const verificationMethodResolverRef = useRef(null);
+  const qrPollTimeoutRef = useRef(null);
+  const submitInProgressRef = useRef(false);
 
   const {
     register,
@@ -97,6 +173,72 @@ const ApplicationForm = () => {
   });
 
   const applicationType = watch('applicationType');
+  const canUseCorrectionServices = hasIssuedNid;
+  const isCorrectionServiceLocked = !canUseCorrectionServices;
+  const isIdentityLocked = ['new', 'correction', 'reissue'].includes(applicationType);
+
+  const blockLockedSelect = (event) => {
+    if (!isIdentityLocked) return;
+    event.preventDefault();
+  };
+
+  const handleLockedApplicationTypeClick = (event) => {
+    if (!isCorrectionServiceLocked) return;
+
+    event.preventDefault();
+    setValue('applicationType', 'new', { shouldValidate: true });
+    toast.info('Correction/Reissue will unlock after your New NID is approved or issued.');
+  };
+
+  useEffect(() => {
+    const loadNidEligibility = async () => {
+      setIsNidEligibilityLoading(true);
+
+      try {
+        const response = await api.get('/applications/my');
+        const applications = Array.isArray(response?.data?.applications)
+          ? response.data.applications
+          : [];
+
+        const issuedStatuses = ['approved', 'printed', 'dispatched', 'delivered'];
+
+        const hasEligibleNid = applications.some((application) => {
+          const applicationTypeValue = String(application?.applicationType || '').toLowerCase();
+          const applicationStatus = String(application?.status || '').toLowerCase();
+
+          return (
+            applicationTypeValue === 'new' &&
+            issuedStatuses.includes(applicationStatus)
+          );
+        });
+
+        setHasIssuedNid(hasEligibleNid);
+
+        if (!hasEligibleNid) {
+          setValue('applicationType', 'new', { shouldValidate: true });
+        }
+      } catch (error) {
+        console.error('Failed to check NID correction eligibility:', error);
+        setHasIssuedNid(false);
+        setValue('applicationType', 'new', { shouldValidate: true });
+      } finally {
+        setIsNidEligibilityLoading(false);
+      }
+    };
+
+    if (user) {
+      loadNidEligibility();
+    } else {
+      setHasIssuedNid(false);
+      setIsNidEligibilityLoading(false);
+    }
+  }, [user, setValue]);
+
+  useEffect(() => {
+    if (isCorrectionServiceLocked && ['correction', 'reissue'].includes(applicationType)) {
+      setValue('applicationType', 'new', { shouldValidate: true });
+    }
+  }, [applicationType, isCorrectionServiceLocked, setValue]);
 
   useEffect(() => {
     const loadPrefillData = async () => {
@@ -112,70 +254,25 @@ const ApplicationForm = () => {
         setValue('motherName', prefill.motherName || '');
         setValue('dateOfBirth', prefill.dateOfBirth || '');
         setValue('gender', prefill.gender || '');
-        setValue(
-          'birthRegistrationNumber',
-          prefill.birthRegistrationNumber || ''
-        );
+        setValue('birthRegistrationNumber', prefill.birthRegistrationNumber || '');
         setValue('phone', prefill.phone || '');
         setValue('email', prefill.email || '');
 
-        setValue(
-          'presentAddress.division',
-          prefill.presentAddress?.division || ''
-        );
-        setValue(
-          'presentAddress.district',
-          prefill.presentAddress?.district || ''
-        );
-        setValue(
-          'presentAddress.upazila',
-          prefill.presentAddress?.upazila || ''
-        );
-        setValue(
-          'presentAddress.unionOrWard',
-          prefill.presentAddress?.unionOrWard || ''
-        );
-        setValue(
-          'presentAddress.villageOrArea',
-          prefill.presentAddress?.villageOrArea || ''
-        );
-        setValue(
-          'presentAddress.postOffice',
-          prefill.presentAddress?.postOffice || ''
-        );
-        setValue(
-          'presentAddress.postalCode',
-          prefill.presentAddress?.postalCode || ''
-        );
+        setValue('presentAddress.division', prefill.presentAddress?.division || '');
+        setValue('presentAddress.district', prefill.presentAddress?.district || '');
+        setValue('presentAddress.upazila', prefill.presentAddress?.upazila || '');
+        setValue('presentAddress.unionOrWard', prefill.presentAddress?.unionOrWard || '');
+        setValue('presentAddress.villageOrArea', prefill.presentAddress?.villageOrArea || '');
+        setValue('presentAddress.postOffice', prefill.presentAddress?.postOffice || '');
+        setValue('presentAddress.postalCode', prefill.presentAddress?.postalCode || '');
 
-        setValue(
-          'permanentAddress.division',
-          prefill.permanentAddress?.division || ''
-        );
-        setValue(
-          'permanentAddress.district',
-          prefill.permanentAddress?.district || ''
-        );
-        setValue(
-          'permanentAddress.upazila',
-          prefill.permanentAddress?.upazila || ''
-        );
-        setValue(
-          'permanentAddress.unionOrWard',
-          prefill.permanentAddress?.unionOrWard || ''
-        );
-        setValue(
-          'permanentAddress.villageOrArea',
-          prefill.permanentAddress?.villageOrArea || ''
-        );
-        setValue(
-          'permanentAddress.postOffice',
-          prefill.permanentAddress?.postOffice || ''
-        );
-        setValue(
-          'permanentAddress.postalCode',
-          prefill.permanentAddress?.postalCode || ''
-        );
+        setValue('permanentAddress.division', prefill.permanentAddress?.division || '');
+        setValue('permanentAddress.district', prefill.permanentAddress?.district || '');
+        setValue('permanentAddress.upazila', prefill.permanentAddress?.upazila || '');
+        setValue('permanentAddress.unionOrWard', prefill.permanentAddress?.unionOrWard || '');
+        setValue('permanentAddress.villageOrArea', prefill.permanentAddress?.villageOrArea || '');
+        setValue('permanentAddress.postOffice', prefill.permanentAddress?.postOffice || '');
+        setValue('permanentAddress.postalCode', prefill.permanentAddress?.postalCode || '');
 
         setSelectedPresentDivision(prefill.presentAddress?.division || '');
         setSelectedPermanentDivision(prefill.permanentAddress?.division || '');
@@ -188,6 +285,24 @@ const ApplicationForm = () => {
       loadPrefillData();
     }
   }, [user, setValue]);
+
+  useEffect(() => {
+    return () => {
+      if (qrPollTimeoutRef.current) {
+        clearTimeout(qrPollTimeoutRef.current);
+      }
+
+      livenessResolverRef.current?.reject?.(
+        new Error('Face verification was interrupted')
+      );
+      qrResolverRef.current?.reject?.(
+        new Error('Face verification was interrupted')
+      );
+      verificationMethodResolverRef.current?.reject?.(
+        new Error('Face verification was interrupted')
+      );
+    };
+  }, []);
 
   const getInputClass = (hasError = false) =>
     `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
@@ -208,7 +323,7 @@ const ApplicationForm = () => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Photo size must be less than 2MB');
+      toast.error('Passport-size photo must be less than 2MB');
       return;
     }
 
@@ -318,6 +433,177 @@ const ApplicationForm = () => {
     }
   };
 
+  const isMobileDevice = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const userAgent = window.navigator?.userAgent || '';
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+
+    return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(userAgent) || coarsePointer;
+  };
+
+  const hasCameraCapability = () =>
+    Boolean(navigator.mediaDevices?.getUserMedia);
+
+  const isCameraSecureContext = () =>
+    window.isSecureContext ||
+    ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  const createBiometricSession = async (deviceType, qrFlow = false) => {
+    const formData = new FormData();
+    formData.append('passport_photo', selectedFiles.photograph);
+    formData.append('deviceType', deviceType);
+    formData.append('qrFlow', String(qrFlow));
+
+    if (import.meta.env.VITE_LIVENESS_MOBILE_BASE_URL) {
+      formData.append(
+        'mobileBaseUrl',
+        import.meta.env.VITE_LIVENESS_MOBILE_BASE_URL
+      );
+    }
+
+    const response = await api.post('/biometric/sessions', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    return response?.data;
+  };
+
+  const waitForVerificationMethodChoice = () =>
+    new Promise((resolve, reject) => {
+      verificationMethodResolverRef.current = { resolve, reject };
+      setVerificationMethodChoiceOpen(true);
+    });
+
+  const chooseVerificationMethod = (method) => {
+    const resolver = verificationMethodResolverRef.current;
+    verificationMethodResolverRef.current = null;
+    setVerificationMethodChoiceOpen(false);
+    resolver?.resolve?.(method);
+  };
+
+  const cancelVerificationMethodChoice = () => {
+    const resolver = verificationMethodResolverRef.current;
+    verificationMethodResolverRef.current = null;
+    setVerificationMethodChoiceOpen(false);
+    resolver?.reject?.(new Error('Face verification was cancelled'));
+  };
+
+  const waitForMobileLiveness = (session, options = {}) =>
+    new Promise((resolve, reject) => {
+      livenessResolverRef.current = { resolve, reject };
+      setLivenessSession({
+        ...session,
+        allowQrFallback: Boolean(options.allowQrFallback)
+      });
+    });
+
+  const switchDesktopLivenessToQr = () => {
+    const resolver = livenessResolverRef.current;
+    livenessResolverRef.current = null;
+    setLivenessSession(null);
+    resolver?.resolve?.('switch_to_qr');
+  };
+
+  const handleLivenessVerified = () => {
+    const resolver = livenessResolverRef.current;
+    livenessResolverRef.current = null;
+    setLivenessSession(null);
+    resolver?.resolve?.();
+  };
+
+  const handleLivenessFailed = (message) => {
+    const resolver = livenessResolverRef.current;
+    livenessResolverRef.current = null;
+    setLivenessSession(null);
+    resolver?.reject?.(new Error(message || FACE_FAILURE_MESSAGE));
+  };
+
+  const handleLivenessCancelled = () => {
+    const resolver = livenessResolverRef.current;
+    livenessResolverRef.current = null;
+    setLivenessSession(null);
+    resolver?.reject?.(new Error('Face verification was cancelled'));
+  };
+
+  const clearQrPolling = () => {
+    if (qrPollTimeoutRef.current) {
+      clearTimeout(qrPollTimeoutRef.current);
+      qrPollTimeoutRef.current = null;
+    }
+  };
+
+  const waitForDesktopQr = (session) =>
+    new Promise((resolve, reject) => {
+      setQrSession(session);
+      setQrStatus('pending');
+      setQrErrorMessage('');
+      qrResolverRef.current = { resolve, reject };
+
+      const pollStatus = async () => {
+        try {
+          const response = await api.get(
+            `/biometric/sessions/${session.sessionId}/status`
+          );
+          const responseData = response?.data || {};
+          const nextStatus = responseData.status || 'pending';
+
+          setQrStatus(nextStatus);
+
+          if (nextStatus === 'passed') {
+            clearQrPolling();
+            const resolver = qrResolverRef.current;
+            qrResolverRef.current = null;
+            setQrSession(null);
+            resolver?.resolve?.();
+            return;
+          }
+
+          if (['failed', 'expired', 'used'].includes(nextStatus)) {
+            clearQrPolling();
+            const resolver = qrResolverRef.current;
+            qrResolverRef.current = null;
+            setQrSession(null);
+            resolver?.reject?.(
+              new Error(
+                responseData.message ||
+                  BIOMETRIC_ERROR_MESSAGES[responseData.code] ||
+                  (nextStatus === 'failed'
+                    ? FACE_FAILURE_MESSAGE
+                    : 'Face verification session expired. Please try again.')
+              )
+            );
+            return;
+          }
+
+          qrPollTimeoutRef.current = setTimeout(pollStatus, 3000);
+        } catch (error) {
+          clearQrPolling();
+          const resolver = qrResolverRef.current;
+          qrResolverRef.current = null;
+          setQrSession(null);
+          setQrErrorMessage(
+            error?.response?.data?.message || 'Could not check face verification status.'
+          );
+          resolver?.reject?.(error);
+        }
+      };
+
+      qrPollTimeoutRef.current = setTimeout(pollStatus, 2000);
+    });
+
+  const cancelQrVerification = () => {
+    clearQrPolling();
+    const resolver = qrResolverRef.current;
+    qrResolverRef.current = null;
+    setQrSession(null);
+    resolver?.reject?.(new Error('Face verification was cancelled'));
+  };
+
   const uploadSelectedDocuments = async (applicationObjectId) => {
     const uploadQueue = [
       {
@@ -359,8 +645,19 @@ const ApplicationForm = () => {
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const onSubmit = async (data) => {
+    if (submitInProgressRef.current) {
+      return;
+    }
+
+    if (isCorrectionServiceLocked && ['correction', 'reissue'].includes(data.applicationType)) {
+      toast.error('Please complete and receive your New NID before requesting Correction or Reissue.');
+      setValue('applicationType', 'new', { shouldValidate: true });
+      setCurrentStep(1);
+      return;
+    }
+
     if (!selectedFiles.photograph || !photoPreview) {
-      toast.error('Please upload your photograph');
+      toast.error('Please upload your passport-size photo');
       setCurrentStep(3);
       return;
     }
@@ -371,7 +668,11 @@ const ApplicationForm = () => {
       return;
     }
 
+    submitInProgressRef.current = true;
     setIsSubmitting(true);
+
+    let finalBiometricSessionId = '';
+    let finalApplicationSubmitCalled = false;
 
     try {
       const presentAddressPayload = {
@@ -426,6 +727,50 @@ const ApplicationForm = () => {
         }
       };
 
+      const deviceType = isMobileDevice() ? 'mobile' : 'desktop';
+      const verificationMethod =
+        deviceType === 'mobile' ? 'camera' : await waitForVerificationMethodChoice();
+
+      let biometricSession = await createBiometricSession(
+        deviceType,
+        verificationMethod === 'qr'
+      );
+
+      if (!biometricSession?.sessionId) {
+        throw new Error('Could not create face verification session');
+      }
+
+      if (deviceType === 'mobile') {
+        await waitForMobileLiveness(biometricSession);
+      } else if (verificationMethod === 'camera') {
+        const cameraResult = await waitForMobileLiveness(biometricSession, {
+          allowQrFallback: true
+        });
+
+        if (cameraResult === 'switch_to_qr') {
+          biometricSession = await createBiometricSession(deviceType, true);
+
+          if (!biometricSession?.sessionId) {
+            throw new Error('Could not create face verification session');
+          }
+
+          await waitForDesktopQr(biometricSession);
+        }
+      } else {
+        await waitForDesktopQr(biometricSession);
+      }
+
+      payload.biometricSessionId = biometricSession.sessionId;
+      finalBiometricSessionId = biometricSession.sessionId;
+
+      finalApplicationSubmitCalled = true;
+
+      if (import.meta.env.DEV) {
+        console.info('Final application submit started:', {
+          biometricSessionIdExists: Boolean(payload.biometricSessionId)
+        });
+      }
+
       const response = await api.post('/applications', payload);
       const createdApplication = response?.data?.application;
       const createdApplicationId = createdApplication?._id;
@@ -448,13 +793,19 @@ const ApplicationForm = () => {
 
       navigate(`/track-application?id=${createdApplicationId}`);
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          error?.message ||
-          'Failed to create application'
-      );
+      if (import.meta.env.DEV) {
+        console.warn('Application form submit failed:', {
+          httpStatus: error?.response?.status || null,
+          backendCode: error?.response?.data?.code || '',
+          backendMessage: error?.response?.data?.message || error?.message || '',
+          biometricSessionIdExists: Boolean(finalBiometricSessionId),
+          finalApplicationSubmitCalled
+        });
+      }
+
+      toast.error(getBiometricErrorMessage(error));
     } finally {
+      submitInProgressRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -537,37 +888,62 @@ const ApplicationForm = () => {
                 <label
                   className={`type-card ${
                     applicationType === 'correction' ? 'selected' : ''
-                  }`}
+                  } ${isCorrectionServiceLocked ? 'locked-type' : ''}`}
+                  onClick={isCorrectionServiceLocked ? handleLockedApplicationTypeClick : undefined}
+                  aria-disabled={isCorrectionServiceLocked}
                 >
                   <input
                     type="radio"
                     value="correction"
+                    disabled={isCorrectionServiceLocked}
                     {...register('applicationType')}
                   />
                   <div className="type-content">
+                    <span className="type-lock-badge">Locked</span>
                     <div className="type-icon correction-icon">
                       <FaIdCard />
                     </div>
                     <h4>Correction</h4>
                     <p>Correct existing NID information</p>
+                    {isCorrectionServiceLocked && (
+                      <small>Available after New NID approval</small>
+                    )}
                   </div>
                 </label>
 
                 <label
                   className={`type-card ${
                     applicationType === 'reissue' ? 'selected' : ''
-                  }`}
+                  } ${isCorrectionServiceLocked ? 'locked-type' : ''}`}
+                  onClick={isCorrectionServiceLocked ? handleLockedApplicationTypeClick : undefined}
+                  aria-disabled={isCorrectionServiceLocked}
                 >
-                  <input type="radio" value="reissue" {...register('applicationType')} />
+                  <input
+                    type="radio"
+                    value="reissue"
+                    disabled={isCorrectionServiceLocked}
+                    {...register('applicationType')}
+                  />
                   <div className="type-content">
+                    <span className="type-lock-badge">Locked</span>
                     <div className="type-icon renewal-icon">
                       <FaIdCard />
                     </div>
                     <h4>Reissue</h4>
                     <p>Reissue lost or damaged NID</p>
+                    {isCorrectionServiceLocked && (
+                      <small>Available after New NID approval</small>
+                    )}
                   </div>
                 </label>
               </div>
+
+              {isCorrectionServiceLocked && !isNidEligibilityLoading && (
+                <div className="application-type-lock-note" role="note">
+                  Correction and Reissue are locked now. They will become selectable
+                  after your New NID application is approved or issued.
+                </div>
+              )}
 
               <div className="info-section">
                 <h3>Applicant Information</h3>
@@ -577,9 +953,10 @@ const ApplicationForm = () => {
                     <label className="form-label">Full Name (English) *</label>
                     <input
                       type="text"
-                      readOnly={applicationType === 'new'}
+                      readOnly={isIdentityLocked}
+                      aria-readonly={isIdentityLocked}
                       className={`input-field ${
-                        applicationType === 'new' ? 'locked-input' : ''
+                        isIdentityLocked ? 'locked-input' : ''
                       }`}
                       placeholder="Enter full name in English"
                       {...register('fullNameEnglish', {
@@ -595,9 +972,10 @@ const ApplicationForm = () => {
                     <label className="form-label">Full Name (বাংলা)</label>
                     <input
                       type="text"
-                      readOnly={applicationType === 'new'}
+                      readOnly={isIdentityLocked}
+                      aria-readonly={isIdentityLocked}
                       className={`input-field ${
-                        applicationType === 'new' ? 'locked-input' : ''
+                        isIdentityLocked ? 'locked-input' : ''
                       }`}
                       placeholder="পূর্ণ নাম লিখুন"
                       {...register('fullNameBangla')}
@@ -615,9 +993,10 @@ const ApplicationForm = () => {
                     </label>
                     <input
                       type="date"
-                      readOnly={applicationType === 'new'}
+                      readOnly={isIdentityLocked}
+                      aria-readonly={isIdentityLocked}
                       className={`input-field ${
-                        applicationType === 'new' ? 'locked-input' : ''
+                        isIdentityLocked ? 'locked-input' : ''
                       }`}
                       {...register('dateOfBirth', {
                         required: 'Date of birth is required'
@@ -636,10 +1015,14 @@ const ApplicationForm = () => {
                       </span>
                     </label>
                     <select
-                      disabled={applicationType === 'new'}
+                      aria-disabled={isIdentityLocked}
+                      tabIndex={isIdentityLocked ? -1 : 0}
                       className={`input-field ${
-                        applicationType === 'new' ? 'locked-input' : ''
+                        isIdentityLocked ? 'locked-input' : ''
                       }`}
+                      onMouseDown={blockLockedSelect}
+                      onTouchStart={blockLockedSelect}
+                      onKeyDown={blockLockedSelect}
                       {...register('gender', {
                         required: 'Gender is required'
                       })}
@@ -660,9 +1043,10 @@ const ApplicationForm = () => {
                     <label className="form-label">Birth Registration Number</label>
                     <input
                       type="text"
-                      readOnly={applicationType === 'new'}
+                      readOnly={isIdentityLocked}
+                      aria-readonly={isIdentityLocked}
                       className={`input-field ${
-                        applicationType === 'new' ? 'locked-input' : ''
+                        isIdentityLocked ? 'locked-input' : ''
                       }`}
                       placeholder="17 digit birth registration number"
                       {...register('birthRegistrationNumber', {
@@ -824,7 +1208,10 @@ const ApplicationForm = () => {
                       {...register('presentAddress.division', {
                         required: 'Present address division is required'
                       })}
-                      onChange={(e) => setSelectedPresentDivision(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedPresentDivision(e.target.value);
+                        setValue('presentAddress.district', '');
+                      }}
                     >
                       <option value="">Select division</option>
                       {bangladeshLocations.divisions.map((division) => (
@@ -954,7 +1341,10 @@ const ApplicationForm = () => {
                             ? 'Permanent address division is required'
                             : false
                         })}
-                        onChange={(e) => setSelectedPermanentDivision(e.target.value)}
+                        onChange={(e) => {
+                          setSelectedPermanentDivision(e.target.value);
+                          setValue('permanentAddress.district', '');
+                        }}
                       >
                         <option value="">Select division</option>
                         {bangladeshLocations.divisions.map((division) => (
@@ -1180,8 +1570,8 @@ const ApplicationForm = () => {
                   <div className="upload-header">
                     <FaCamera className="upload-icon" />
                     <div>
-                      <h4>Photograph *</h4>
-                      <p>Recent passport size photo with white background</p>
+                      <h4>Passport-size photo *</h4>
+                      <p>Recent passport-size photo with white background</p>
                     </div>
                   </div>
 
@@ -1206,7 +1596,7 @@ const ApplicationForm = () => {
                     ) : (
                       <div className="upload-placeholder">
                         <FaUpload />
-                        <span>Click to upload photo</span>
+                        <span>Click to upload passport-size photo</span>
                         <small>JPG, PNG (Max 2MB)</small>
                       </div>
                     )}
@@ -1322,7 +1712,8 @@ const ApplicationForm = () => {
                   <FaExclamationTriangle /> Important Note
                 </h4>
                 <ul>
-                  <li>Photo and signature preview will work normally</li>
+                  <li>Passport-size photo and signature preview will work normally</li>
+                  <li>Face verification will start when you submit the application</li>
                   <li>Required documents will be uploaded after the application is created</li>
                   <li>If any document upload fails after submission, the application will still be created and you can contact support</li>
                 </ul>
@@ -1432,7 +1823,7 @@ const ApplicationForm = () => {
                   <h4>Uploaded Documents</h4>
                   <div className="documents-preview">
                     <div className="doc-item">
-                      <span>Photograph</span>
+                      <span>Passport-size photo</span>
                       {photoPreview ? (
                         <img src={photoPreview} alt="Photo" className="doc-thumb" />
                       ) : (
@@ -1506,6 +1897,123 @@ const ApplicationForm = () => {
             </div>
           )}
         </form>
+
+        {livenessSession && (
+          <LivenessVerificationModal
+            session={livenessSession}
+            onVerified={handleLivenessVerified}
+            onFailed={handleLivenessFailed}
+            onCancel={handleLivenessCancelled}
+            onSwitchToQr={switchDesktopLivenessToQr}
+            allowQrFallback={livenessSession.allowQrFallback}
+          />
+        )}
+
+        {verificationMethodChoiceOpen && (
+          <div className="biometric-method-overlay">
+            <div className="biometric-method-panel">
+              <div className="biometric-method-header">
+                <div>
+                  <h2>Choose face verification method</h2>
+                  <p>
+                    Use this device camera or scan the QR code with your mobile phone to complete face verification.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="biometric-qr-close"
+                  onClick={cancelVerificationMethodChoice}
+                  aria-label="Close verification method selection"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              {!hasCameraCapability() || !isCameraSecureContext() ? (
+                <div className="biometric-method-warning">
+                  {!isCameraSecureContext()
+                    ? 'Camera access requires HTTPS. Please use the secure testing link or scan the QR code with your mobile.'
+                    : 'Camera permission is required for liveness verification. Please allow camera access and try again.'}
+                </div>
+              ) : null}
+
+              <div className="biometric-method-actions">
+                {hasCameraCapability() && isCameraSecureContext() ? (
+                  <button
+                    type="button"
+                    className="biometric-method-button primary"
+                    onClick={() => chooseVerificationMethod('camera')}
+                  >
+                    <FaLaptop />
+                    <span>Use this device camera</span>
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="biometric-method-button"
+                  onClick={() => chooseVerificationMethod('qr')}
+                >
+                  <FaQrcode />
+                  <span>Scan QR with mobile</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {qrSession && (
+          <div className="biometric-qr-overlay">
+            <div className="biometric-qr-panel">
+              <div className="biometric-qr-header">
+                <div>
+                  <h2>
+                    <FaQrcode /> Scan for face verification
+                  </h2>
+                  <p>
+                    Open this secure QR code on a mobile phone to complete the
+                    face verification and live captured frame check.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="biometric-qr-close"
+                  onClick={cancelQrVerification}
+                  aria-label="Close QR verification"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="biometric-qr-code">
+                <QRCodeSVG
+                  value={qrSession.qrPayload || qrSession.mobileUrl}
+                  size={220}
+                  level="M"
+                  includeMargin
+                />
+              </div>
+
+              <div className="biometric-qr-status">
+                {qrStatus === 'pending' ? (
+                  <>
+                    <FaMobileAlt />
+                    Waiting for face verification on mobile...
+                  </>
+                ) : (
+                  <>
+                    <FaSpinner className="spinner" />
+                    Checking face verification status...
+                  </>
+                )}
+              </div>
+
+              {qrErrorMessage && (
+                <div className="biometric-qr-error">{qrErrorMessage}</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

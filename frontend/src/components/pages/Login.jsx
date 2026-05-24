@@ -2,7 +2,18 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaUser, FaLock, FaEye, FaEyeSlash, FaSpinner } from 'react-icons/fa';
+import {
+  FaUser,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+  FaSpinner,
+  FaShieldAlt,
+  FaCheckCircle,
+  FaKey,
+  FaSignInAlt,
+  FaUserPlus
+} from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Login.css';
 
@@ -22,65 +33,69 @@ const Login = () => {
     formState: { errors }
   } = useForm();
 
-const onSubmit = async (data) => {
-  setIsLoading(true);
+  const onSubmit = async (data) => {
+    setIsLoading(true);
 
-  try {
-    const result = await login(data.email, data.password);
+    try {
+      const result = await login(data.email, data.password);
 
-    const isInternalUser = ['admin', 'system_supervisor', 'support_staff'].includes(
-      result?.user?.role
-    );
+      const isInternalUser = ['admin', 'system_supervisor', 'support_staff'].includes(
+        result?.user?.role
+      );
 
-    toast.success('Login successful!');
-    navigate(isInternalUser ? '/admin/dashboard' : from, { replace: true });
-  } catch (error) {
-    toast.error(error.message || 'Login failed. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+      toast.success('Login successful!');
+      navigate(isInternalUser ? '/admin/dashboard' : from, { replace: true });
+    } catch (error) {
+      toast.error('Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="login-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8 flex items-center justify-center">
-      <div className="login-container w-full max-w-[480px]">
-        <div className="login-card-panel rounded-2xl bg-white p-8 sm:p-10 shadow-[0_10px_40px_rgba(0,0,0,0.1)]">
-          {/* Header */}
-          <div className="login-header-block mb-8 text-center">
-            <div className="login-logo-wrap mb-4 flex justify-center">
+    <div className="login-page-wrapper">
+      <div className="login-bg-orb login-bg-orb-one" aria-hidden="true" />
+      <div className="login-bg-orb login-bg-orb-two" aria-hidden="true" />
+
+      <div className="login-container">
+        <div className="login-card-panel">
+          <div className="login-header-block">
+            <Link to="/" className="login-logo-wrap" aria-label="Smart NID home">
               <img
-                src="https://i.ibb.co.com/99gnCXfN/logo.png"
-                alt="Logo"
-                className="login-brand-logo h-[60px] w-auto object-contain"
+                src="../../../public/logo/logo.webp"
+                alt="Smart NID Card Management System"
+                className="login-brand-logo"
+                width="280"
+                height="72"
+                loading="eager"
+                decoding="async"
               />
+            </Link>
+
+            <div className="login-secure-badge">
+              <FaShieldAlt />
+              <span>Secure citizen access</span>
             </div>
 
-            <h1 className="login-title-text mb-2 text-[1.75rem] font-bold text-[#1F2937]">
-              Welcome Back
-            </h1>
+            <h1 className="login-title-text">Welcome Back</h1>
 
-            <p className="login-subtitle-text text-[0.95rem] text-[#6B7280]">
-              Login to your Smart NID account
+            <p className="login-subtitle-text">
+              Login to continue your Smart NID service.
             </p>
           </div>
 
-          {/* Form */}
-          <form
-            className="login-form-wrapper space-y-5"
-            onSubmit={handleSubmit(onSubmit)}
-          >
-            {/* Email Address */}
+          <form className="login-form-wrapper" onSubmit={handleSubmit(onSubmit)}>
             <div className="login-form-group">
-              <label className="login-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                <FaUser className="login-label-icon text-[#16A34A]" />
+              <label className="login-form-label" htmlFor="login-email">
+                <FaUser className="login-label-icon" />
                 <span>Email Address</span>
               </label>
 
               <input
+                id="login-email"
                 type="email"
                 placeholder="Enter your email address"
-                className={`login-form-input form-input ${errors.email ? 'error' : ''
-                  } w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10`}
+                className={`login-form-input ${errors.email ? 'error' : ''}`}
                 {...register('email', {
                   required: 'Email is required',
                   pattern: {
@@ -88,96 +103,98 @@ const onSubmit = async (data) => {
                     message: 'Enter a valid email address'
                   }
                 })}
-                autoFocus />
+                autoComplete="email"
+                autoFocus
+              />
 
               {errors.email && (
-                <span className="login-form-error form-error mt-2 block text-sm text-red-600">
+                <span className="login-form-error">
                   {errors.email.message}
                 </span>
               )}
             </div>
 
-            {/* Password */}
             <div className="login-form-group">
-              <label className="login-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                <FaLock className="login-label-icon text-[#16A34A]" />
+              <label className="login-form-label" htmlFor="login-password">
+                <FaLock className="login-label-icon" />
                 <span>Password</span>
               </label>
 
-              <div className="login-password-field password-input-wrapper relative">
+              <div className="login-password-field">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  className={`login-form-input login-password-input form-input ${errors.password ? 'error' : ''
-                    } w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 pr-12 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10`}
+                  className={`login-form-input login-password-input ${errors.password ? 'error' : ''}`}
                   {...register('password', {
                     required: 'Password is required'
                   })}
+                  autoComplete="current-password"
                 />
 
                 <button
                   type="button"
-                  className="login-password-toggle password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
-                  onClick={() => setShowPassword(!showPassword)}
+                  className="login-password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
 
               {errors.password && (
-                <span className="login-form-error form-error mt-2 block text-sm text-red-600">
+                <span className="login-form-error">
                   {errors.password.message}
                 </span>
               )}
             </div>
 
-            {/* Forgot Password */}
-            <div className="login-form-options flex justify-end">
-              <Link
-                to="/forgot-password"
-                className="login-forgot-link text-sm font-medium text-[#16A34A] transition hover:text-[#15803D]"
-              >
-                Forgot Password?
+            <div className="login-form-options">
+              <div className="login-helper-text">
+                <FaCheckCircle />
+                <span>Use your verified citizen account</span>
+              </div>
+
+              <Link to="/forgot-password" className="login-action-link login-forgot-link">
+                <span className="login-action-icon" aria-hidden="true">
+                  <FaKey />
+                </span>
+                <span className="login-action-text">Forgot Password?</span>
               </Link>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="login-submit-button flex w-full items-center justify-center gap-2 rounded-lg bg-[#16A34A] px-6 py-3 text-base font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+              className="login-submit-button"
             >
               {isLoading ? (
                 <>
-                  <FaSpinner className="login-spinner spinner animate-spin" />
+                  <FaSpinner className="login-spinner" />
                   <span>Logging in...</span>
                 </>
               ) : (
-                'Login'
+                <span className="login-button-content">
+                  <span className="login-action-icon" aria-hidden="true">
+                    <FaSignInAlt />
+                  </span>
+                  <span className="login-action-text">Login</span>
+                </span>
               )}
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="login-footer-block mt-8 border-t border-[#E5E7EB] pt-6 text-center">
-            <p className="login-footer-text text-[#6B7280]">
-              Don't have an account?{' '}
-              <Link
-                to="/register"
-                className="login-register-link font-semibold text-[#16A34A] transition hover:text-[#15803D]"
-              >
-                Register Now
+          <div className="login-footer-block">
+            <p className="login-footer-text">
+              <span>Don&apos;t have an account?</span>
+              <Link to="/register" className="login-action-link login-register-link">
+                <span className="login-action-icon" aria-hidden="true">
+                  <FaUserPlus />
+                </span>
+                <span className="login-action-text">Register Now</span>
               </Link>
             </p>
 
-            <p className="login-admin-link mt-4 text-sm">
-              <Link
-                to="/admin/login"
-                className="text-[#6B7280] transition hover:text-[#16A34A]"
-              >
-                Admin Login →
-              </Link>
-            </p>
           </div>
         </div>
       </div>

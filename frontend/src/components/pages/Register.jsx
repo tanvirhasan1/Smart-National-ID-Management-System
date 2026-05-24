@@ -39,7 +39,7 @@ const Register = () => {
     formState: { errors }
   } = useForm();
 
-  const password = watch('password');
+  const password = watch('newPassword');
 
   const getInputClass = (hasError = false) =>
     `register-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${hasError
@@ -84,7 +84,7 @@ const Register = () => {
         placeOfBirth: data.placeOfBirth,
         mobile: data.mobile,
         email: data.email || undefined,
-        password: data.password,
+        password: data.newPassword,
         presentAddress: {
           division: data.presentAddress.division,
           district: data.presentAddress.district,
@@ -189,7 +189,7 @@ const Register = () => {
             </div>
           </div>
 
-          <form className="register-form-wrapper space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form className="register-form-wrapper space-y-6" onSubmit={handleSubmit(onSubmit)} autoComplete="off">
             {currentStep === 1 && (
               <div className="register-step-panel space-y-5">
                 <h3 className="register-step-title text-lg font-semibold text-[#1F2937]">
@@ -356,7 +356,7 @@ const Register = () => {
                   <div className="register-form-group">
                     <label className="register-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
                       <FaEnvelope className="text-[#16A34A]" />
-                      <span>Email</span>
+                      <span>Email *</span>
                     </label>
                     <input
                       type="email"
@@ -657,9 +657,10 @@ const Register = () => {
                   <div className="register-password-field relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      className={`${getInputClass(!!errors.password)} pr-12`}
-                      placeholder="Create a strong password"
-                      {...register('password', {
+                      className={`${getInputClass(!!errors.newPassword)} pr-12`}
+                      placeholder="Create a new password"
+                      autoComplete="new-password"
+                      {...register('newPassword', {
                         required: 'Password is required',
                         minLength: {
                           value: 6,
@@ -680,9 +681,9 @@ const Register = () => {
                     </button>
                   </div>
 
-                  {errors.password && (
+                  {errors.newPassword && (
                     <span className="register-form-error mt-2 block text-sm text-red-600">
-                      {errors.password.message}
+                      {errors.newPassword.message}
                     </span>
                   )}
 
@@ -708,9 +709,10 @@ const Register = () => {
                   <div className="register-password-field relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
-                      className={`${getInputClass(!!errors.confirmPassword)} pr-12`}
-                      placeholder="Confirm your password"
-                      {...register('confirmPassword', {
+                      className={`${getInputClass(!!errors.confirmNewPassword)} pr-12`}
+                      placeholder="Confirm your new password"
+                      autoComplete="new-password"
+                      {...register('confirmNewPassword', {
                         required: 'Please confirm your password',
                         validate: (value) => value === password || 'Passwords do not match'
                       })}
@@ -724,9 +726,9 @@ const Register = () => {
                     </button>
                   </div>
 
-                  {errors.confirmPassword && (
+                  {errors.confirmNewPassword && (
                     <span className="register-form-error mt-2 block text-sm text-red-600">
-                      {errors.confirmPassword.message}
+                      {errors.confirmNewPassword.message}
                     </span>
                   )}
                 </div>

@@ -628,6 +628,40 @@ const CitizenDashboard = () => {
   const sidePanels = getSidePanels(currentApplication);
   const dashboardStatusTheme = getDashboardStatusTheme(currentApplication);
 
+  const dashboardInsightCards = [
+    {
+      title: 'Active Application',
+      value: currentApplication
+        ? `#${currentApplication.applicationId || 'N/A'}`
+        : 'Not submitted yet',
+      description: currentApplication
+        ? 'Latest application selected automatically from your submissions.'
+        : 'Start a new Smart NID request when you are ready.',
+      icon: <FaIdCard />,
+      tone: currentApplication ? 'green' : 'muted'
+    },
+    {
+      title: 'Current Status',
+      value: currentApplication ? formatStatus(currentApplication.status) : 'Ready to apply',
+      description: currentApplication
+        ? currentApplication.status === 'rejected'
+          ? 'Correction is required before resubmission.'
+          : 'Keep tracking your application from this dashboard.'
+        : 'No active application status is available yet.',
+      icon: currentApplication ? primaryApplicationState.icon : <FaCheckCircle />,
+      tone: currentApplication?.status === 'rejected' ? 'red' : 'green'
+    },
+    {
+      title: 'Next Step',
+      value: primaryApplicationState.actionLabel,
+      description: hasApplications
+        ? primaryApplicationState.description
+        : 'Create your first application to begin the Smart NID process.',
+      icon: <FaArrowRight />,
+      tone: 'blue'
+    }
+  ];
+
   const quickActions = [
     {
       to: '/apply',
@@ -688,12 +722,10 @@ const CitizenDashboard = () => {
         <section className="dashboard-welcome-panel mb-8 flex flex-col justify-between gap-5 rounded-2xl bg-[linear-gradient(135deg,#16A34A_0%,#15803D_100%)] px-6 py-6 text-white md:flex-row md:items-center md:px-8">
           <div className="dashboard-welcome-content">
             <h1 className="dashboard-welcome-title mb-1 text-[1.75rem] font-bold">
-              স্বাগতম, {user?.fullNameBangla || user?.fullName || 'Citizen'}!
+              Welcome, {user?.fullName || user?.fullNameBangla || 'Citizen'}!
             </h1>
-            <p className="dashboard-welcome-subtitle text-white/90">
-              {hasApplications
-                ? 'Welcome to Smart NID Management System'
-                : 'Let’s begin your Smart NID journey from here'}
+            <p className="dashboard-welcome-subtitle mt-3 text-lg text-white/90">
+              Track applications, appointments, corrections, and service updates from one place.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -723,6 +755,34 @@ const CitizenDashboard = () => {
           </div>
         </section>
 
+        <section className="dashboard-insights-grid mb-8 grid gap-4 md:grid-cols-3">
+          {dashboardInsightCards.map((item) => (
+            <div
+              key={item.title}
+              className={`dashboard-insight-card dashboard-insight-${item.tone} rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]`}
+            >
+              <div className="dashboard-insight-card-top flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#6B7280]">
+                    {item.title}
+                  </p>
+                  <h3 className="mt-2 break-words text-base font-semibold text-[#111827]">
+                    {item.value}
+                  </h3>
+                </div>
+
+                <span className="dashboard-insight-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base">
+                  {item.icon}
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-[#6B7280]">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </section>
+
         {/* Status Overview */}
         <section className="dashboard-status-section mb-8">
           <div className="dashboard-status-grid grid items-start gap-5 xl:grid-cols-[1.45fr,0.95fr]">
@@ -735,7 +795,7 @@ const CitizenDashboard = () => {
                     {primaryApplicationState.badge}
                   </span>
 
-                  <h2 className="mt-4 text-[1.8rem] font-bold leading-tight text-[#111827]">
+                  <h2 className="mt-4 text-[1.8rem] font-semibold leading-tight text-[#111827]">
                     {primaryApplicationState.title}
                   </h2>
 
@@ -890,11 +950,11 @@ const CitizenDashboard = () => {
                   key={`${panel.title}-${index}`}
                   className="dashboard-update-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
                 >
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-xl text-[#16A34A]">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-xl text-[#059669]">
                     {panel.icon}
                   </div>
 
-                  <h3 className="text-lg font-bold text-[#111827]">
+                  <h3 className="text-lg font-semibold text-[#111827]">
                     {panel.title}
                   </h3>
 
@@ -904,7 +964,7 @@ const CitizenDashboard = () => {
 
                   <Link
                     to={panel.actionTo}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#16A34A]"
+                    className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#059669]"
                   >
                     <span>{panel.actionLabel}</span>
                     <FaArrowRight />
@@ -922,7 +982,7 @@ const CitizenDashboard = () => {
               Quick Actions
             </span>
 
-            <h2 className="mt-3 text-[1.35rem] font-bold text-[#1F2937]">
+            <h2 className="mt-3 text-[1.35rem] font-semibold text-[#1F2937]">
               {hasApplications ? 'Continue your application journey' : 'Start from here'}
             </h2>
 
@@ -949,7 +1009,7 @@ const CitizenDashboard = () => {
                   {action.icon}
                 </div>
 
-                <h4 className="mb-2 text-[1.05rem] font-bold text-[#1F2937]">
+                <h4 className="mb-2 text-[1.05rem] font-semibold text-[#1F2937]">
                   {action.title}
                 </h4>
 
@@ -1083,44 +1143,49 @@ const CitizenDashboard = () => {
                   key={app._id}
                   className="dashboard-application-card rounded-xl border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    <div className="dashboard-application-status-icon text-2xl">
-                      {getStatusIcon(app.status)}
-                    </div>
+                  <div className="dashboard-application-card-inner">
+                    <div className="dashboard-application-card-head">
+                      <div className="dashboard-application-title-wrap">
+                        <div className="dashboard-application-status-icon">
+                          {getStatusIcon(app.status)}
+                        </div>
 
-                    <div className="dashboard-application-info flex-1">
-                      <h4 className="mb-1 break-all text-base font-semibold text-[#1F2937]">
-                        Application #{app.applicationId}
-                      </h4>
-                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#6B7280]">
-                        <span>
-                          Type: {(app.applicationType || 'N/A').toUpperCase()}
-                        </span>
-                        <span>
-                          Submitted: {app.createdAt ? formatDate(app.createdAt) : 'N/A'}
-                        </span>
-                        <span>
-                          Updated: {app.updatedAt ? formatDate(app.updatedAt) : 'N/A'}
-                        </span>
+                        <div className="dashboard-application-info">
+                          <h4 className="dashboard-application-title">
+                            Application #{app.applicationId}
+                          </h4>
+                        </div>
                       </div>
 
-                      {app.status === 'rejected' && app.rejectionReason && (
-                        <p className="mt-2 text-sm font-medium text-red-600">
-                          Reason: {app.rejectionReason}
-                        </p>
-                      )}
+                      <div className="dashboard-application-status">
+                        <span className={`badge badge-${getStatusColor(app.status)}`}>
+                          {formatStatus(app.status)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="dashboard-application-status">
-                      <span className={`badge badge-${getStatusColor(app.status)}`}>
-                        {formatStatus(app.status)}
+                    <div className="dashboard-application-meta-row">
+                      <span>
+                        Type: {(app.applicationType || 'N/A').toUpperCase()}
+                      </span>
+                      <span>
+                        Submitted: {app.createdAt ? formatDate(app.createdAt) : 'N/A'}
+                      </span>
+                      <span>
+                        Updated: {app.updatedAt ? formatDate(app.updatedAt) : 'N/A'}
                       </span>
                     </div>
 
-                    <div className="dashboard-application-actions flex flex-wrap gap-2">
+                    {app.status === 'rejected' && app.rejectionReason && (
+                      <p className="dashboard-application-reason">
+                        Reason: {app.rejectionReason}
+                      </p>
+                    )}
+
+                    <div className="dashboard-application-actions">
                       <Link
                         to={`/track-application?id=${app._id}`}
-                        className="btn btn-sm btn-outline"
+                        className="btn btn-sm btn-outline dashboard-application-action-btn"
                       >
                         View Details
                       </Link>
@@ -1130,7 +1195,7 @@ const CitizenDashboard = () => {
                       ) && (
                           <Link
                             to={`/digital-nid/${app._id}`}
-                            className="btn btn-sm btn-primary"
+                            className="btn btn-sm btn-primary dashboard-application-action-btn"
                           >
                             Digital NID
                           </Link>

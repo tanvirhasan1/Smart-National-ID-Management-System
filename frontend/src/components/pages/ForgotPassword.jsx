@@ -7,7 +7,12 @@ import {
   FaLock,
   FaEye,
   FaEyeSlash,
-  FaSpinner
+  FaSpinner,
+  FaShieldAlt,
+  FaArrowLeft,
+  FaPaperPlane,
+  FaRedoAlt,
+  FaCheckCircle
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import '../styles/ForgotPassword.css';
@@ -109,99 +114,132 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="forgot-password-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8 flex items-center justify-center">
-      <div className="forgot-password-container w-full max-w-[500px]">
-        <div className="forgot-password-card-panel rounded-2xl bg-white p-8 sm:p-10 shadow-[0_10px_40px_rgba(0,0,0,0.1)]">
-          <div className="forgot-password-header-block mb-8 text-center">
-            <div className="forgot-password-logo-wrap mb-4 flex justify-center">
+    <div className="forgot-password-page-wrapper">
+      <div className="forgot-password-bg-orb forgot-password-bg-orb-one" aria-hidden="true" />
+      <div className="forgot-password-bg-orb forgot-password-bg-orb-two" aria-hidden="true" />
+
+      <div className="forgot-password-container">
+        <div className="forgot-password-card-panel">
+          <div className="forgot-password-header-block">
+            <Link to="/" className="forgot-password-logo-wrap" aria-label="Smart NID home">
               <img
-                src="https://i.ibb.co.com/99gnCXfN/logo.png"
-                alt="Logo"
-                className="forgot-password-brand-logo h-[60px] w-auto object-contain"
+                src="/logo/logo.png"
+                alt="Smart NID Card Management System"
+                className="forgot-password-brand-logo"
+                width="280"
+                height="72"
+                loading="eager"
+                decoding="async"
               />
+            </Link>
+
+            <div className="forgot-password-secure-badge">
+              <FaShieldAlt />
+              <span>Secure password recovery</span>
             </div>
 
-            <h1 className="forgot-password-title-text mb-2 text-[1.75rem] font-bold text-[#1F2937]">
+            <h1 className="forgot-password-title-text">
               {step === 'request' ? 'Forgot Password' : 'Reset Password'}
             </h1>
 
-            <p className="forgot-password-subtitle-text text-[0.95rem] text-[#6B7280]">
+            <p className="forgot-password-subtitle-text">
               {step === 'request'
-                ? 'Enter your email to receive a reset code'
-                : `Enter the code sent to ${identifier}`}
+                ? 'Enter your verified email to receive a reset code.'
+                : `Enter the 6-digit code sent to ${identifier}.`}
             </p>
+
+            {step === 'reset' && (
+              <div className="forgot-password-code-note">
+                <FaCheckCircle />
+                <span>Reset code sent successfully. Check your inbox.</span>
+              </div>
+            )}
           </div>
 
           {step === 'request' ? (
-            <form className="forgot-password-form-wrapper space-y-5" onSubmit={handleSendCode}>
+            <form className="forgot-password-form-wrapper" onSubmit={handleSendCode}>
               <div className="forgot-password-form-group">
-                <label className="forgot-password-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                  <FaEnvelope className="text-[#16A34A]" />
+                <label className="forgot-password-form-label" htmlFor="forgot-email">
+                  <FaEnvelope />
                   <span>Email Address</span>
                 </label>
 
                 <input
+                  id="forgot-email"
                   type="email"
                   value={identifier}
                   onChange={(event) => setIdentifier(event.target.value)}
                   placeholder="Enter your email address"
-                  className="forgot-password-form-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+                  className="forgot-password-form-input"
+                  autoComplete="email"
+                  autoFocus
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="forgot-password-submit-button flex w-full items-center justify-center gap-2 rounded-lg bg-[#16A34A] px-6 py-3 text-base font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+                className="forgot-password-submit-button"
               >
                 {isSubmitting ? (
                   <>
-                    <FaSpinner className="animate-spin" />
+                    <FaSpinner className="forgot-password-spinner" />
                     <span>Sending...</span>
                   </>
                 ) : (
-                  'Send Reset Code'
+                  <span className="forgot-password-button-content">
+                    <span className="forgot-password-action-icon" aria-hidden="true">
+                      <FaPaperPlane />
+                    </span>
+                    <span className="forgot-password-action-text">Send Reset Code</span>
+                  </span>
                 )}
               </button>
             </form>
           ) : (
-            <form className="forgot-password-form-wrapper space-y-5" onSubmit={handleResetPassword}>
+            <form className="forgot-password-form-wrapper" onSubmit={handleResetPassword}>
               <div className="forgot-password-form-group">
-                <label className="forgot-password-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                  <FaKey className="text-[#16A34A]" />
+                <label className="forgot-password-form-label" htmlFor="forgot-otp">
+                  <FaKey />
                   <span>Verification Code</span>
                 </label>
 
                 <input
+                  id="forgot-otp"
                   type="text"
                   value={otp}
                   onChange={(event) =>
                     setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
                   }
                   placeholder="Enter 6-digit code"
-                  className="forgot-password-form-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+                  className="forgot-password-form-input forgot-password-code-input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                 />
               </div>
 
               <div className="forgot-password-form-group">
-                <label className="forgot-password-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                  <FaLock className="text-[#16A34A]" />
+                <label className="forgot-password-form-label" htmlFor="new-password">
+                  <FaLock />
                   <span>New Password</span>
                 </label>
 
-                <div className="relative">
+                <div className="forgot-password-password-field">
                   <input
+                    id="new-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Enter new password"
-                    className="forgot-password-form-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 pr-12 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+                    className="forgot-password-form-input forgot-password-password-input"
+                    autoComplete="new-password"
                   />
 
                   <button
                     type="button"
-                    className="forgot-password-toggle-button absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
+                    className="forgot-password-toggle-button"
                     onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -209,24 +247,27 @@ const ForgotPassword = () => {
               </div>
 
               <div className="forgot-password-form-group">
-                <label className="forgot-password-form-label mb-2 flex items-center gap-2 text-sm font-medium text-[#374151]">
-                  <FaLock className="text-[#16A34A]" />
+                <label className="forgot-password-form-label" htmlFor="confirm-new-password">
+                  <FaLock />
                   <span>Confirm Password</span>
                 </label>
 
-                <div className="relative">
+                <div className="forgot-password-password-field">
                   <input
+                    id="confirm-new-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="Confirm new password"
-                    className="forgot-password-form-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 pr-12 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
+                    className="forgot-password-form-input forgot-password-password-input"
+                    autoComplete="new-password"
                   />
 
                   <button
                     type="button"
-                    className="forgot-password-toggle-button absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] transition hover:text-[#16A34A]"
+                    className="forgot-password-toggle-button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -236,36 +277,47 @@ const ForgotPassword = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="forgot-password-submit-button flex w-full items-center justify-center gap-2 rounded-lg bg-[#16A34A] px-6 py-3 text-base font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+                className="forgot-password-submit-button"
               >
                 {isSubmitting ? (
                   <>
-                    <FaSpinner className="animate-spin" />
+                    <FaSpinner className="forgot-password-spinner" />
                     <span>Resetting...</span>
                   </>
                 ) : (
-                  'Reset Password'
+                  <span className="forgot-password-button-content">
+                    <span className="forgot-password-action-icon" aria-hidden="true">
+                      <FaKey />
+                    </span>
+                    <span className="forgot-password-action-text">Reset Password</span>
+                  </span>
                 )}
               </button>
 
               <button
                 type="button"
                 onClick={() => setStep('request')}
-                className="forgot-password-secondary-button w-full rounded-lg border border-[#16A34A] px-6 py-3 text-base font-medium text-[#16A34A] transition hover:bg-[#F0FDF4]"
+                className="forgot-password-secondary-button"
               >
-                Send New Code
+                <span className="forgot-password-button-content">
+                  <span className="forgot-password-action-icon" aria-hidden="true">
+                    <FaRedoAlt />
+                  </span>
+                  <span className="forgot-password-action-text">Send New Code</span>
+                </span>
               </button>
             </form>
           )}
 
-          <div className="forgot-password-footer-block mt-8 border-t border-[#E5E7EB] pt-6 text-center">
-            <p className="forgot-password-footer-text text-[#6B7280]">
-              Back to{' '}
-              <Link
-                to="/login"
-                className="forgot-password-back-link font-semibold text-[#16A34A] transition hover:text-[#15803D]"
-              >
-                Login
+          <div className="forgot-password-footer-block">
+            <p className="forgot-password-footer-text">
+              <span>Remember your password?</span>
+
+              <Link to="/login" className="forgot-password-action-link forgot-password-back-link">
+                <span className="forgot-password-action-icon" aria-hidden="true">
+                  <FaArrowLeft />
+                </span>
+                <span className="forgot-password-action-text">Back to Login</span>
               </Link>
             </p>
           </div>

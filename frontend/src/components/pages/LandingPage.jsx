@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaArrowRight,
@@ -15,7 +15,7 @@ import {
   FaShieldAlt,
   FaUserCheck,
   FaUserPlus,
-  FaFileUpload 
+  FaFileUpload
 } from 'react-icons/fa';
 import '../styles/LandingPage.css';
 
@@ -31,15 +31,15 @@ const quickActions = [
     icon: <FaUserPlus />,
     title: 'Create Account',
     description:
-      'Start your Smart NID journey with secure citizen registration and OTP verification.',
+      'Create a verified citizen account with your personal information and OTP confirmation.',
     to: '/register',
-    actionLabel: 'Register Now'
+    actionLabel: 'Create Account'
   },
   {
     icon: <FaIdCard />,
     title: 'Apply for Smart NID',
     description:
-      'Continue your application with a verified account and the required supporting documents.',
+      'Start or continue your Smart NID application with the required documents.',
     to: '/login',
     actionLabel: 'Login to Apply'
   },
@@ -47,23 +47,23 @@ const quickActions = [
     icon: <FaCalendarCheck />,
     title: 'Book Appointment',
     description:
-      'Choose a biometric enrollment date and center slot from available schedules.',
+      'Choose an available biometric enrollment center, date, and time slot.',
     to: '/login',
-    actionLabel: 'Book via Login'
+    actionLabel: 'Book Appointment'
   },
   {
     icon: <FaSearch />,
     title: 'Track Application',
     description:
-      'Monitor review, printing, dispatch, and delivery progress through one secure portal.',
+      'Check application review, printing, dispatch, and delivery progress.',
     to: '/login',
-    actionLabel: 'Track via Login'
+    actionLabel: 'Track Status'
   },
   {
     icon: <FaHeadset />,
     title: 'Support Service',
     description:
-      'Get help with registration, application issues, verification steps, or service questions.',
+      'Get support for registration, application, appointment, or verification issues.',
     to: '/login',
     actionLabel: 'Open Support'
   }
@@ -74,46 +74,50 @@ const trustCards = [
     icon: <FaShieldAlt />,
     title: 'Verification-First Access',
     description:
-      'The platform presents registration and login as secure, guided steps instead of casual website actions.'
+      'Registration and login are presented as protected identity steps, with clear guidance for citizens.'
   },
   {
     icon: <FaUserCheck />,
     title: 'Citizen-Friendly Flow',
     description:
-      'Important actions are grouped clearly so first-time users understand what to do next without confusion.'
+      'Core services are grouped by purpose, so first-time users can choose the right action quickly.'
   },
   {
     icon: <FaFingerprint />,
-    title: 'Digital Identity Service Feel',
+    title: 'Official Service Interface',
     description:
-      'The interface looks more official and service-oriented, which is important for a national ID platform.'
+      'The page uses a restrained visual structure suitable for a public digital identity platform.'
   }
 ];
 
 const processSteps = [
   {
     step: '01',
+    icon: <FaUserCheck />,
     title: 'Register & Verify',
     description:
       'Create your account with BRN details and complete OTP verification.'
   },
   {
     step: '02',
+    icon: <FaFileUpload />,
     title: 'Submit Application',
     description:
-      'Fill out the Smart NID application and upload the required documents.'
+      'Fill out the Smart NID form and upload the required documents.'
   },
   {
     step: '03',
+    icon: <FaCalendarCheck />,
     title: 'Book Biometrics',
     description:
-      'Select a convenient biometric enrollment center and appointment slot.'
+      'Select an enrollment center, date, and available appointment slot.'
   },
   {
     step: '04',
+    icon: <FaSearch />,
     title: 'Track & Receive',
     description:
-      'Follow approval, digital NID access, printing, and delivery status online.'
+      'Track approval, digital NID access, printing, and delivery progress.'
   }
 ];
 
@@ -147,15 +151,15 @@ const requirements = [
 const summaryCards = [
   {
     value: 'Secure',
-    label: 'Identity-first access'
+    label: 'Verified citizen access'
   },
   {
     value: 'Guided',
-    label: 'Citizen-friendly flow'
+    label: 'Clear service steps'
   },
   {
     value: 'Digital',
-    label: 'Tracking and ID access'
+    label: 'Online NID services'
   }
 ];
 
@@ -175,9 +179,43 @@ const miniPoints = [
 ];
 
 const LandingPage = () => {
+    const patternFrameRef = useRef(null);
+  const patternPositionRef = useRef({
+    x: 0,
+    y: 0,
+    target: null
+  });
+
+  const handlePatternMove = (event) => {
+    patternPositionRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      target: event.currentTarget
+    };
+
+    if (patternFrameRef.current) return;
+
+    patternFrameRef.current = requestAnimationFrame(() => {
+      const { x, y, target } = patternPositionRef.current;
+
+      if (target) {
+        target.style.setProperty('--cursor-x', `${x}px`);
+        target.style.setProperty('--cursor-y', `${y}px`);
+        target.style.setProperty('--cursor-opacity', '1');
+      }
+
+      patternFrameRef.current = null;
+    });
+  };
+
+  const handlePatternLeave = (event) => {
+    event.currentTarget.style.setProperty('--cursor-opacity', '0');
+  };
   return (
-    <div className="landing-page bg-slate-50 text-slate-900 overflow-x-hidden">
-      <section className="landing-hero bg-gradient-to-br from-emerald-50 via-green-50 to-white py-16 md:py-20">
+    <div className="landing-page has-cursor-pattern bg-slate-50 text-slate-900 overflow-x-hidden" onMouseMove={handlePatternMove}
+  onMouseLeave={handlePatternLeave}>
+    <div className="landing-cursor-pattern" aria-hidden="true" />
+      <section className="landing-hero bg-gradient-to-br from-emerald-50 via-green-50 to-white pt-8 pb-12 md:pt-10 md:pb-16">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="hero-layout grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
             <div className="hero-copy">
@@ -193,9 +231,8 @@ const LandingPage = () => {
               </h1>
 
               <p className="hero-description mt-5 max-w-2xl text-base sm:text-lg leading-8 text-slate-600">
-                Apply, verify, book appointments, track progress, and access your
-                digital Smart NID through one secure citizen portal designed for
-                clarity, trust, and public service.
+                Apply, verify your account, book appointments, track progress,
+                and access Smart NID services through one secure citizen portal.
               </p>
 
               <div className="hero-actions mt-8 flex flex-col sm:flex-row gap-4">
@@ -204,14 +241,14 @@ const LandingPage = () => {
                   className="hero-primary-btn inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:-translate-y-0.5 hover:bg-emerald-700"
                 >
                   <FaUserPlus />
-                  Register Now
+                  Create Account
                 </Link>
 
                 <Link
                   to="/login"
                   className="hero-secondary-btn inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50"
                 >
-                  Login to Dashboard
+                  Login to Continue
                 </Link>
               </div>
 
@@ -247,12 +284,17 @@ const LandingPage = () => {
             <div className="hero-visual flex justify-center lg:justify-end">
               <div className="hero-image-shell relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-2xl shadow-slate-900/10">
                 <img
-                  src="https://i.ibb.co.com/0W7yVCf/1776456590.png"
-                  alt="Bangladesh Smart NID citizens"
-                  className="hero-image h-[340px] sm:h-[420px] lg:h-[520px] w-full object-cover object-center"
+                  src="../../../public/hero/hero-img.webp"
+                  alt="Citizens using Smart NID card services"
+                  width="820"
+                  height="600"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  className="hero-image h-[320px] sm:h-[390px] lg:h-[460px] w-full object-cover object-center"
                 />
 
-                <div className="hero-status-card hero-status-top hidden md:flex absolute top-5 left-5 max-w-[280px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
+                <div className="hero-status-card hero-status-top hidden md:flex absolute top-6 right-6 max-w-[280px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
                   <div className="status-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <FaShieldAlt />
                   </div>
@@ -266,7 +308,7 @@ const LandingPage = () => {
                   </div>
                 </div>
 
-                <div className="hero-status-card hero-status-bottom hidden md:flex absolute right-5 bottom-5 max-w-[290px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
+                <div className="hero-status-card hero-status-bottom hidden md:flex absolute left-6 bottom-6 max-w-[290px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
                   <div className="status-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <FaClock />
                   </div>
@@ -285,35 +327,35 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="landing-actions py-14 md:py-20">
+      <section className="landing-actions py-12 md:py-16">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="actions-panel rounded-[28px] border border-slate-200 bg-white p-6 md:p-8 lg:p-10 shadow-xl shadow-slate-900/5">
+          <div className="actions-panel rounded-[28px] border border-slate-200 bg-white p-5 md:p-7 lg:p-8 shadow-xl shadow-slate-900/5">
             <div className="section-heading mb-8 md:mb-10">
               <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
                 Citizen quick actions
               </span>
 
               <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
-                Start the service you need in one step
+                Choose your Smart NID service
               </h2>
 
               <p className="mt-3 max-w-2xl text-base leading-8 text-slate-600">
-                A production-level public service homepage should make the next
-                citizen action obvious immediately.
+                Start registration, submit an application, book biometrics, or
+                check your service status from one place.
               </p>
             </div>
 
-            <div className="actions-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="actions-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 lg:gap-4">
               {quickActions.map((item) => (
                 <div
                   key={item.title}
-                  className="action-card flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-1 hover:border-emerald-200 hover:bg-white hover:shadow-lg"
+                  className="action-card flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50/80 p-5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md"
                 >
                   <div className="action-icon action-icon-landing mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                     {item.icon}
                   </div>
 
-                  <h3 className="text-md font-bold leading-6 text-slate-900">
+                  <h3 className="text-md font-semibold leading-6 text-slate-900">
                     {item.title}
                   </h3>
 
@@ -335,30 +377,29 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="landing-trust bg-white py-14 md:py-20">
+      <section className="landing-trust bg-white py-12 md:py-16">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="trust-layout grid grid-cols-1 lg:grid-cols-[1fr,1.05fr] gap-8 lg:gap-10 items-start">
             <div className="trust-copy">
               <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
-                Why this version feels better
+                Why citizens can trust this service
               </span>
 
               <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
-                Cleaner, smarter, and more reliable for a national ID service
+                Secure, guided, and simple access to Smart NID services
               </h2>
 
               <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-                Instead of repeating too many similar card sections, this version
-                gives stronger hierarchy, quicker service entry points, better
-                readability, and a more official digital-service experience.
+                The homepage keeps key actions visible, explains the process clearly,
+                and uses a restrained official layout for a public identity service.
               </p>
 
               <div className="trust-list mt-6 space-y-4">
                 {[
-                  'More official and trustworthy visual structure',
-                  'Less clutter and better section flow',
-                  'Stronger focus on real citizen actions',
-                  'Better fit for production-level Smart NID service'
+                  'Secure account verification is shown first',
+                  'Citizen services are easier to scan',
+                  'Important actions are grouped clearly',
+                  'The design feels suitable for a public service portal'
                 ].map((item) => (
                   <div
                     key={item}
@@ -375,7 +416,7 @@ const LandingPage = () => {
               {trustCards.map((card) => (
                 <div
                   key={card.title}
-                  className="trust-card flex gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:p-6 shadow-sm"
+                  className="trust-card flex gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 md:p-6 shadow-sm"
                 >
                   <div className="trust-card-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
                     {card.icon}
@@ -396,7 +437,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="landing-process bg-slate-50 py-14 md:py-20">
+      <section className="landing-process bg-slate-50 py-10 md:py-14">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="section-heading-center text-center mb-8 md:mb-10">
             <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
@@ -408,38 +449,41 @@ const LandingPage = () => {
             </h2>
 
             <p className="mt-3 max-w-2xl mx-auto text-base leading-8 text-slate-600">
-              Keep the process clear and confidence-building for first-time users.
+              Follow four clear steps from account verification to final service delivery.
             </p>
           </div>
 
-          <div className="process-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="journey-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {processSteps.map((step) => (
               <div
                 key={step.step}
-                className="process-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                className="journey-card relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
               >
-                <div className="process-top mb-4 flex items-center justify-between">
-                  <span className="process-step inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
-                    {step.step}
+                <div className="journey-card-top flex items-center justify-between gap-4">
+                  <span className="journey-step-badge">
+                    Step {step.step}
                   </span>
 
-                  <FaArrowRight className="process-arrow text-emerald-300" />
+                  <div className="journey-icon">
+                    {step.icon}
+                  </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="mt-6 text-xl font-semibold tracking-tight text-slate-950">
                   {step.title}
                 </h3>
 
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   {step.description}
                 </p>
+
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="landing-requirements bg-white py-14 md:py-20">
+      <section className="landing-requirements bg-white py-12 md:py-16">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="requirements-layout grid grid-cols-1 lg:grid-cols-[0.95fr,1.05fr] gap-8 lg:gap-10 items-stretch">
             <div className="requirements-copy flex flex-col justify-center items-start">
@@ -452,8 +496,8 @@ const LandingPage = () => {
               </h2>
 
               <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-                A clearer checklist helps citizens begin the application process
-                with fewer mistakes and fewer support requests.
+                Keep these details ready before starting your application to avoid
+                correction requests and repeated submissions.
               </p>
 
               <div className="requirements-mini-points mt-6 space-y-4">
@@ -470,39 +514,39 @@ const LandingPage = () => {
             </div>
 
             <div className="requirements-grid grid grid-cols-2 sm:grid-cols-3 gap-4 lg:h-full lg:grid-rows-2">
-  {requirements.map((item) => (
-    <div
-      key={item.title}
-      className="requirement-item flex h-full min-h-[150px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg"
-    >
-      <div className="requirement-icon flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-600">
-        {item.icon}
-      </div>
+              {requirements.map((item) => (
+                <div
+                  key={item.title}
+                  className="requirement-item flex h-full min-h-[150px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                >
+                  <div className="requirement-icon flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-600">
+                    {item.icon}
+                  </div>
 
-      <h3 className="mt-4 max-w-[150px] text-sm sm:text-base font-semibold leading-6 text-slate-900">
-        {item.title}
-      </h3>
-    </div>
-  ))}
-</div>
+                  <h3 className="mt-4 max-w-[150px] text-sm sm:text-base font-semibold leading-6 text-slate-900">
+                    {item.title}
+                  </h3>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="landing-cta bg-emerald-600 py-14 md:py-20">
+      <section className="landing-cta bg-emerald-600 py-12 md:py-16">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="cta-box text-center max-w-3xl mx-auto">
-            <span className="section-tag-light inline-flex items-center rounded-full bg-white/15 text-white px-4 py-2 text-xs sm:text-sm font-bold">
-              Get started
+            <span className="section-tag-light inline-flex items-center rounded-full bg-white/15 text-white px-4 py-2 text-xs sm:text-sm font-semibold">
+              Start securely
             </span>
 
-            <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-              Ready to apply for your Smart NID?
+            <h2 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+              Ready to start your Smart NID application?
             </h2>
 
             <p className="mt-4 text-base leading-8 text-emerald-50">
-              Create your account, verify your identity, and continue the full
-              application flow through one secure platform.
+              Create an account, verify your information, and continue your
+              application through one secure citizen portal.
             </p>
 
             <div className="cta-buttons mt-8 flex flex-col sm:flex-row justify-center gap-4">
@@ -510,7 +554,7 @@ const LandingPage = () => {
                 to="/register"
                 className="cta-primary-btn inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:bg-emerald-50"
               >
-                Get Started
+                Create Account
                 <FaArrowRight />
               </Link>
 
@@ -518,7 +562,7 @@ const LandingPage = () => {
                 to="/login"
                 className="cta-secondary-btn inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-transparent px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
               >
-                Already have an account?
+                Login to Continue
               </Link>
             </div>
           </div>

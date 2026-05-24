@@ -1,162 +1,482 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  FaIdCard,
-  FaDownload,
   FaArrowLeft,
-  FaShieldAlt,
-  FaQrcode,
-  FaSpinner,
-  FaUser,
+  FaCalendarAlt,
+  FaDownload,
+  FaEnvelope,
   FaMapMarkerAlt,
   FaPhoneAlt,
-  FaEnvelope
+  FaShieldAlt,
+  FaSpinner,
+  FaTint,
+  FaUser,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
-import { formatDate } from '../utils/helpers';
 import '../styles/DigitalNID.css';
 
-// Digital NID Page
+const NA = 'N/A';
+
+const pick = (...values) => {
+  const value = values.find(
+    (item) => item !== undefined && item !== null && String(item).trim() !== ''
+  );
+
+  return value !== undefined && value !== null ? String(value).trim() : NA;
+};
+
+const formatDate = (value) => {
+  if (!value || value === NA) return NA;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return NA;
+
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatNid = (value) => {
+  if (!value || value === NA || value === 'Pending') return 'Pending';
+
+  return String(value)
+    .replace(/\s+/g, '')
+    .replace(/(.{3})/g, '$1 ')
+    .trim();
+};
+
+const makeAddress = (address = {}) => {
+  const parts = [
+    address.house || address.holdingNo || address.holding,
+    address.road || address.roadNo || address.street,
+    address.village || address.villageOrArea || address.area,
+    address.postOffice,
+    address.union || address.unionOrWard || address.ward,
+    address.upazila || address.thana,
+    address.district,
+    address.division,
+    address.postCode || address.postalCode,
+  ].filter((item) => item !== undefined && item !== null && String(item).trim() !== '');
+
+  return parts.length ? parts.join(', ') : NA;
+};
+
+const imageUrl = (path) => {
+  if (!path || path === NA) return '';
+
+  if (typeof path === 'object') {
+    const nestedPath = pick(
+      path.secureUrl,
+      path.url,
+      path.path,
+      path.fileUrl,
+      path.location,
+      path.current?.secureUrl,
+      path.current?.url,
+      path.current?.path,
+      path.cloudinary?.secureUrl,
+      path.cloudinary?.url
+    );
+
+    if (nestedPath === NA) return '';
+    return imageUrl(nestedPath);
+  }
+
+  const cleanPath = String(path).trim();
+  if (!cleanPath) return '';
+
+  if (/^https?:\/\//i.test(cleanPath)) return cleanPath;
+
+  const base = (api?.defaults?.baseURL || '')
+    .replace(/\/api\/?$/i, '')
+    .replace(/\/$/, '');
+
+  return `${base}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
+};
+
+const requestWithFallback = async (requests) => {
+  let lastError;
+
+  for (const request of requests) {
+    try {
+      return await request();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+};
+
 const DigitalNID = () => {
   const { id } = useParams();
 
-  const [digitalNidData, setDigitalNidData] = useState(null);
+  const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const requestWithFallback = async (requests = []) => {
-    let lastError = null;
-
-    for (const requestFn of requests) {
-      try {
-        return await requestFn();
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    throw lastError;
-  };
+  const [errorMessage, setErrorMessage] = useState('');
+  const [photoError, setPhotoError] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
 
   useEffect(() => {
-    const fetchDigitalNid = async () => {
+    const loadDigitalNid = async () => {
       try {
         setLoading(true);
+        setErrorMessage('');
+        setPhotoError(false);
+        setSignatureError(false);
 
         const response = await requestWithFallback([
           () => api.get(`/applications/${id}`),
           () => api.get(`/applications/my/${id}`),
-          () => api.get(`/users/profile`)
+          () => api.get('/users/profile'),
         ]);
 
-        const responseData =
+        const payload =
           response?.data?.application ||
           response?.data?.data ||
           response?.data?.user ||
           response?.data ||
-          {};
+          null;
 
-        setDigitalNidData(responseData);
+        let citizenProfile = null;
+
+        try {
+          const profileResponse = await api.get('/users/profile');
+
+          citizenProfile =
+            profileResponse?.data?.user ||
+            profileResponse?.data?.data ||
+            profileResponse?.data ||
+            null;
+        } catch (_) {
+          citizenProfile = null;
+        }
+
+        const mergedPayload =
+          citizenProfile && payload && typeof payload === 'object'
+            ? { ...payload, _citizenProfile: citizenProfile }
+            : payload || citizenProfile;
+
+        setRecord(mergedPayload);
       } catch (error) {
-        console.error('Error fetching digital NID data:', error);
-        toast.error(
-          error?.response?.data?.message || 'Failed to load digital NID'
-        );
+        const message = error?.response?.data?.message || 'Digital NID could not be loaded.';
+        setErrorMessage(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDigitalNid();
+    if (id) {
+      loadDigitalNid();
+    } else {
+      setLoading(false);
+      setErrorMessage('Application ID is missing.');
+    }
   }, [id]);
 
-  const applicant = useMemo(() => {
-    if (!digitalNidData) return {};
+  const app = record?.application || record || {};
+  const applicant = app.userId || app.user || app.applicant || app.citizen || {};
+  const profile = record?._citizenProfile || record?.profile || record?.userProfile || {};
+  const info = app.personalInfo || applicant.personalInfo || profile.personalInfo || {};
+  const docs = app.documents || applicant.documents || {};
+  const assets = app.documentAssets || applicant.documentAssets || {};
 
-    return (
-      digitalNidData.userId ||
-      digitalNidData.user ||
-      digitalNidData.applicant ||
-      digitalNidData
-    );
-  }, [digitalNidData]);
+  const presentAddress = app.presentAddress || info.presentAddress || applicant.presentAddress || {};
+  const permanentAddress =
+    app.permanentAddress || info.permanentAddress || applicant.permanentAddress || {};
 
-  const presentAddress = applicant?.presentAddress || {};
-  const fullAddress = [
-    presentAddress?.village,
-    presentAddress?.union,
-    presentAddress?.upazila,
-    presentAddress?.district,
-    presentAddress?.division
-  ]
-    .filter(Boolean)
-    .join(', ');
+  const data = {
+    applicationId: pick(app.applicationId, app._id, record?._id, id),
 
-  const generatedNidNumber =
-    digitalNidData?.nidNumber ||
-    applicant?.nidNumber ||
-    digitalNidData?.smartNidNumber ||
-    'Pending';
+    nidNumber: pick(
+      record?.nidNumber,
+      record?.digitalNidNumber,
+      record?.nationalId,
+      record?.nidNo,
+      app.nidNumber,
+      app.digitalNidNumber,
+      app.generatedNidNumber,
+      app.nationalId,
+      app.nidNo,
+      applicant.nidNumber,
+      applicant.nationalId,
+      'Pending'
+    ),
 
-  const applicantName =
-    applicant?.fullName || digitalNidData?.fullName || 'N/A';
+    name: pick(
+      app.fullNameEnglish,
+      app.nameEnglish,
+      app.englishName,
+      app.fullNameEn,
+      app.fullName,
+      info.fullNameEnglish,
+      info.nameEnglish,
+      info.englishName,
+      info.fullNameEn,
+      info.fullName,
+      applicant.fullNameEnglish,
+      applicant.nameEnglish,
+      applicant.englishName,
+      applicant.fullNameEn,
+      applicant.fullName,
+      applicant.name
+    ),
 
-  const applicantNameBangla =
-    applicant?.fullNameBangla || digitalNidData?.fullNameBangla || 'N/A';
+    nameBangla: pick(
+      app.fullNameBangla,
+      app.nameBangla,
+      app.banglaName,
+      info.fullNameBangla,
+      info.nameBangla,
+      info.banglaName,
+      applicant.fullNameBangla,
+      applicant.nameBangla,
+      applicant.banglaName
+    ),
 
-  const applicantDob =
-    applicant?.dateOfBirth || digitalNidData?.dateOfBirth || '';
+    father: pick(
+      app.fatherName,
+      app.fatherNameEnglish,
+      info.fatherName,
+      info.fatherNameEnglish,
+      applicant.fatherName,
+      applicant.fatherNameEnglish
+    ),
 
-  const applicantPhone =
-    applicant?.mobile || applicant?.phone || digitalNidData?.mobile || 'N/A';
+    mother: pick(
+      app.motherName,
+      app.motherNameEnglish,
+      info.motherName,
+      info.motherNameEnglish,
+      applicant.motherName,
+      applicant.motherNameEnglish
+    ),
 
-  const applicantEmail =
-    applicant?.email || digitalNidData?.email || 'N/A';
+    dob: pick(
+      app.dateOfBirth,
+      app.dob,
+      info.dateOfBirth,
+      info.dob,
+      applicant.dateOfBirth,
+      applicant.dob
+    ),
 
-  const applicantPhoto =
-    digitalNidData?.documents?.photo ||
-    applicant?.documents?.photo ||
-    applicant?.photo ||
-    '';
+    blood: pick(app.bloodGroup, info.bloodGroup, applicant.bloodGroup),
 
-  const handleDownload = () => {
-    window.print();
+    birthPlace: pick(
+      app.placeOfBirth,
+      app.birthPlace,
+      app.birthDistrict,
+      app.districtOfBirth,
+      info.placeOfBirth,
+      info.birthPlace,
+      info.birthDistrict,
+      info.districtOfBirth,
+      applicant.placeOfBirth,
+      applicant.birthPlace,
+      applicant.birthDistrict,
+      applicant.districtOfBirth,
+      profile.placeOfBirth,
+      profile.birthPlace,
+      profile.birthDistrict,
+      profile.districtOfBirth,
+      permanentAddress.district,
+      presentAddress.district
+    ),
+
+    phone: pick(
+      app.mobileNumber,
+      app.phoneNumber,
+      app.phone,
+      app.mobile,
+      app.contactNumber,
+      info.mobileNumber,
+      info.phoneNumber,
+      info.phone,
+      info.mobile,
+      info.contactNumber,
+      applicant.mobileNumber,
+      applicant.phoneNumber,
+      applicant.phone,
+      applicant.mobile,
+      applicant.contactNumber
+    ),
+
+    email: pick(app.email, info.email, applicant.email),
+
+    photo: imageUrl(
+      assets.photograph?.current?.secureUrl ||
+        assets.photograph?.current?.url ||
+        assets.photograph?.current?.path ||
+        assets.photograph?.cloudinary?.secureUrl ||
+        assets.photograph?.cloudinary?.url ||
+        assets.photograph?.secureUrl ||
+        assets.photograph?.url ||
+        assets.applicantPhoto?.current?.secureUrl ||
+        assets.applicantPhoto?.current?.url ||
+        assets.photo?.current?.secureUrl ||
+        assets.photo?.current?.url ||
+        docs.photograph?.secureUrl ||
+        docs.photograph?.url ||
+        docs.applicantPhoto?.secureUrl ||
+        docs.applicantPhoto?.url ||
+        docs.photo?.secureUrl ||
+        docs.photo?.url ||
+        info.applicantPhoto ||
+        info.photo ||
+        applicant.photo ||
+        applicant.avatar ||
+        app.photo ||
+        app.photoUrl
+    ),
+
+    signature: imageUrl(
+      assets.signature?.current?.secureUrl ||
+        assets.signature?.current?.url ||
+        assets.signature?.current?.path ||
+        assets.signature?.cloudinary?.secureUrl ||
+        assets.signature?.cloudinary?.url ||
+        assets.signature?.secureUrl ||
+        assets.signature?.url ||
+        assets.signature?.path ||
+        assets.applicantSignature?.current?.secureUrl ||
+        assets.applicantSignature?.current?.url ||
+        assets.applicantSignature?.current?.path ||
+        assets.applicantSignature?.cloudinary?.secureUrl ||
+        assets.applicantSignature?.cloudinary?.url ||
+        docs.signature?.secureUrl ||
+        docs.signature?.url ||
+        docs.signature?.path ||
+        docs.applicantSignature?.secureUrl ||
+        docs.applicantSignature?.url ||
+        docs.applicantSignature?.path ||
+        info.signatureUrl ||
+        info.signature ||
+        applicant.signatureUrl ||
+        applicant.signature ||
+        app.signatureUrl ||
+        app.signature
+    ),
+
+    address: makeAddress(presentAddress),
+
+    permanentAddress: makeAddress(permanentAddress),
+
+    issueDate: formatDate(
+      record?.issuedAt ||
+        record?.approvedAt ||
+        app.issuedAt ||
+        app.approvedAt ||
+        app.updatedAt ||
+        app.createdAt ||
+        new Date()
+    ),
   };
+
+  const mrzLines = useMemo(() => {
+    const compactNid = String(data.nidNumber || 'PENDING')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase()
+      .padEnd(10, '<')
+      .slice(0, 10);
+
+    const safeName = String(data.name || 'SMART NID')
+      .replace(/[^A-Za-z\s]/g, '')
+      .trim()
+      .toUpperCase();
+
+    const parts = safeName.split(/\s+/).filter(Boolean);
+    const surname = parts.pop() || 'CITIZEN';
+    const given = parts.join('<') || 'SMART';
+    const birth = formatDate(data.dob).replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 7);
+
+    return [
+      `I<BGD${compactNid}4<43<<<<<<<<<<<<<<<`,
+      `${birth.padEnd(7, '<')}M3011294BGD<<<<<<<<<<8`,
+      `${surname}<<${given}`.padEnd(30, '<'),
+    ];
+  }, [data.nidNumber, data.name, data.dob]);
+
+
+
+  const handleDownloadPrint = () => {
+    const previousTitle = document.title;
+    const safeName = String(data.name || 'Citizen')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'Citizen';
+
+    document.title = `Smart-NID-${safeName}`;
+
+    window.setTimeout(() => {
+      window.print();
+
+      window.setTimeout(() => {
+        document.title = previousTitle;
+      }, 600);
+    }, 80);
+  };
+
+  const sideDetails = [
+    {
+      icon: <FaUser />,
+      label: 'Full Name',
+      value: data.name,
+    },
+    {
+      icon: <FaCalendarAlt />,
+      label: 'Date of Birth',
+      value: formatDate(data.dob),
+    },
+    {
+      icon: <FaTint />,
+      label: 'Blood Group',
+      value: data.blood,
+    },
+    {
+      icon: <FaPhoneAlt />,
+      label: 'Mobile',
+      value: data.phone,
+    },
+    {
+      icon: <FaEnvelope />,
+      label: 'Email',
+      value: data.email,
+    },
+    {
+      icon: <FaMapMarkerAlt />,
+      label: 'Present Address',
+      value: data.address,
+    },
+  ];
 
   if (loading) {
     return (
-      <div className="digital-nid-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8">
-        <div className="digital-nid-container mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center">
-          <div className="digital-nid-loading-card rounded-2xl bg-white px-8 py-10 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-            <div className="digital-nid-loading-inner flex flex-col items-center justify-center gap-4 text-center">
-              <FaSpinner className="digital-nid-loading-spinner animate-spin text-3xl text-[#16A34A]" />
-              <p className="digital-nid-loading-text text-base font-medium text-[#374151]">
-                Loading Digital NID...
-              </p>
-            </div>
+      <div className="digital-nid-page-wrapper">
+        <div className="digital-nid-container digital-nid-container--narrow">
+          <div className="digital-nid-state-card">
+            <FaSpinner className="digital-nid-spinner" />
+            <p>Loading Digital NID...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!digitalNidData) {
+  if (errorMessage || !record) {
     return (
-      <div className="digital-nid-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8">
-        <div className="digital-nid-container mx-auto max-w-4xl">
-          <div className="digital-nid-empty-card rounded-2xl bg-white p-8 text-center shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-            <h2 className="digital-nid-empty-title mb-3 text-2xl font-bold text-[#1F2937]">
-              Digital NID Not Available
-            </h2>
-            <p className="digital-nid-empty-text mb-6 text-[#6B7280]">
-              We could not find any digital NID information for this record.
-            </p>
-            <Link
-              to="/dashboard"
-              className="digital-nid-back-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-            >
+      <div className="digital-nid-page-wrapper">
+        <div className="digital-nid-container digital-nid-container--narrow">
+          <div className="digital-nid-state-card">
+            <h2>Digital NID Not Available</h2>
+            <p>{errorMessage || 'No digital NID data found.'}</p>
+
+            <Link to="/dashboard" className="digital-nid-primary-btn">
               <FaArrowLeft />
-              <span>Back to Dashboard</span>
+              Back to Dashboard
             </Link>
           </div>
         </div>
@@ -165,228 +485,206 @@ const DigitalNID = () => {
   }
 
   return (
-    <div className="digital-nid-page-wrapper min-h-[calc(100vh-140px)] bg-[linear-gradient(135deg,#F0FDF4_0%,#DCFCE7_100%)] px-4 py-8">
-      <div className="digital-nid-container mx-auto max-w-6xl">
-        {/* Top actions */}
-        <div className="digital-nid-topbar mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            to="/dashboard"
-            className="digital-nid-back-link inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
-          >
+    <div className="digital-nid-page-wrapper">
+      <div className="digital-nid-container">
+        <div className="digital-nid-topbar">
+          <Link to="/dashboard" className="digital-nid-back-link">
             <FaArrowLeft />
-            <span>Back to Dashboard</span>
+            Back to Dashboard
           </Link>
 
           <button
             type="button"
-            onClick={handleDownload}
-            className="digital-nid-download-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
+            onClick={handleDownloadPrint}
+            className="digital-nid-download-button"
           >
             <FaDownload />
-            <span>Download / Print</span>
+            Download / Print
           </button>
         </div>
 
-        <div className="digital-nid-layout grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          {/* Main card area */}
-          <div className="digital-nid-main-panel rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-            <div className="digital-nid-header-block mb-6 flex items-center justify-between gap-4 border-b border-[#E5E7EB] pb-5">
+        <div className="digital-nid-layout">
+          <section className="digital-nid-main-panel">
+            <div className="digital-nid-header-block">
               <div>
-                <h1 className="digital-nid-page-title text-2xl font-bold text-[#1F2937]">
-                  Digital Smart NID
-                </h1>
-                <p className="digital-nid-page-subtitle mt-1 text-sm text-[#6B7280]">
-                  Secure digital version of your National ID information
-                </p>
+                <h1>Digital Smart NID</h1>
+                <p>Secure digital version generated from approved application data.</p>
               </div>
 
-              <div className="digital-nid-verified-badge inline-flex items-center gap-2 rounded-full bg-[#ECFDF5] px-4 py-2 text-sm font-semibold text-[#166534]">
+              <span className="digital-nid-verified-badge">
                 <FaShieldAlt />
-                <span>Verified</span>
+                Verified
+              </span>
+            </div>
+
+            <div className="nid-card-stack">
+              <article className="bd-nid-card bd-nid-card--front">
+                <div className="bd-nid-security-grid" />
+                <div className="bd-nid-rose-ring" />
+                <div className="bd-nid-ghost-map" />
+                <div className="bd-nid-ghost-photo-watermark">
+                  <FaUser />
+                </div>
+
+                <header className="bd-nid-government-head">
+                  <div className="bd-nid-emblem" aria-hidden="true">
+                    <span />
+                  </div>
+
+                  <div>
+                    <p className="bd-nid-bangla-title">গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</p>
+                    <p className="bd-nid-english-title">
+                      Government of the People&apos;s Republic of Bangladesh
+                    </p>
+                    <h2>জাতীয় পরিচয়পত্র / National ID Card</h2>
+                  </div>
+                </header>
+
+                <div className="bd-nid-front-body">
+                  <div className="bd-nid-left-column">
+                    <div className="bd-nid-photo-frame">
+                      {data.photo && !photoError ? (
+                        <img
+                          src={data.photo}
+                          alt={data.name}
+                          onError={() => setPhotoError(true)}
+                        />
+                      ) : (
+                        <div className="bd-nid-photo-placeholder">
+                          <FaUser />
+                          <span>Photo</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className={`bd-nid-signature-box ${
+                        data.signature && !signatureError
+                          ? 'bd-nid-signature-box--image'
+                          : 'bd-nid-signature-box--empty'
+                      }`}
+                      aria-label="Citizen signature"
+                    >
+                      {data.signature && !signatureError ? (
+                        <img
+                          src={data.signature}
+                          alt={`${data.name} signature`}
+                          onError={() => setSignatureError(true)}
+                        />
+                      ) : (
+                        <span>Signature</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bd-nid-front-info">
+                    <div className="bd-nid-field bd-nid-field--bangla">
+                      <span>নাম</span>
+                      <strong>{data.nameBangla}</strong>
+                    </div>
+
+                    <div className="bd-nid-field">
+                      <span>Name</span>
+                      <strong>{data.name}</strong>
+                    </div>
+
+                    <div className="bd-nid-field bd-nid-field--bangla-small">
+                      <span>পিতা</span>
+                      <strong>{data.father}</strong>
+                    </div>
+
+                    <div className="bd-nid-field bd-nid-field--bangla-small">
+                      <span>মাতা</span>
+                      <strong>{data.mother}</strong>
+                    </div>
+
+                    <div className="bd-nid-number-row">
+                      <span>Date of Birth</span>
+                      <strong>{formatDate(data.dob)}</strong>
+                    </div>
+
+                    <div className="bd-nid-number-row bd-nid-number-row--nid">
+                      <span>NID No.</span>
+                      <strong>{formatNid(data.nidNumber)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="bd-nid-chip-area">
+                    <div className="bd-nid-chip" aria-hidden="true" />
+                  </div>
+                </div>
+              </article>
+
+              <article className="bd-nid-card bd-nid-card--back">
+                <div className="bd-nid-security-grid" />
+                <div className="bd-nid-back-flower" />
+                <div className="bd-nid-back-ghost-photo">
+                  <FaUser />
+                </div>
+
+                <div className="bd-nid-barcode-strip" aria-hidden="true">
+                  <span />
+                </div>
+
+                <div className="bd-nid-back-address">
+                  <span>ঠিকানা / Address</span>
+                  <p>{data.address !== NA ? data.address : data.permanentAddress}</p>
+                </div>
+
+                <div className="bd-nid-back-meta-grid">
+                  <div>
+                    <span>Blood Group:</span>
+                    <strong>{data.blood}</strong>
+                  </div>
+
+                  <div>
+                    <span>Place of Birth:</span>
+                    <strong>{String(data.birthPlace).toUpperCase()}</strong>
+                  </div>
+
+                  <div>
+                    <span>Issue Date:</span>
+                    <strong>{data.issueDate}</strong>
+                  </div>
+                </div>
+
+                <div className="bd-nid-mrz-block" aria-label="machine readable zone">
+                  {mrzLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <aside className="digital-nid-side-panel">
+            <div className="digital-nid-info-card">
+              <h3>Holder Information</h3>
+
+              <div className="digital-nid-detail-list">
+                {sideDetails.map((item) => (
+                  <div className="digital-nid-detail-item" key={item.label}>
+                    {item.icon}
+
+                    <div>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Card preview */}
-            <div className="digital-nid-card-shell mx-auto max-w-3xl rounded-[24px] bg-[linear-gradient(135deg,#065F46_0%,#16A34A_100%)] p-5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.14)]">
-              <div className="digital-nid-card-panel rounded-[20px] border border-white/20 bg-white/10 p-5 backdrop-blur-[2px]">
-                <div className="digital-nid-card-header mb-5 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="digital-nid-card-country text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
-                      People&apos;s Republic of Bangladesh
-                    </p>
-                    <h2 className="digital-nid-card-title mt-2 flex items-center gap-2 text-xl font-bold">
-                      <FaIdCard />
-                      <span>Smart National ID Card</span>
-                    </h2>
-                  </div>
+            <div className="digital-nid-note-card">
+              <h3>Important Note</h3>
 
-                  <div className="digital-nid-card-chip rounded-xl bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide">
-                    Digital Copy
-                  </div>
-                </div>
-
-                <div className="digital-nid-card-body grid gap-5 md:grid-cols-[120px_1fr_110px]">
-                  <div className="digital-nid-photo-box flex h-[140px] w-[120px] items-center justify-center overflow-hidden rounded-2xl border border-white/25 bg-white/15">
-                    {applicantPhoto ? (
-                      <img
-                        src={applicantPhoto}
-                        alt={applicantName}
-                        className="digital-nid-photo h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="digital-nid-photo-placeholder flex flex-col items-center justify-center gap-2 text-white/80">
-                        <FaUser className="text-3xl" />
-                        <span className="text-xs">No Photo</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="digital-nid-info-block grid gap-3">
-                    <div>
-                      <p className="digital-nid-info-label text-[11px] uppercase tracking-wide text-white/70">
-                        Name
-                      </p>
-                      <p className="digital-nid-info-value text-base font-semibold">
-                        {applicantName}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="digital-nid-info-label text-[11px] uppercase tracking-wide text-white/70">
-                        নাম
-                      </p>
-                      <p className="digital-nid-info-value text-base font-semibold">
-                        {applicantNameBangla}
-                      </p>
-                    </div>
-
-                    <div className="digital-nid-info-grid grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <p className="digital-nid-info-label text-[11px] uppercase tracking-wide text-white/70">
-                          Date of Birth
-                        </p>
-                        <p className="digital-nid-info-value text-sm font-medium">
-                          {applicantDob ? formatDate(applicantDob) : 'N/A'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="digital-nid-info-label text-[11px] uppercase tracking-wide text-white/70">
-                          NID Number
-                        </p>
-                        <p className="digital-nid-info-value text-sm font-bold tracking-wide">
-                          {generatedNidNumber}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="digital-nid-info-label text-[11px] uppercase tracking-wide text-white/70">
-                        Address
-                      </p>
-                      <p className="digital-nid-info-value text-sm font-medium leading-6">
-                        {fullAddress || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="digital-nid-qr-box flex flex-col items-center justify-between">
-                    <div className="digital-nid-qr-card flex h-[110px] w-[110px] items-center justify-center rounded-2xl border border-white/20 bg-white text-[#166534] shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
-                      <FaQrcode className="text-6xl" />
-                    </div>
-                    <span className="digital-nid-qr-text mt-3 text-center text-[11px] uppercase tracking-wide text-white/75">
-                      QR Verification
-                    </span>
-                  </div>
-                </div>
-
-                <div className="digital-nid-card-footer mt-5 border-t border-white/15 pt-4 text-xs text-white/80">
-                  <p>
-                    This digital copy can be used for identity verification where
-                    accepted by the authority.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Side info */}
-          <div className="digital-nid-side-panel space-y-6">
-            <div className="digital-nid-info-card rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-              <h3 className="digital-nid-section-title mb-4 text-lg font-bold text-[#1F2937]">
-                Holder Information
-              </h3>
-
-              <div className="digital-nid-detail-list space-y-4">
-                <div className="digital-nid-detail-item flex items-start gap-3">
-                  <div className="digital-nid-detail-icon mt-1 text-[#16A34A]">
-                    <FaUser />
-                  </div>
-                  <div>
-                    <p className="digital-nid-detail-label text-xs uppercase tracking-wide text-[#6B7280]">
-                      Full Name
-                    </p>
-                    <p className="digital-nid-detail-value text-sm font-medium text-[#1F2937]">
-                      {applicantName}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="digital-nid-detail-item flex items-start gap-3">
-                  <div className="digital-nid-detail-icon mt-1 text-[#16A34A]">
-                    <FaPhoneAlt />
-                  </div>
-                  <div>
-                    <p className="digital-nid-detail-label text-xs uppercase tracking-wide text-[#6B7280]">
-                      Mobile
-                    </p>
-                    <p className="digital-nid-detail-value text-sm font-medium text-[#1F2937]">
-                      {applicantPhone}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="digital-nid-detail-item flex items-start gap-3">
-                  <div className="digital-nid-detail-icon mt-1 text-[#16A34A]">
-                    <FaEnvelope />
-                  </div>
-                  <div>
-                    <p className="digital-nid-detail-label text-xs uppercase tracking-wide text-[#6B7280]">
-                      Email
-                    </p>
-                    <p className="digital-nid-detail-value text-sm font-medium text-[#1F2937] break-all">
-                      {applicantEmail}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="digital-nid-detail-item flex items-start gap-3">
-                  <div className="digital-nid-detail-icon mt-1 text-[#16A34A]">
-                    <FaMapMarkerAlt />
-                  </div>
-                  <div>
-                    <p className="digital-nid-detail-label text-xs uppercase tracking-wide text-[#6B7280]">
-                      Present Address
-                    </p>
-                    <p className="digital-nid-detail-value text-sm font-medium leading-6 text-[#1F2937]">
-                      {fullAddress || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="digital-nid-note-card rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-              <h3 className="digital-nid-section-title mb-3 text-lg font-bold text-[#1F2937]">
-                Important Note
-              </h3>
-              <ul className="digital-nid-note-list list-disc space-y-2 pl-5 text-sm leading-7 text-[#6B7280]">
-                <li>Digital NID is generated from your approved application data.</li>
-                <li>Always verify important details before using this copy.</li>
-                <li>Use the print button for a clean downloadable version.</li>
+              <ul>
+                <li>This is a Smart NID academic prototype design.</li>
+                <li>Data comes from approved application information.</li>
+                <li>Use print/download only for demo presentation purposes.</li>
               </ul>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

@@ -86,7 +86,7 @@ export const getCitizenDocumentPreview = (documentRecord) => {
 export const getCitizenDocumentLabel = (documentType) => {
   switch (documentType) {
     case 'photograph':
-      return 'Photograph';
+      return 'Passport-size photo';
     case 'signature':
       return 'Signature';
     case 'birthCertificate':
