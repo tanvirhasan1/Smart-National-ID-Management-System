@@ -62,7 +62,7 @@ const Login = () => {
           <div className="login-header-block">
             <Link to="/" className="login-logo-wrap" aria-label="Smart NID home">
               <img
-                src="../../../public/logo/logo.webp"
+                src="logo/logo.webp"
                 alt="Smart NID Card Management System"
                 className="login-brand-logo"
                 width="280"
