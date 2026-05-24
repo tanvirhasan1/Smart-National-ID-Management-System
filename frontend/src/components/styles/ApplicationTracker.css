@@ -482,3 +482,80 @@
     flex-direction: column;
   }
 }
+/* Polished responsive tracker layout */
+.tracker-header-card::before {
+  content: "";
+  position: absolute;
+  inset: -40% -8% auto auto;
+  width: 360px;
+  height: 360px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tracker-header-card::after {
+  content: "";
+  position: absolute;
+  right: 120px;
+  bottom: -90px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tracker-sidebar,
+.tracker-summary-card,
+.tracker-progress-card,
+.tracker-history-card,
+.tracker-delivery-card,
+.tracker-action-row {
+  align-self: start;
+}
+
+.tracker-application-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.tracker-application-item:hover::before {
+  background: #BBF7D0;
+}
+
+.tracker-stage-strip,
+.tracker-history-item,
+.tracker-step-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.tracker-step-card:hover,
+.tracker-history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 768px) {
+  .tracker-header-card::before,
+  .tracker-header-card::after {
+    display: none;
+  }
+
+  .tracker-summary-card,
+  .tracker-progress-card,
+  .tracker-history-card,
+  .tracker-delivery-card,
+  .tracker-action-row {
+    border-radius: 1.25rem !important;
+    padding: 1.25rem !important;
+  }
+
+  .tracker-step-card {
+    min-height: auto;
+  }
+}

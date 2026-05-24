@@ -37,20 +37,20 @@
 }
 
 .support-page-wrapper .support-modal-card {
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
 }
 
-.support-page-wrapper .support-modal-card::-webkit-scrollbar {
+.support-page-wrapper .support-modal-body::-webkit-scrollbar {
   width: 6px;
 }
 
-.support-page-wrapper .support-modal-card::-webkit-scrollbar-thumb {
+.support-page-wrapper .support-modal-body::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 999px;
 }
 
-.support-page-wrapper .support-modal-card::-webkit-scrollbar-track {
+.support-page-wrapper .support-modal-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -98,7 +98,14 @@
   }
 
   .support-page-wrapper .support-modal-card {
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .support-page-wrapper .support-modal-header,
+  .support-page-wrapper .support-modal-body,
+  .support-page-wrapper .support-modal-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .support-page-wrapper .support-messages-list {

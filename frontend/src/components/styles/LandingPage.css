@@ -301,7 +301,6 @@
 
 .landing-page .requirement-icon {
   font-size: 2rem;
-  color: #16A34A;
   margin-bottom: 1rem;
 }
 
@@ -384,5 +383,219 @@
 
   .landing-page .cta-buttons {
     flex-direction: column;
+  }
+}
+/* Homepage polish  */
+.landing-page .hero-image {
+  display: block;
+  animation: none;
+  filter: none;
+  background-color: #ecfdf5;
+}
+
+.landing-page .section-tag,
+.landing-page .hero-kicker {
+  letter-spacing: 0.01em;
+}
+
+.landing-page .action-card p,
+.landing-page .trust-card p,
+.landing-page .process-card p,
+.landing-page .requirements-copy p,
+.landing-page .hero-description {
+  color: #475569;
+}
+
+@media (max-width: 640px) {
+  .landing-page .hero-title {
+    line-height: 1.08;
+  }
+
+  .landing-page .hero-description,
+  .landing-page .section-heading p,
+  .landing-page .section-heading-center p {
+    line-height: 1.65;
+  }
+
+  .landing-page .hero-image {
+    min-height: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Journey section polish */
+.landing-page .journey-card {
+  min-height: 230px;
+}
+
+.landing-page .journey-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.landing-page .journey-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 1rem;
+  background: #059669;
+  color: #ffffff;
+  font-size: 1rem;
+  box-shadow: 0 12px 24px rgba(5, 150, 105, 0.18);
+}
+
+.landing-page .journey-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.landing-page .journey-card:hover::after {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .landing-page .journey-card {
+    min-height: auto;
+    padding: 1.25rem;
+  }
+
+  .landing-page .journey-icon {
+    width: 42px;
+    height: 42px;
+  }
+}
+/* Hero floating cards: smooth bounce animation */
+.landing-page .hero-status-card {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  transform-origin: center;
+  will-change: transform;
+  animation: heroCardBounce 3.6s ease-in-out infinite;
+}
+
+.landing-page .hero-status-top {
+  animation-delay: 0s;
+}
+
+.landing-page .hero-status-bottom {
+  animation-delay: 0.45s;
+}
+
+@keyframes heroCardBounce {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  18% {
+    transform: translate3d(0, -10px, 0) scale(1.015);
+  }
+
+  36% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  52% {
+    transform: translate3d(0, -5px, 0) scale(1.008);
+  }
+
+  68% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.landing-page .hero-status-card:hover {
+  animation-play-state: paused;
+  transform: translate3d(0, -4px, 0) scale(1.015);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .hero-status-card {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+/* Cursor reveal dotted pattern */
+.landing-page.has-cursor-pattern {
+  --cursor-x: 50vw;
+  --cursor-y: 40vh;
+  --cursor-opacity: 0;
+  position: relative;
+}
+
+.landing-page .landing-cursor-pattern {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+
+  opacity: var(--cursor-opacity);
+  transition: opacity 220ms ease;
+
+  background-image: radial-gradient(
+    circle,
+    rgba(4, 187, 129, 0.484) 1px,
+    transparent 1.35px
+  );
+  background-size: 18px 18px;
+
+  -webkit-mask-image: radial-gradient(
+    260px circle at var(--cursor-x) var(--cursor-y),
+    rgba(0, 0, 0, 0.9),
+    rgba(0, 0, 0, 0.45) 42%,
+    transparent 74%
+  );
+
+  mask-image: radial-gradient(
+    260px circle at var(--cursor-x) var(--cursor-y),
+    rgba(0, 0, 0, 0.9),
+    rgba(0, 0, 0, 0.45) 42%,
+    transparent 74%
+  );
+}
+
+/* Keep navbar above the pattern */
+.site-navbar {
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .landing-page .landing-cursor-pattern {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .landing-cursor-pattern {
+    display: none;
   }
 }

@@ -25,6 +25,7 @@ import NotFound from './pages/NotFound';
 import CitizenDashboard from './citizen/Dashboard';
 import Profile from './pages/Profile';
 import ApplicationForm from './citizen/ApplicationForm';
+import MobileLivenessPage from './citizen/MobileLivenessPage';
 import AppointmentBooking from './citizen/AppointmentBooking';
 import ApplicationTracker from './citizen/ApplicationTracker';
 import DigitalNID from './citizen/DigitalNID';
@@ -44,12 +45,17 @@ import AuditLogs from './admin/AuditLogs';
 const AppShell = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isLivenessRoute = location.pathname.startsWith('/liveness/mobile/');
 
   return (
     <div className="app">
-      {!isAdminRoute && <Navbar />}
+      {!isAdminRoute && !isLivenessRoute && <Navbar />}
 
-      <main className={isAdminRoute ? '' : 'main-content'}>
+      <main
+        className={
+          isAdminRoute ? '' : isLivenessRoute ? 'liveness-only-main' : 'main-content'
+        }
+      >
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
@@ -98,6 +104,8 @@ const AppShell = () => {
               </PublicRoute>
             }
           />
+
+          <Route path="/liveness/mobile/:sessionId" element={<MobileLivenessPage />} />
 
           {/* Citizen routes */}
           <Route
@@ -252,7 +260,7 @@ const AppShell = () => {
         </Routes>
       </main>
 
-      {!isAdminRoute && <Footer />}
+      {!isAdminRoute && !isLivenessRoute && <Footer />}
 
       <ToastContainer
         position="top-right"

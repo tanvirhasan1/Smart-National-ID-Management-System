@@ -1,0 +1,508 @@
+.liveness-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+  background: rgba(17, 24, 39, 0.72);
+}
+
+.liveness-panel {
+  width: min(960px, 95vw);
+  max-height: 92svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.liveness-panel.embedded {
+  box-shadow: none;
+  width: min(100%, 760px);
+  max-height: none;
+  overflow: visible;
+}
+
+.liveness-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.liveness-header h2 {
+  margin: 0 0 0.25rem;
+  color: #111827;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.liveness-header p {
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.liveness-icon-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  color: #374151;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.liveness-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(270px, 0.75fr);
+  gap: 1rem;
+  align-items: start;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.liveness-camera-column,
+.liveness-guide-column {
+  min-width: 0;
+}
+
+.liveness-camera-shell {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 55svh;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.liveness-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.liveness-camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: #F9FAFB;
+  text-align: center;
+  background: rgba(17, 24, 39, 0.82);
+}
+
+.liveness-camera-placeholder svg {
+  font-size: 2rem;
+}
+
+.liveness-camera-placeholder.success {
+  background: rgba(22, 163, 74, 0.9);
+}
+
+.liveness-spin {
+  animation: liveness-spin 0.9s linear infinite;
+}
+
+@keyframes liveness-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.liveness-canvas {
+  display: none;
+}
+
+.liveness-guide {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  border: 1px solid #D1FAE5;
+  border-radius: 8px;
+  background: #F0FDF4;
+  padding: 0.85rem;
+}
+
+.liveness-guide-image-frame {
+  width: 150px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid #BBF7D0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.liveness-guide-image-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.liveness-guide-copy {
+  min-width: 0;
+}
+
+.liveness-guide-step {
+  display: inline-flex;
+  margin-bottom: 0.35rem;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.liveness-guide h3 {
+  margin: 0 0 0.35rem;
+  color: #111827;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.liveness-guide p {
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.liveness-challenges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.liveness-guide-column .liveness-challenges {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.liveness-challenge {
+  min-height: 42px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  color: #4B5563;
+  font-size: 0.78rem;
+  text-align: center;
+  line-height: 1.25;
+  cursor: default;
+  user-select: none;
+}
+
+.liveness-challenge span {
+  color: #6B7280;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.liveness-challenge strong {
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.liveness-challenge.active {
+  border-color: #16A34A;
+  color: #166534;
+  background: #DCFCE7;
+}
+
+.liveness-challenge.done {
+  border-color: #93C5FD;
+  color: #1D4ED8;
+  background: #DBEAFE;
+}
+
+.liveness-challenge.locked {
+  border-color: #E5E7EB;
+  color: #9CA3AF;
+  background: #F9FAFB;
+}
+
+.liveness-active-instruction {
+  margin-top: 1rem;
+  border-radius: 8px;
+  background: #F0FDF4;
+  color: #166534;
+  padding: 0.85rem 1rem;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.liveness-error {
+  margin-top: 0.75rem;
+  border-radius: 8px;
+  background: #FEF2F2;
+  color: #B91C1C;
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.liveness-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #E5E7EB;
+}
+
+.liveness-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.liveness-only-main {
+  min-height: 100svh;
+}
+
+.mobile-liveness-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: #F9FAFB;
+}
+
+.mobile-liveness-topbar {
+  flex: 0 0 auto;
+  border-bottom: 1px solid #E5E7EB;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+}
+
+.mobile-liveness-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #111827;
+}
+
+.mobile-liveness-brand svg {
+  color: #16A34A;
+  font-size: 1.8rem;
+}
+
+.mobile-liveness-brand strong,
+.mobile-liveness-brand span {
+  display: block;
+  line-height: 1.2;
+}
+
+.mobile-liveness-brand strong {
+  font-size: 1rem;
+}
+
+.mobile-liveness-brand span {
+  color: #6B7280;
+  font-size: 0.75rem;
+}
+
+.mobile-liveness-content {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.mobile-liveness-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #E5E7EB;
+  background: #ffffff;
+  padding: 0.55rem 1rem;
+  color: #6B7280;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.mobile-liveness-result {
+  width: min(100%, 480px);
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  background: #ffffff;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.mobile-liveness-result svg {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.mobile-liveness-result.passed svg {
+  color: #16A34A;
+}
+
+.mobile-liveness-result.failed svg {
+  color: #DC2626;
+}
+
+.mobile-liveness-result h1 {
+  margin: 0 0 0.5rem;
+  color: #111827;
+  font-size: 1.35rem;
+}
+
+.mobile-liveness-result p {
+  margin: 0;
+  color: #4B5563;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .liveness-modal-overlay {
+    align-items: flex-start;
+    padding: 0.5rem;
+  }
+
+  .liveness-panel {
+    width: min(100%, 560px);
+    max-height: calc(100svh - 1rem);
+    padding: 0.75rem;
+  }
+
+  .liveness-panel.embedded {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  .liveness-body {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    padding-right: 0;
+  }
+
+  .liveness-header {
+    gap: 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .liveness-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .liveness-header p {
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .liveness-camera-shell {
+    aspect-ratio: 4 / 3;
+    max-height: 46svh;
+  }
+
+  .liveness-guide {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 0.65rem;
+    padding: 0.65rem;
+  }
+
+  .liveness-guide-image-frame {
+    width: 112px;
+  }
+
+  .liveness-guide-step {
+    margin-bottom: 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .liveness-guide h3 {
+    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
+  }
+
+  .liveness-guide p {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  .liveness-challenges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+  }
+
+  .liveness-challenge {
+    min-height: 36px;
+    padding: 0.3rem;
+  }
+
+  .liveness-active-instruction {
+    margin-top: 0.65rem;
+    padding: 0.65rem;
+    font-size: 1rem;
+  }
+
+  .liveness-error {
+    margin-top: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.86rem;
+  }
+
+  .liveness-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+
+  .liveness-actions .btn {
+    width: 100%;
+  }
+
+  .mobile-liveness-topbar {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .mobile-liveness-content {
+    align-items: flex-start;
+    padding: 0.65rem;
+  }
+
+  .mobile-liveness-result {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .liveness-guide {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .liveness-guide-image-frame {
+    width: 96px;
+  }
+}

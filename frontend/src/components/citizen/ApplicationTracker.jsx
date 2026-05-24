@@ -137,6 +137,31 @@ const getReachedSteps = (status) => {
   }
 };
 
+
+const getProgressPercent = (status) => {
+  const reachedCount = getReachedSteps(status).length;
+
+  if (!status) {
+    return 0;
+  }
+
+  if (status === 'rejected' || status === 'cancelled') {
+    return Math.max(Math.round((reachedCount / TRACKER_STEPS.length) * 100), 12);
+  }
+
+  return Math.round((reachedCount / TRACKER_STEPS.length) * 100);
+};
+
+const getCurrentStageLabel = (status) => {
+  const matchedStep = TRACKER_STEPS.find((step) => step.key === status);
+
+  if (matchedStep) {
+    return matchedStep.label;
+  }
+
+  return status ? formatStatus(status) : 'Not Started';
+};
+
 const getPrimaryMessage = (application) => {
   if (!application) {
     return {
@@ -369,6 +394,14 @@ const ApplicationTracker = () => {
 
   const primaryMessage = getPrimaryMessage(selectedApp);
 
+  const progressPercent = useMemo(() => {
+    return getProgressPercent(selectedApp?.status);
+  }, [selectedApp]);
+
+  const currentStageLabel = useMemo(() => {
+    return getCurrentStageLabel(selectedApp?.status);
+  }, [selectedApp]);
+
   if (loading) {
     return (
       <div className="tracker-loading flex min-h-[60vh] items-center justify-center">
@@ -380,9 +413,9 @@ const ApplicationTracker = () => {
   return (
     <div className="tracker-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
       <div className="tracker-shell mx-auto w-full max-w-[1280px]">
-        <div className="tracker-header-card mb-8 rounded-2xl bg-[linear-gradient(135deg,#16A34A_0%,#15803D_100%)] px-6 py-6 text-white md:px-8">
+        <div className="tracker-header-card relative mb-8 overflow-hidden rounded-[1.75rem] bg-[linear-gradient(135deg,#16A34A_0%,#15803D_100%)] px-6 py-6 text-white shadow-[0_18px_45px_rgba(22,163,74,0.18)] md:px-8">
           <div className="tracker-header-row flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="tracker-header-copy">
+            <div className="tracker-header-copy relative z-10">
               <h1 className="text-[1.9rem] font-bold leading-tight">
                 Track Your Smart NID Application
               </h1>
@@ -391,7 +424,13 @@ const ApplicationTracker = () => {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="relative z-10 flex flex-wrap items-center gap-3">
+              {selectedApp && (
+                <span className="inline-flex items-center rounded-full bg-white/20 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                  Current: {formatStatus(selectedApp.status)}
+                </span>
+              )}
+
               {refreshing && (
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm">
                   <FaSyncAlt className="animate-spin" />
@@ -408,8 +447,8 @@ const ApplicationTracker = () => {
           </div>
         </div>
 
-        <div className="tracker-layout grid gap-6 xl:grid-cols-[300px,1fr]">
-          <div className="tracker-sidebar rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+        <div className="tracker-layout grid items-start gap-6 xl:grid-cols-[300px,1fr]">
+          <div className="tracker-sidebar rounded-[1.5rem] border border-[#E5E7EB] bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] xl:sticky xl:top-28">
             <div className="tracker-sidebar-top mb-4">
               <h2 className="text-lg font-bold text-[#111827]">My Applications</h2>
               <p className="mt-1 text-sm text-[#6B7280]">
@@ -440,9 +479,9 @@ const ApplicationTracker = () => {
                     key={app._id}
                     type="button"
                     onClick={() => setSelectedAppId(app._id)}
-                    className={`tracker-application-item w-full rounded-2xl border px-4 py-4 text-left transition ${
+                    className={`tracker-application-item group relative w-full overflow-hidden rounded-2xl border px-4 py-4 text-left transition ${
                       selectedApp?._id === app._id
-                        ? 'border-[#16A34A] bg-[#F0FDF4] shadow-[0_4px_12px_rgba(22,163,74,0.08)]'
+                        ? 'border-[#16A34A] bg-[#F0FDF4] shadow-[0_10px_22px_rgba(22,163,74,0.10)]'
                         : 'border-[#E5E7EB] bg-white hover:border-[#BBF7D0] hover:bg-[#FAFFFC]'
                     }`}
                   >
@@ -472,7 +511,7 @@ const ApplicationTracker = () => {
 
           {selectedApp ? (
             <div className="tracker-details flex flex-col gap-6">
-              <div className="tracker-summary-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="tracker-summary-card rounded-[1.5rem] border border-[#E5E7EB] bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
                 <div className="tracker-summary-top flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="tracker-summary-copy">
                     <div className="flex flex-wrap items-center gap-3">
@@ -503,7 +542,33 @@ const ApplicationTracker = () => {
                   </div>
                 </div>
 
-                <div className="tracker-meta-grid mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="tracker-stage-strip mt-6 rounded-2xl border border-[#DCFCE7] bg-[linear-gradient(135deg,#F0FDF4_0%,#FFFFFF_100%)] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16A34A]">
+                        Current Stage
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-[#111827]">
+                        {currentStageLabel}
+                      </h3>
+                    </div>
+
+                    <div className="w-full lg:max-w-[360px]">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#374151]">
+                        <span>Overall progress</span>
+                        <span>{progressPercent}%</span>
+                      </div>
+                      <div className="h-3 overflow-hidden rounded-full bg-[#E5E7EB]">
+                        <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#16A34A,#22C55E)] transition-all duration-500"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tracker-meta-grid mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
                       Application Type
@@ -558,7 +623,59 @@ const ApplicationTracker = () => {
                   )}
               </div>
 
-              <div className="tracker-progress-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="tracker-action-row rounded-[1.5rem] border border-[#E5E7EB] bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111827]">Need to take action?</h3>
+                    <p className="mt-1 text-sm text-[#6B7280]">
+                      Available options will appear here based on the current application status.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {selectedApp.status === 'approved' && (
+                      <Link
+                        to={`/book-appointment/${selectedApp._id}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
+                      >
+                        <FaCalendarAlt />
+                        <span>Book Biometric Appointment</span>
+                      </Link>
+                    )}
+
+                    {['approved', 'printed', 'dispatched', 'delivered'].includes(
+                      selectedApp.status
+                    ) && (
+                      <Link
+                        to={`/digital-nid/${selectedApp._id}`}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#16A34A] bg-white px-5 py-3 text-sm font-semibold text-[#16A34A] transition hover:bg-[#F0FDF4]"
+                      >
+                        <FaIdCard />
+                        <span>View Digital NID</span>
+                      </Link>
+                    )}
+
+                    {['rejected', 'cancelled'].includes(selectedApp.status) && (
+                      <Link
+                        to="/apply"
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
+                      >
+                        <span>Apply Again</span>
+                        <FaArrowRight />
+                      </Link>
+                    )}
+
+                    <Link
+                      to="/support"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:border-[#16A34A] hover:text-[#16A34A]"
+                    >
+                      <span>Contact Support</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              <div className="tracker-progress-card rounded-[1.5rem] border border-[#E5E7EB] bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
                 <h3 className="text-lg font-bold text-[#111827]">
                   Application Progress
                 </h3>
@@ -580,9 +697,9 @@ const ApplicationTracker = () => {
                     return (
                       <div
                         key={step.key}
-                        className={`tracker-step-card rounded-2xl border p-5 transition ${
+                        className={`tracker-step-card flex min-h-[265px] flex-col rounded-2xl border p-5 transition ${
                           isCurrent
-                            ? 'border-[#16A34A] bg-[#F0FDF4]'
+                            ? 'border-[#16A34A] bg-[#F0FDF4] shadow-[0_12px_24px_rgba(22,163,74,0.10)]'
                             : isCompleted
                               ? 'border-[#BBF7D0] bg-[#FAFFFC]'
                               : 'border-[#E5E7EB] bg-white'
@@ -622,7 +739,7 @@ const ApplicationTracker = () => {
                           {step.description}
                         </p>
 
-                        <div className="mt-4 rounded-xl bg-[#F9FAFB] px-3 py-3">
+                        <div className="mt-auto rounded-xl bg-[#F9FAFB] px-3 py-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
                             Status Time
                           </p>
@@ -675,7 +792,7 @@ const ApplicationTracker = () => {
               </div>
 
               {latestHistory.length > 0 && (
-                <div className="tracker-history-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                <div className="tracker-history-card rounded-[1.5rem] border border-[#E5E7EB] bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
                   <h3 className="text-lg font-bold text-[#111827]">
                     Recent Status Updates
                   </h3>
@@ -687,33 +804,39 @@ const ApplicationTracker = () => {
                     {latestHistory.map((historyItem, index) => (
                       <div
                         key={`${historyItem.toStatus}-${historyItem.changedAt}-${index}`}
-                        className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-4"
+                        className="tracker-history-item flex gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-4"
                       >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-bold text-[#111827]">
-                              {formatStatus(historyItem.toStatus)}
-                            </p>
-
-                            {historyItem.fromStatus && (
-                              <p className="mt-1 text-xs text-[#6B7280]">
-                                From {formatStatus(historyItem.fromStatus)}
-                              </p>
-                            )}
-                          </div>
-
-                          <p className="text-xs font-medium text-[#6B7280]">
-                            {historyItem.changedAt
-                              ? formatTrackerDateTime(historyItem.changedAt)
-                              : 'N/A'}
-                          </p>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#DCFCE7] text-[#16A34A]">
+                          <FaCheckCircle />
                         </div>
 
-                        {historyItem.note && (
-                          <p className="mt-3 text-sm leading-6 text-[#4B5563]">
-                            {historyItem.note}
-                          </p>
-                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-[#111827]">
+                                {formatStatus(historyItem.toStatus)}
+                              </p>
+
+                              {historyItem.fromStatus && (
+                                <p className="mt-1 text-xs text-[#6B7280]">
+                                  From {formatStatus(historyItem.fromStatus)}
+                                </p>
+                              )}
+                            </div>
+
+                            <p className="text-xs font-medium text-[#6B7280]">
+                              {historyItem.changedAt
+                                ? formatTrackerDateTime(historyItem.changedAt)
+                                : 'N/A'}
+                            </p>
+                          </div>
+
+                          {historyItem.note && (
+                            <p className="mt-3 text-sm leading-6 text-[#4B5563]">
+                              {historyItem.note}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -721,7 +844,7 @@ const ApplicationTracker = () => {
               )}
 
               {['printed', 'dispatched', 'delivered'].includes(selectedApp.status) && (
-                <div className="tracker-delivery-card rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                <div className="tracker-delivery-card rounded-[1.5rem] border border-[#E5E7EB] bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
                   <h3 className="text-lg font-bold text-[#111827]">
                     Delivery Information
                   </h3>
@@ -774,46 +897,6 @@ const ApplicationTracker = () => {
                 </div>
               )}
 
-              <div className="tracker-action-row flex flex-wrap gap-3">
-                {selectedApp.status === 'approved' && (
-                  <Link
-                    to={`/book-appointment/${selectedApp._id}`}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
-                  >
-                    <FaCalendarAlt />
-                    <span>Book Biometric Appointment</span>
-                  </Link>
-                )}
-
-                {['approved', 'printed', 'dispatched', 'delivered'].includes(
-                  selectedApp.status
-                ) && (
-                  <Link
-                    to={`/digital-nid/${selectedApp._id}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#16A34A] bg-white px-5 py-3 text-sm font-semibold text-[#16A34A] transition hover:bg-[#F0FDF4]"
-                  >
-                    <FaIdCard />
-                    <span>View Digital NID</span>
-                  </Link>
-                )}
-
-                {['rejected', 'cancelled'].includes(selectedApp.status) && (
-                  <Link
-                    to="/apply"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
-                  >
-                    <span>Apply Again</span>
-                    <FaArrowRight />
-                  </Link>
-                )}
-
-                <Link
-                  to="/support"
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:border-[#16A34A] hover:text-[#16A34A]"
-                >
-                  <span>Contact Support</span>
-                </Link>
-              </div>
             </div>
           ) : (
             <div className="tracker-no-selection flex items-center justify-center rounded-2xl border border-dashed border-[#D1D5DB] bg-white p-12 text-center">

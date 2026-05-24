@@ -2,9 +2,6 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   FaIdCard,
-  FaFacebookF,
-  FaLinkedinIn,
-  FaYoutube,
   FaEnvelope,
   FaPhoneAlt,
   FaMapMarkerAlt
@@ -47,7 +44,7 @@ const Footer = () => {
 
               <div className="footer-compact-brand-text">
                 <h3>Smart NID</h3>
-                <p>Trusted digital identity services</p>
+                <p>Digital identity service portal</p>
               </div>
             </div>
 
@@ -58,24 +55,24 @@ const Footer = () => {
             </div>
 
             <div className="footer-compact-contact">
-              <a href="mailto:support@smartnid.gov.bd">
+              <a href="mailto:support@smartnid.local">
                 <FaEnvelope />
-                <span>support@smartnid.gov.bd</span>
+                <span>support@smartnid.local</span>
               </a>
 
-              <a href="tel:+8801234567890">
+              <a href="tel:+8801000000000">
                 <FaPhoneAlt />
-                <span>+880 1234-567890</span>
+                <span>+880 1000-000000</span>
               </a>
             </div>
           </div>
 
           <div className="footer-compact-bottom">
-            <p>© {currentYear} Smart NID Management System. All rights reserved.</p>
+            <p>© {currentYear} Smart NID Management System. Academic prototype.</p>
 
             <div className="footer-compact-bottom-links">
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Service</a>
+              <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
+              <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
             </div>
           </div>
         </div>
@@ -89,35 +86,26 @@ const Footer = () => {
         <div className="footer-container">
           <div className="footer-grid">
             <div className="footer-column footer-brand-column">
-              <div className="footer-brand">
-                <div className="footer-brand-icon">
-                  <FaIdCard />
-                </div>
-
-                <div className="footer-brand-text">
-                  <h3>Smart NID</h3>
-                  <p>Management System</p>
-                </div>
-              </div>
+              <Link to="/" className="footer-brand footer-brand-logo" aria-label="Smart NID home">
+                <img
+                  src="../../../logo/logo-white.webp"
+                  alt="Smart NID Card Management System"
+                  width="260"
+                  height="72"
+                  loading="lazy"
+                  decoding="async"
+                  className="footer-logo-image"
+                />
+              </Link>
 
               <p className="footer-description">
-                Digital platform for Smart National ID registration, application
-                tracking, appointments, and support services for Bangladesh
-                citizens.
+                Academic prototype for Smart National ID registration,
+                application tracking, biometric appointments, and citizen
+                support services.
               </p>
 
-              <div className="footer-socials">
-                <a href="#" className="footer-social-link" aria-label="Facebook">
-                  <FaFacebookF />
-                </a>
-
-                <a href="#" className="footer-social-link" aria-label="LinkedIn">
-                  <FaLinkedinIn />
-                </a>
-
-                <a href="#" className="footer-social-link" aria-label="YouTube">
-                  <FaYoutube />
-                </a>
+              <div className="footer-note">
+                Built for digital public service management.
               </div>
             </div>
 
@@ -145,7 +133,7 @@ const Footer = () => {
 
               <ul className="footer-links">
                 <li>
-                  <Link to="/apply">Apply for NID</Link>
+                  <Link to="/login">Apply for NID</Link>
                 </li>
                 <li>
                   <Link to="/support">Support</Link>
@@ -167,21 +155,21 @@ const Footer = () => {
                   <span className="footer-contact-icon">
                     <FaEnvelope />
                   </span>
-                  <span>support@smartnid.gov.bd</span>
+                  <span>support@smartnid.local</span>
                 </div>
 
                 <div className="footer-contact-item">
                   <span className="footer-contact-icon">
                     <FaPhoneAlt />
                   </span>
-                  <span>+880 1234-567890</span>
+                  <span>+880 1000-000000</span>
                 </div>
 
                 <div className="footer-contact-item footer-contact-address">
                   <span className="footer-contact-icon">
                     <FaMapMarkerAlt />
                   </span>
-                  <span>Election Commission Secretariat, Dhaka, Bangladesh</span>
+                  <span>Demo Service Office, Dhaka, Bangladesh</span>
                 </div>
               </div>
             </div>
@@ -191,11 +179,11 @@ const Footer = () => {
 
       <div className="footer-bottom">
         <div className="footer-container footer-bottom-content">
-          <p>© {currentYear} Smart NID Management System. All rights reserved.</p>
+          <p>© {currentYear} Smart NID Management System.</p>
 
           <div className="footer-bottom-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
+            <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
+            <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
           </div>
         </div>
       </div>
@@ -204,4 +192,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

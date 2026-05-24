@@ -124,24 +124,106 @@ const SupportTicket = () => {
     }
   };
 
-  // Send reply to selected ticket
+  // Send reply to selected ticket without refreshing the whole page
   const handleSendMessage = async (event) => {
     event.preventDefault();
 
-    if (!newMessage.trim() || !selectedTicket?._id) return;
+    const messageText = newMessage.trim();
+    if (!messageText || !selectedTicket?._id) return;
+
+    const ticketId = selectedTicket._id;
+    const previousTicket = selectedTicket;
+    const now = new Date().toISOString();
+    const temporaryReplyId = `local-${Date.now()}`;
+
+    const optimisticReply = {
+      _id: temporaryReplyId,
+      message: messageText,
+      responderRole: 'citizen',
+      createdAt: now
+    };
 
     setSendingMessage(true);
+    setNewMessage('');
+
+    // Instant UI update: message appears immediately like a chat app.
+    setSelectedTicket((currentTicket) => {
+      if (!currentTicket || currentTicket._id !== ticketId) return currentTicket;
+
+      return {
+        ...currentTicket,
+        updatedAt: now,
+        responses: [...(currentTicket.responses || []), optimisticReply]
+      };
+    });
+
+    setTickets((currentTickets) =>
+      currentTickets.map((ticket) =>
+        ticket._id === ticketId
+          ? {
+              ...ticket,
+              updatedAt: now
+            }
+          : ticket
+      )
+    );
 
     try {
-      await api.post(`/support/tickets/${selectedTicket._id}/respond`, {
-        message: newMessage.trim()
+      const response = await api.post(`/support/tickets/${ticketId}/respond`, {
+        message: messageText
       });
 
-      setNewMessage('');
-      await handleSelectTicket(selectedTicket._id);
-      await fetchTickets();
+      const responseData = response?.data?.data;
+      const serverTicket = responseData?.responses ? responseData : null;
+      const serverReply =
+        responseData?.response ||
+        responseData?.reply ||
+        response?.data?.response ||
+        response?.data?.reply ||
+        null;
+
+      if (serverTicket) {
+        setSelectedTicket(serverTicket);
+        setTickets((currentTickets) =>
+          currentTickets.map((ticket) =>
+            ticket._id === ticketId
+              ? {
+                  ...ticket,
+                  status: serverTicket.status || ticket.status,
+                  updatedAt: serverTicket.updatedAt || ticket.updatedAt
+                }
+              : ticket
+          )
+        );
+      } else if (serverReply?.message) {
+        setSelectedTicket((currentTicket) => {
+          if (!currentTicket || currentTicket._id !== ticketId) return currentTicket;
+
+          return {
+            ...currentTicket,
+            updatedAt: serverReply.createdAt || now,
+            responses: (currentTicket.responses || []).map((reply) =>
+              reply._id === temporaryReplyId ? serverReply : reply
+            )
+          };
+        });
+      }
+
       toast.success('Message sent successfully');
     } catch (error) {
+      setSelectedTicket(previousTicket);
+      setNewMessage(messageText);
+      setTickets((currentTickets) =>
+        currentTickets.map((ticket) =>
+          ticket._id === ticketId
+            ? {
+                ...ticket,
+                updatedAt: previousTicket?.updatedAt || ticket.updatedAt
+              }
+            : ticket
+        )
+      );
+
       toast.error(
         error?.response?.data?.message ||
           error?.response?.data?.errors?.[0]?.msg ||
@@ -439,26 +521,32 @@ const SupportTicket = () => {
         {/* Create ticket modal */}
         {showCreateModal && (
           <div
-            className="support-modal-overlay fixed inset-0 z-[120] flex items-center justify-center bg-black/50 px-4 py-6"
+            className="support-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm sm:px-6"
             onClick={() => setShowCreateModal(false)}
           >
             <div
-              className="support-modal-card w-full max-w-[560px] rounded-2xl bg-white shadow-[0_18px_40px_rgba(0,0,0,0.16)]"
+              className="support-modal-card w-full max-w-[640px] max-h-[calc(100dvh-48px)] overflow-hidden rounded-[24px] bg-white shadow-[0_28px_85px_rgba(15,23,42,0.30)] ring-1 ring-slate-200/80"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="support-modal-header flex items-center justify-between border-b border-[#E5E7EB] px-6 py-5">
-                <div>
-                  <h3 className="text-xl font-semibold text-[#1F2937]">
-                    Create Support Ticket
-                  </h3>
-                  <p className="mt-1 text-sm text-[#6B7280]">
-                    Tell us about your issue and our team will help you.
-                  </p>
+              <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-400" />
+              <div className="support-modal-header flex items-start justify-between gap-4 border-b border-[#E5E7EB] bg-white px-6 py-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-sm">
+                    <FaTicketAlt className="text-lg" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold leading-tight text-[#1F2937]">
+                      Create Support Ticket
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-[#6B7280]">
+                      Tell us about your issue and our team will help you.
+                    </p>
+                  </div>
                 </div>
 
                 <button
                   type="button"
-                  className="support-modal-close rounded-lg p-2 text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827]"
+                  className="support-modal-close flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white p-0 text-[#6B7280] shadow-sm transition hover:border-[#D1D5DB] hover:bg-[#F9FAFB] hover:text-[#111827]"
                   onClick={() => setShowCreateModal(false)}
                 >
                   <FaTimes />
@@ -466,7 +554,7 @@ const SupportTicket = () => {
               </div>
 
               <form onSubmit={handleSubmit(handleCreateTicket)}>
-                <div className="support-modal-body space-y-5 px-6 py-6">
+                <div className="support-modal-body max-h-[calc(100dvh-220px)] space-y-5 overflow-y-auto px-6 py-6">
                   <div className="form-group">
                     <label className="mb-2 block text-sm font-medium text-[#374151]">
                       Subject *
@@ -559,17 +647,17 @@ const SupportTicket = () => {
                   </div>
                 </div>
 
-                <div className="support-modal-footer flex flex-col gap-3 border-t border-[#E5E7EB] px-6 py-5 sm:flex-row sm:justify-end">
+                <div className="support-modal-footer flex flex-col gap-3 border-t border-[#E5E7EB] bg-white/95 px-6 py-5 backdrop-blur sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-medium text-[#374151] transition hover:bg-[#F9FAFB]"
+                    className="inline-flex items-center justify-center rounded-xl border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:bg-[#F9FAFB] hover:text-[#111827]"
                     onClick={() => setShowCreateModal(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
