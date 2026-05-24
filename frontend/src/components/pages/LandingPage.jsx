@@ -284,7 +284,7 @@ const LandingPage = () => {
             <div className="hero-visual flex justify-center lg:justify-end">
               <div className="hero-image-shell relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-2xl shadow-slate-900/10">
                 <img
-                  src="../../../public/hero/hero-img.webp"
+                  src="hero/hero-img.webp"
                   alt="Citizens using Smart NID card services"
                   width="820"
                   height="600"

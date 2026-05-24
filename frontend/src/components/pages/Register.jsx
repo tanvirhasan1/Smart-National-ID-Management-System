@@ -145,7 +145,7 @@ const Register = () => {
           <div className="register-header-block mb-8 text-center">
             <div className="register-logo-wrap mb-4 flex justify-center">
               <img
-                src="https://i.ibb.co.com/99gnCXfN/logo.png"
+                src="logo/logo.webp"
                 alt="Logo"
                 className="register-brand-logo h-[60px] w-auto object-contain"
               />
