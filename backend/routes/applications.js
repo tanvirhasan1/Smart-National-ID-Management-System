@@ -71,7 +71,10 @@ router.post(
       .withMessage('Permanent address division is required'),
     body('permanentAddress.district')
       .notEmpty()
-      .withMessage('Permanent address district is required')
+      .withMessage('Permanent address district is required'),
+    body('biometricSessionId')
+      .notEmpty()
+      .withMessage('Biometric verification is required before application submission')
   ],
   createApplication
 );
