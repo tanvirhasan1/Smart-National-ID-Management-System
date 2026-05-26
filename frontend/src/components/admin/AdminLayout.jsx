@@ -15,6 +15,7 @@ import {
   FaUserCog
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { ADMIN_MENU_ACCESS, getRoleLabel, getRoleScopeText, inferMainAdmin } from '../utils/roles';
 import '../styles/AdminLayout.css';
 
 const AdminLayout = ({ children }) => {
@@ -24,9 +25,7 @@ const AdminLayout = ({ children }) => {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isMainAdmin =
-  Boolean(user?.isMainAdmin) ||
-  (user?.role === 'admin' && !user?.createdBy);
+  const isMainAdmin = inferMainAdmin(user);
 
   const handleLogout = () => {
     logout();
@@ -38,50 +37,50 @@ const AdminLayout = ({ children }) => {
       path: '/admin/dashboard',
       label: 'Dashboard',
       icon: FaHome,
-      roles: ['admin', 'system_supervisor', 'support_staff']
+      roles: ADMIN_MENU_ACCESS.dashboard
     },
     {
       path: '/admin/users',
       label: 'Users',
       icon: FaUserCog,
-      roles: ['admin'],
+      roles: ADMIN_MENU_ACCESS.users,
       mainAdminOnly: true
     },
     {
       path: '/admin/applications',
       label: 'Applications',
       icon: FaFileAlt,
-      roles: ['admin']
+      roles: ADMIN_MENU_ACCESS.applications
     },
     {
       path: '/admin/appointments',
       label: 'Appointments',
       icon: FaCalendarAlt,
-      roles: ['admin']
+      roles: ADMIN_MENU_ACCESS.appointments
     },
     {
       path: '/admin/printing',
       label: 'Printing Queue',
       icon: FaPrint,
-      roles: ['admin']
+      roles: ADMIN_MENU_ACCESS.printing
     },
     {
       path: '/admin/delivery',
       label: 'Delivery',
       icon: FaTruck,
-      roles: ['admin']
+      roles: ADMIN_MENU_ACCESS.delivery
     },
     {
       path: '/admin/support',
       label: 'Support Tickets',
       icon: FaTicketAlt,
-      roles: ['admin', 'support_staff']
+      roles: ADMIN_MENU_ACCESS.support
     },
     {
       path: '/admin/audit-logs',
       label: 'Audit Logs',
       icon: FaHistory,
-      roles: ['admin', 'system_supervisor']
+      roles: ADMIN_MENU_ACCESS.auditLogs
     }
   ];
 
@@ -99,11 +98,8 @@ const menuItems = allMenuItems.filter((item) => {
   return true;
 });
 
-  const roleLabelMap = {
-    admin: 'Administrator',
-    system_supervisor: 'System Supervisor',
-    support_staff: 'Support Staff'
-  };
+  const roleLabel = getRoleLabel(user?.role, user);
+  const roleScope = getRoleScopeText(user);
 
   return (
     <div
@@ -204,7 +200,7 @@ const menuItems = allMenuItems.filter((item) => {
 
           <div className="admin-topbar-spacer flex-1" />
 
-          <div className="admin-profile-card flex items-center gap-3">
+          <div className="admin-profile-card flex items-center gap-3" title={roleScope}>
             <div className="admin-profile-avatar flex h-10 w-10 items-center justify-center rounded-full bg-[#16A34A] text-white">
               <FaUserShield />
             </div>
@@ -214,7 +210,7 @@ const menuItems = allMenuItems.filter((item) => {
                 {user?.fullName || 'Admin User'}
               </span>
               <span className="admin-profile-role text-xs text-[#6B7280]">
-                {roleLabelMap[user?.role] || 'Administrator'}
+                {roleLabel}
               </span>
             </div>
           </div>

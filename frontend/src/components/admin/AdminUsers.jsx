@@ -2,16 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   FaCircle,
-  FaClock,
   FaEdit,
   FaEnvelope,
   FaMapSigns,
-  FaPhoneAlt,
   FaPlus,
   FaSearch,
   FaShieldAlt,
   FaSpinner,
-  FaTrashAlt,
   FaUserCheck,
   FaUserClock,
   FaUserShield,
@@ -22,10 +19,130 @@ import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
 import { useAuth } from '../context/AuthContext';
 import { formatDateTime, formatStatus } from '../utils/helpers';
+import { getRoleLabel, getRoleScopeText, inferMainAdmin } from '../utils/roles';
 import '../styles/AdminUsers.css';
 
-const inferMainAdmin = (user) =>
-  Boolean(user?.isMainAdmin) || (user?.role === 'admin' && !user?.createdBy);
+
+
+const IDENTITY_TILE_BASE_STYLE = {
+  position: 'relative',
+  minWidth: 0,
+  minHeight: '118px',
+  padding: '18px 18px 16px',
+  borderRadius: '20px',
+  border: '1px solid #d8e6f3',
+  background: '#ffffff',
+  boxShadow: '0 16px 34px rgba(15, 23, 42, 0.08)',
+  overflow: 'hidden'
+};
+
+const IDENTITY_TILE_HEAD_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  marginBottom: '14px'
+};
+
+
+const IDENTITY_TILE_COPY_STYLE = {
+  minWidth: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '5px'
+};
+
+const IDENTITY_TILE_LABEL_STYLE = {
+  display: 'block',
+  color: '#64748b',
+  fontSize: '0.78rem',
+  fontWeight: 800,
+  letterSpacing: '0.04em',
+  lineHeight: 1.2,
+  textTransform: 'uppercase'
+};
+
+const IDENTITY_TILE_VALUE_STYLE = {
+  display: 'block',
+  margin: 0,
+  color: '#0f172a',
+  fontSize: '1.12rem',
+  fontWeight: 850,
+  lineHeight: 1.28,
+  overflowWrap: 'anywhere',
+  wordBreak: 'normal'
+};
+
+const IDENTITY_TILE_HELPER_STYLE = {
+  display: 'block',
+  color: '#64748b',
+  fontSize: '0.82rem',
+  fontWeight: 600,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere'
+};
+
+const IDENTITY_ICON_BASE_STYLE = {
+  width: '42px',
+  height: '42px',
+  borderRadius: '14px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#ffffff',
+  flex: '0 0 auto',
+  fontSize: '1rem'
+};
+
+const IDENTITY_TILE_VARIANTS = {
+  role: {
+    accent: '#16a34a',
+    background: 'linear-gradient(135deg, #ecfdf5 0%, #ffffff 78%)',
+    borderColor: '#bbf7d0',
+    label: 'Access Role',
+    helper: 'Permission group'
+  },
+  status: {
+    accent: '#2563eb',
+    background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 78%)',
+    borderColor: '#bfdbfe',
+    label: 'Account Status',
+    helper: 'Profile state'
+  },
+  live: {
+    accent: '#059669',
+    background: 'linear-gradient(135deg, #ecfdf5 0%, #ffffff 78%)',
+    borderColor: '#a7f3d0',
+    label: 'Working Status',
+    helper: 'Current availability'
+  },
+  offline: {
+    accent: '#64748b',
+    background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 78%)',
+    borderColor: '#cbd5e1',
+    label: 'Working Status',
+    helper: 'Current availability'
+  },
+  workspace: {
+    accent: '#7c3aed',
+    background: 'linear-gradient(135deg, #f5f3ff 0%, #ffffff 78%)',
+    borderColor: '#ddd6fe',
+    label: 'Workspace',
+    helper: 'Operational area'
+  }
+};
+
+const getIdentityTileInlineStyle = (variant) => ({
+  ...IDENTITY_TILE_BASE_STYLE,
+  background: variant.background,
+  borderColor: variant.borderColor,
+  borderTop: `5px solid ${variant.accent}`
+});
+
+const getIdentityIconInlineStyle = (variant) => ({
+  ...IDENTITY_ICON_BASE_STYLE,
+  background: variant.accent,
+  boxShadow: `0 12px 22px ${variant.accent}33`
+});
 
 const getUsersFromResponse = (response) =>
   response?.data?.data || response?.data?.users || [];
@@ -39,9 +156,45 @@ const getWorkingStatusText = (user) =>
 const getSafeCurrentRoute = (user) =>
   user?.liveStatus?.currentRoute || 'No active route';
 
+const getFriendlyWorkspace = (user) => {
+  const route = getSafeCurrentRoute(user);
+
+  if (!route || route === 'No active route') {
+    return user?.liveStatus?.isLive ? 'Admin workspace' : 'Not working right now';
+  }
+
+  const cleanRoute = String(route).split('?')[0].toLowerCase();
+
+  if (cleanRoute.includes('dashboard')) return 'Dashboard overview';
+  if (cleanRoute.includes('application-review') || cleanRoute.includes('applications')) {
+    return 'Application review';
+  }
+  if (cleanRoute.includes('appointment')) return 'Appointment management';
+  if (cleanRoute.includes('printing')) return 'Printing queue';
+  if (cleanRoute.includes('delivery')) return 'Delivery control';
+  if (cleanRoute.includes('support')) return 'Support tickets';
+  if (cleanRoute.includes('audit')) return 'Audit logs';
+  if (cleanRoute.includes('users')) return 'Internal user control';
+
+  return 'Admin workspace';
+};
+
+const getWorkspaceLabel = (user) =>
+  user?.liveStatus?.isLive ? 'Current Workspace' : 'Last Workspace';
+
+
+
+const getRoleScope = (user) => getRoleScopeText(user);
+
+const getCreatedByName = (user) =>
+  user?.createdBy?.fullName || user?.createdBy?.name || 'System';
+
+const getCreatedByEmail = (user) =>
+  user?.createdBy?.email || 'Not recorded';
+
 const getLastSeenText = (user) => {
   if (user?.liveStatus?.isLive) {
-    return 'Working now';
+    return 'Working Now';
   }
 
   if (user?.liveStatus?.lastSeenAt) {
@@ -70,7 +223,8 @@ const buildUserSearchText = (user) =>
       user?.liveStatus?.isLive ? 'live now working active online' : 'offline inactive',
       user?.createdBy?.fullName,
       user?.createdBy?.email,
-      getSafeCurrentRoute(user)
+      getFriendlyWorkspace(user),
+      getRoleScope(user)
     ]
       .filter(Boolean)
       .join(' ')
@@ -249,6 +403,11 @@ const AdminUsers = () => {
   const openEditModal = () => {
     if (!selectedUser) return;
 
+    if (isRootMainAdminUser(selectedUser)) {
+      toast.info('Root admin access is protected and cannot be edited here');
+      return;
+    }
+
     setEditForm({
       fullName: selectedUser.fullName || '',
       email: selectedUser.email || '',
@@ -277,6 +436,16 @@ const AdminUsers = () => {
 
   const openRemoveModal = () => {
     if (!selectedUser) return;
+
+    if (isRootMainAdminUser(selectedUser)) {
+      toast.info('Root admin account is protected and cannot be deactivated');
+      return;
+    }
+
+    if (selectedUser?._id === user?._id) {
+      toast.info('You cannot deactivate your own account from this panel');
+      return;
+    }
 
     setRemoveForm({
       archiveReason: ''
@@ -400,8 +569,13 @@ const AdminUsers = () => {
   const handleRemoveUser = async () => {
     if (!selectedUser?._id) return;
 
+    if (isRootMainAdminUser(selectedUser) || selectedUser?._id === user?._id) {
+      toast.error('This account is protected from deactivation');
+      return;
+    }
+
     if (!removeForm.archiveReason.trim()) {
-      toast.error('Remove reason is required');
+      toast.error('Deactivation reason is required');
       return;
     }
 
@@ -414,13 +588,13 @@ const AdminUsers = () => {
         }
       });
 
-      toast.success('Internal user removed from active control');
+      toast.success('Internal user deactivated from active control');
       closeRemoveModal();
       await fetchUsers();
     } catch (error) {
       console.error('Error removing internal user:', error);
       toast.error(
-        error?.response?.data?.message || 'Failed to remove internal user'
+        error?.response?.data?.message || 'Failed to deactivate internal user'
       );
     } finally {
       setRemoveLoading(false);
@@ -453,7 +627,7 @@ const AdminUsers = () => {
             <div>
               <h1 className="admin-users-title">Internal User Control</h1>
               <p className="admin-users-subtitle">
-                Manage admins, system supervisors and support staff from one
+                Manage admin officers, system supervisors and support staff from one
                 control-focused workspace.
               </p>
             </div>
@@ -486,7 +660,7 @@ const AdminUsers = () => {
                 <FaUserShield />
               </div>
               <div>
-                <p>Admins</p>
+                <p>Admin Roles</p>
                 <h3>{summary.admins}</h3>
               </div>
             </div>
@@ -552,7 +726,7 @@ const AdminUsers = () => {
                 onChange={(event) => setRoleFilter(event.target.value)}
               >
                 <option value="">All Roles</option>
-                <option value="admin">Admin</option>
+                <option value="admin">Admin Officer</option>
                 <option value="system_supervisor">System Supervisor</option>
                 <option value="support_staff">Support Staff</option>
               </select>
@@ -596,8 +770,8 @@ const AdminUsers = () => {
           <div className="admin-users-list-card">
             <div className="admin-users-card-header">
               <div>
-                <h3>Team Directory</h3>
-                <p>{visibleUsers.length} users found</p>
+                <h3>Internal Team Directory</h3>
+                <p>{visibleUsers.length} internal users found</p>
               </div>
             </div>
 
@@ -648,13 +822,15 @@ const AdminUsers = () => {
 
                     <div className="admin-users-list-meta">
                       <span className="admin-users-role-chip">
-                        {formatStatus(item.role)}
+                        {getRoleLabel(item.role, item)}
                       </span>
-                      <small>{item.phone || 'No phone'}</small>
+                      <small className="admin-users-phone-meta" title={item.phone || 'No phone'}>
+                        {`☎ Phone: ${item.phone || 'No phone'}`}
+                      </small>
                     </div>
 
                     <div className="admin-users-list-footer">
-                      <span>Last seen: {getLastSeenText(item)}</span>
+                      <span>Last active: {getLastSeenText(item)}</span>
                     </div>
                   </button>
                 ))}
@@ -670,7 +846,7 @@ const AdminUsers = () => {
                   <div>
                     <h2>{selectedUser.fullName || 'Unnamed User'}</h2>
                     <p>
-                      {formatStatus(selectedUser.role)} ·{' '}
+                      {getRoleLabel(selectedUser.role, selectedUser)} ·{' '}
                       {formatStatus(selectedUser.accountStatus || selectedUser.status || 'active')}
                     </p>
                   </div>
@@ -696,170 +872,261 @@ const AdminUsers = () => {
                   </div>
                 </div>
 
-                <div className="admin-users-summary-grid">
-                  <div className="admin-users-summary-card">
-                    <p>Role</p>
-                    <h4>{formatStatus(selectedUser.role)}</h4>
+                <div
+                  className="admin-users-identity-panel polished"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: '14px',
+                    margin: '18px 0 18px',
+                    alignItems: 'stretch'
+                  }}
+                  aria-label="Selected internal user overview"
+                >
+                  <div
+                    className="admin-users-identity-tile polished role"
+                    style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.role)}
+                  >
+                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                      <span
+                        className="admin-users-identity-icon"
+                        style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.role)}
+                        aria-hidden="true"
+                      >
+                        <FaUserShield />
+                      </span>
+                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                        <span style={IDENTITY_TILE_LABEL_STYLE}>Access Role</span>
+                        <strong style={IDENTITY_TILE_VALUE_STYLE}>
+                          {getRoleLabel(selectedUser.role, selectedUser)}
+                        </strong>
+                        <small style={IDENTITY_TILE_HELPER_STYLE}>Permission group</small>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="admin-users-summary-card">
-                    <p>Account Status</p>
-                    <h4>
-                      {formatStatus(
-                        selectedUser.accountStatus || selectedUser.status || 'active'
-                      )}
-                    </h4>
+                  <div
+                    className="admin-users-identity-tile polished status"
+                    style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.status)}
+                  >
+                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                      <span
+                        className="admin-users-identity-icon"
+                        style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.status)}
+                        aria-hidden="true"
+                      >
+                        <FaUserCheck />
+                      </span>
+                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                        <span style={IDENTITY_TILE_LABEL_STYLE}>Account Status</span>
+                        <strong style={IDENTITY_TILE_VALUE_STYLE}>
+                          {formatStatus(
+                            selectedUser.accountStatus || selectedUser.status || 'active'
+                          )}
+                        </strong>
+                        <small style={IDENTITY_TILE_HELPER_STYLE}>Profile state</small>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="admin-users-summary-card">
-                    <p>Working Status</p>
-                    <h4>{getWorkingStatusText(selectedUser)}</h4>
+                  <div
+                    className={
+                      selectedUser.liveStatus?.isLive
+                        ? 'admin-users-identity-tile polished working live'
+                        : 'admin-users-identity-tile polished working offline'
+                    }
+                    style={getIdentityTileInlineStyle(
+                      selectedUser.liveStatus?.isLive
+                        ? IDENTITY_TILE_VARIANTS.live
+                        : IDENTITY_TILE_VARIANTS.offline
+                    )}
+                  >
+                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                      <span
+                        className="admin-users-identity-icon"
+                        style={getIdentityIconInlineStyle(
+                          selectedUser.liveStatus?.isLive
+                            ? IDENTITY_TILE_VARIANTS.live
+                            : IDENTITY_TILE_VARIANTS.offline
+                        )}
+                        aria-hidden="true"
+                      >
+                        {selectedUser.liveStatus?.isLive ? <FaCircle /> : <FaUserClock />}
+                      </span>
+                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                        <span style={IDENTITY_TILE_LABEL_STYLE}>Working Status</span>
+                        <strong style={IDENTITY_TILE_VALUE_STYLE}>
+                          {getWorkingStatusText(selectedUser)}
+                        </strong>
+                        <small style={IDENTITY_TILE_HELPER_STYLE}>Current availability</small>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="admin-users-summary-card">
-                    <p>Last Seen</p>
-                    <h4>{getLastSeenText(selectedUser)}</h4>
+                  <div
+                    className="admin-users-identity-tile polished workspace"
+                    style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.workspace)}
+                  >
+                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                      <span
+                        className="admin-users-identity-icon"
+                        style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.workspace)}
+                        aria-hidden="true"
+                      >
+                        <FaMapSigns />
+                      </span>
+                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                        <span style={IDENTITY_TILE_LABEL_STYLE}>
+                          {getWorkspaceLabel(selectedUser)}
+                        </span>
+                        <strong style={IDENTITY_TILE_VALUE_STYLE}>
+                          {getFriendlyWorkspace(selectedUser)}
+                        </strong>
+                        <small style={IDENTITY_TILE_HELPER_STYLE}>Operational area</small>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="admin-users-section-card">
-                  <div className="admin-users-section-title">
-                    <FaEnvelope className="admin-users-section-icon" />
-                    <h3>Contact Information</h3>
-                  </div>
-
-                  <div className="admin-users-detail-grid">
-                    <div>
-                      <p>Email</p>
-                      <h4>{selectedUser.email || 'N/A'}</h4>
-                    </div>
-
-                    <div>
-                      <p>Phone</p>
-                      <h4>{selectedUser.phone || 'N/A'}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="admin-users-section-card">
+                <div className="admin-users-section-card admin-users-profile-snapshot compact">
                   <div className="admin-users-section-title">
                     <FaUsers className="admin-users-section-icon" />
-                    <h3>Access Overview</h3>
+                    <h3>User Profile Summary</h3>
                   </div>
 
-                  <div className="admin-users-access-grid">
+                  <div className="admin-users-access-grid compact">
                     <div className="admin-users-access-item">
-                      <span>Role Type</span>
-                      <strong>{formatStatus(selectedUser.role)}</strong>
+                      <span>Last Seen</span>
+                      <strong>{getLastSeenText(selectedUser)}</strong>
                     </div>
 
                     <div className="admin-users-access-item">
-                      <span>Account Status</span>
-                      <strong>
-                        {formatStatus(
-                          selectedUser.accountStatus || selectedUser.status || 'active'
-                        )}
-                      </strong>
-                    </div>
-
-                    <div className="admin-users-access-item">
-                      <span>Working Status</span>
-                      <strong>{getWorkingStatusText(selectedUser)}</strong>
-                    </div>
-
-                    <div className="admin-users-access-item">
-                      <span>Current Route</span>
-                      <strong>{getSafeCurrentRoute(selectedUser)}</strong>
-                    </div>
-
-                    <div className="admin-users-access-item">
-                      <span>Created At</span>
+                      <span>Created On</span>
                       <strong>
                         {selectedUser.createdAt
                           ? formatDateTime(selectedUser.createdAt)
-                          : 'N/A'}
+                          : 'Not recorded'}
                       </strong>
                     </div>
 
                     <div className="admin-users-access-item">
-                      <span>Updated At</span>
+                      <span>Updated On</span>
                       <strong>
                         {selectedUser.updatedAt
                           ? formatDateTime(selectedUser.updatedAt)
-                          : 'N/A'}
+                          : 'Not recorded'}
                       </strong>
+                    </div>
+
+                    <div className="admin-users-access-item">
+                      <span>Created By</span>
+                      <strong>{getCreatedByName(selectedUser)}</strong>
                     </div>
                   </div>
                 </div>
 
-                {selectedUser.createdBy ? (
-                  <div className="admin-users-section-card">
-                    <div className="admin-users-section-title">
-                      <FaPhoneAlt className="admin-users-section-icon" />
-                      <h3>Created By</h3>
-                    </div>
-
-                    <div className="admin-users-detail-grid">
-                      <div>
-                        <p>Creator Name</p>
-                        <h4>{selectedUser.createdBy?.fullName || 'N/A'}</h4>
-                      </div>
-
-                      <div>
-                        <p>Creator Email</p>
-                        <h4>{selectedUser.createdBy?.email || 'N/A'}</h4>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="admin-users-section-card">
+                <div className="admin-users-section-card compact">
                   <div className="admin-users-section-title">
                     <FaMapSigns className="admin-users-section-icon" />
-                    <h3>Main Admin Controls</h3>
+                    <h3>Access Responsibility</h3>
                   </div>
 
-                  <div className="admin-users-control-actions">
-                    <button
-                      type="button"
-                      className="admin-users-action-button edit"
-                      onClick={openEditModal}
-                      disabled={selectedIsRootMainAdmin}
-                    >
-                      <FaEdit />
-                      <span>Edit User</span>
-                    </button>
+                  <div className="admin-users-detail-grid admin-users-responsibility-grid compact">
+                    <div>
+                      <p>Role Type</p>
+                      <h4>{getRoleLabel(selectedUser.role, selectedUser)}</h4>
+                    </div>
 
-                    <button
-                      type="button"
-                      className="admin-users-action-button remove"
-                      onClick={openRemoveModal}
-                      disabled={selectedIsRootMainAdmin || selectedIsSelf}
-                    >
-                      <FaTrashAlt />
-                      <span>Remove User</span>
-                    </button>
+                    <div>
+                      <p>Scope</p>
+                      <h4>{getRoleScope(selectedUser)}</h4>
+                    </div>
+
+                    <div>
+                      <p>Creator Email</p>
+                      <h4>{getCreatedByEmail(selectedUser)}</h4>
+                    </div>
+
+                    <div>
+                      <p>{getWorkspaceLabel(selectedUser)}</p>
+                      <h4>{getFriendlyWorkspace(selectedUser)}</h4>
+                    </div>
+                  </div>
+
+                </div>
+
+                <div className="admin-users-section-card compact">
+                  <div className="admin-users-section-title">
+                    <FaEnvelope className="admin-users-section-icon" />
+                    <h3>Contact Details</h3>
+                  </div>
+
+                  <div className="admin-users-detail-grid compact admin-users-contact-grid">
+                    <div className="admin-users-contact-item">
+                      <p>Email</p>
+                      <h4 className="admin-users-contact-value">
+                        {selectedUser.email || 'N/A'}
+                      </h4>
+                    </div>
+
+                    <div className="admin-users-contact-item">
+                      <p>Phone</p>
+                      <h4 className="admin-users-contact-value phone">
+                        {selectedUser.phone || 'N/A'}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-users-section-card compact admin-users-controls-card">
+                  <div className="admin-users-section-title">
+                    <FaShieldAlt className="admin-users-section-icon" />
+                    <h3>Access Management</h3>
                   </div>
 
                   {selectedIsRootMainAdmin ? (
-                    <div className="admin-users-inline-note">
-                      Root main admin account cannot be edited or removed from this panel.
+                    <div className="admin-users-protected-root">
+                      <div className="admin-users-protected-icon">
+                        <FaShieldAlt />
+                      </div>
+                      <div>
+                        <h4>Protected root account</h4>
+                        <p>
+                          This account controls the internal user tree and cannot be edited or
+                          deactivated from this workspace.
+                        </p>
+                      </div>
                     </div>
-                  ) : null}
+                  ) : (
+                    <>
+                      <div className="admin-users-control-actions">
+                        <button
+                          type="button"
+                          className="admin-users-action-button edit"
+                          onClick={openEditModal}
+                        >
+                          <FaEdit />
+                          <span>Edit Access</span>
+                        </button>
 
-                  {selectedIsSelf ? (
-                    <div className="admin-users-inline-note">
-                      You cannot remove your own account from this panel.
-                    </div>
-                  ) : null}
-                </div>
+                        <button
+                          type="button"
+                          className="admin-users-action-button remove"
+                          onClick={openRemoveModal}
+                          disabled={selectedIsSelf}
+                        >
+                          <FaUserClock />
+                          <span>Deactivate User</span>
+                        </button>
+                      </div>
 
-                <div className="admin-users-note-card">
-                  <p>Main admin note</p>
-                  <h4>
-                    Keep role creation limited, traceable and need-based so the
-                    admin tree stays clean, observable and controllable.
-                  </h4>
+                      {selectedIsSelf ? (
+                        <div className="admin-users-inline-note compact">
+                          You cannot deactivate your own account from this panel.
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </>
             ) : (
@@ -947,7 +1214,7 @@ const AdminUsers = () => {
                     >
                       <option value="support_staff">Support Staff</option>
                       <option value="system_supervisor">System Supervisor</option>
-                      <option value="admin">Admin</option>
+                      <option value="admin">Admin Officer</option>
                     </select>
                   </div>
 
@@ -1015,9 +1282,9 @@ const AdminUsers = () => {
               onClick={(event) => event.stopPropagation()}
             >
               <div className="admin-users-modal-header">
-                <h3>Edit Internal User</h3>
+                <h3>Edit Access Details</h3>
                 <p>
-                  Update user information carefully so role and accountability stay clean.
+                  Update profile, role and account status with a clear audit reason.
                 </p>
               </div>
 
@@ -1081,7 +1348,7 @@ const AdminUsers = () => {
                     >
                       <option value="support_staff">Support Staff</option>
                       <option value="system_supervisor">System Supervisor</option>
-                      <option value="admin">Admin</option>
+                      <option value="admin">Admin Officer</option>
                     </select>
                   </div>
 
@@ -1113,7 +1380,7 @@ const AdminUsers = () => {
                           updateReason: event.target.value
                         }))
                       }
-                      placeholder="Write why this internal user is being updated..."
+                      placeholder="Write the reason for changing this user profile or access..."
                     />
                   </div>
                 </div>
@@ -1151,10 +1418,10 @@ const AdminUsers = () => {
               onClick={(event) => event.stopPropagation()}
             >
               <div className="admin-users-modal-header danger">
-                <h3>Remove Internal User</h3>
+                <h3>Deactivate Internal User</h3>
                 <p>
-                  This will remove the user from active control, block the account
-                  and keep a full trace in audit records.
+                  This will deactivate the user from active control and keep a clear trace
+                  for audit review.
                 </p>
               </div>
 
@@ -1165,7 +1432,7 @@ const AdminUsers = () => {
                 </div>
 
                 <div className="admin-users-modal-field">
-                  <label>Remove Reason *</label>
+                  <label>Deactivation Reason *</label>
                   <textarea
                     rows={5}
                     value={removeForm.archiveReason}
@@ -1174,7 +1441,7 @@ const AdminUsers = () => {
                         archiveReason: event.target.value
                       })
                     }
-                    placeholder="Write why this user is being removed from active control..."
+                    placeholder="Write the reason for deactivating this internal user..."
                   />
                 </div>
               </div>
@@ -1196,7 +1463,7 @@ const AdminUsers = () => {
                   disabled={removeLoading}
                 >
                   {removeLoading ? <FaSpinner className="spin" /> : null}
-                  <span>Confirm Remove</span>
+                  <span>Confirm Deactivate</span>
                 </button>
               </div>
             </div>

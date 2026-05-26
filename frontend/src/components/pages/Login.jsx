@@ -15,6 +15,7 @@ import {
   FaUserPlus
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { isInternalUserRole, getRoleHomePath } from '../utils/roles';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -39,12 +40,11 @@ const Login = () => {
     try {
       const result = await login(data.email, data.password);
 
-      const isInternalUser = ['admin', 'system_supervisor', 'support_staff'].includes(
-        result?.user?.role
-      );
+      const userRole = result?.user?.role;
+      const targetPath = isInternalUserRole(userRole) ? getRoleHomePath(userRole) : from;
 
       toast.success('Login successful!');
-      navigate(isInternalUser ? '/admin/dashboard' : from, { replace: true });
+      navigate(targetPath, { replace: true });
     } catch (error) {
       toast.error('Invalid email or password. Please try again.');
     } finally {

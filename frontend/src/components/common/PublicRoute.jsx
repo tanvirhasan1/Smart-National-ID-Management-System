@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loader from './Loader';
+import { getRoleHomePath } from '../utils/roles';
 
 const PublicRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -19,10 +20,7 @@ const PublicRoute = ({ children }) => {
     return children;
   }
 
-  const redirectPath =
-    ['admin', 'system_supervisor', 'support_staff'].includes(user?.role)
-      ? '/admin/dashboard'
-      : '/dashboard';
+  const redirectPath = getRoleHomePath(user?.role);
 
   return <Navigate to={redirectPath} replace />;
 };

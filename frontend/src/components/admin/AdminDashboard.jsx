@@ -34,10 +34,9 @@ import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
 import { formatDate, formatDateTime, formatStatus } from '../utils/helpers';
+import { inferMainAdmin } from '../utils/roles';
 import '../styles/AdminDashboard.css';
 
-const inferMainAdmin = (user) =>
-  Boolean(user?.isMainAdmin) || (user?.role === 'admin' && !user?.createdBy);
 
 const buildFallbackAccess = (user) => {
   const viewerRole = user?.role || 'admin';
@@ -201,7 +200,7 @@ const normalizeSummaryData = (summaryData = {}, user = null) => {
       return {
         primaryModule: access.isMainAdmin ? 'main_admin' : 'admin_operations',
         headline: access.isMainAdmin
-          ? 'Main admin control'
+          ? 'Super admin control'
           : 'Admin operations',
         priorityItems: [
           { key: 'review_queue', label: 'Review queue', value: queues.review },
@@ -251,7 +250,7 @@ const normalizeSummaryData = (summaryData = {}, user = null) => {
 const getDashboardTitle = (role, isMainAdmin) => {
   if (role === 'support_staff') return 'Support Operations Dashboard';
   if (role === 'system_supervisor') return 'System Supervision Dashboard';
-  if (role === 'admin' && isMainAdmin) return 'Main Admin Control Dashboard';
+  if (role === 'admin' && isMainAdmin) return 'Super Admin Control Dashboard';
   return 'Admin Operations Dashboard';
 };
 
@@ -761,7 +760,7 @@ const AdminDashboard = () => {
               <h1>{dashboardTitle}</h1>
               <span className="dashboard-role-badge">
                 {summary.access.isMainAdmin
-                  ? 'Main Admin'
+                  ? 'Super Admin'
                   : formatStatus(summary.access.viewerRole)}
               </span>
             </div>
