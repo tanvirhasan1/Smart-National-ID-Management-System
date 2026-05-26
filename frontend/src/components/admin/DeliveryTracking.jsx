@@ -1,11 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
+  FaCheckCircle,
   FaCheckSquare,
+  FaClipboardList,
+  FaEnvelope,
+  FaHistory,
+  FaIdCard,
+  FaPhoneAlt,
+  FaRegClock,
   FaSearch,
   FaSpinner,
   FaSquare,
-  FaTruck
+  FaTruck,
+  FaUser
 } from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
@@ -50,6 +58,12 @@ const getDeliveryStatusClass = (status) => {
   if (value === 'cancelled') return 'cancelled';
   return 'neutral';
 };
+
+const getApplicantPhone = (application) =>
+  application?.phone || application?.applicant?.phone || 'No phone';
+
+const getApplicantEmail = (application) =>
+  application?.email || application?.applicant?.email || 'N/A';
 
 const DeliveryTracking = () => {
   const [applications, setApplications] = useState([]);
@@ -179,25 +193,29 @@ const DeliveryTracking = () => {
         key: 'ready',
         title: 'Ready For Delivery',
         value: statsLoading ? '...' : stats?.readyForDelivery ?? 0,
-        theme: 'yellow'
+        theme: 'yellow',
+        icon: FaClipboardList
       },
       {
         key: 'delivered',
         title: 'Delivered',
         value: statsLoading ? '...' : stats?.deliveredCount ?? 0,
-        theme: 'green'
+        theme: 'green',
+        icon: FaCheckCircle
       },
       {
         key: 'today',
         title: 'Delivered Today',
         value: statsLoading ? '...' : stats?.deliveredToday ?? 0,
-        theme: 'blue'
+        theme: 'blue',
+        icon: FaRegClock
       },
       {
         key: 'cancelled',
         title: 'Cancelled',
         value: statsLoading ? '...' : stats?.cancelledCount ?? 0,
-        theme: 'red'
+        theme: 'red',
+        icon: FaTruck
       }
     ];
   }, [stats, statsLoading]);
@@ -346,9 +364,10 @@ const DeliveryTracking = () => {
         <div className="delivery-tracking-header-card">
           <div className="delivery-tracking-header-top">
             <div>
+              <span className="delivery-tracking-eyebrow">Delivery workflow</span>
               <h1 className="delivery-tracking-title">Delivery Tracking</h1>
               <p className="delivery-tracking-subtitle">
-                Track printed applications and move them into final delivery workflow.
+                Track printed cards, verify handover status and complete delivery from one workspace.
               </p>
             </div>
 
@@ -364,20 +383,24 @@ const DeliveryTracking = () => {
           </div>
 
           <div className="delivery-tracking-stats-grid">
-            {statsCards.map((item) => (
-              <div
-                key={item.key}
-                className={`delivery-tracking-stat-card ${item.theme}`}
-              >
-                <div className="delivery-tracking-stat-icon">
-                  <FaTruck />
+            {statsCards.map((item) => {
+              const StatIcon = item.icon;
+
+              return (
+                <div
+                  key={item.key}
+                  className={`delivery-tracking-stat-card ${item.theme}`}
+                >
+                  <div className="delivery-tracking-stat-icon">
+                    <StatIcon />
+                  </div>
+                  <div>
+                    <p>{item.title}</p>
+                    <h3>{item.value}</h3>
+                  </div>
                 </div>
-                <div>
-                  <p>{item.title}</p>
-                  <h3>{item.value}</h3>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -460,12 +483,14 @@ const DeliveryTracking = () => {
                 {visibleApplications.map((item) => {
                   const isSelected = selectedIds.includes(item._id);
                   const isPrinted = item.status === 'printed';
+                  const isActive = selectedApplication?._id === item._id;
+                  const phone = getApplicantPhone(item);
 
                   return (
                     <div
                       key={item._id}
                       className={
-                        selectedApplication?._id === item._id
+                        isActive
                           ? 'delivery-tracking-list-item active'
                           : 'delivery-tracking-list-item'
                       }
@@ -476,37 +501,53 @@ const DeliveryTracking = () => {
                         onClick={() => setSelectedApplication(item)}
                       >
                         <div className="delivery-tracking-list-top">
-                          <h4>{item.fullNameEnglish || 'Unnamed Applicant'}</h4>
-
-                          <div className="delivery-tracking-list-badges">
-                            <span
-                              className={`delivery-tracking-status-chip ${getDeliveryStatusClass(
-                                item.status
-                              )}`}
-                            >
-                              {formatStatus(item.status)}
-                            </span>
+                          <div className="delivery-tracking-list-identity">
+                            <h4>{item.fullNameEnglish || 'Unnamed Applicant'}</h4>
+                            <p>{item.applicationId || 'No application ID'}</p>
                           </div>
+
+                          <span
+                            className={`delivery-tracking-status-chip ${getDeliveryStatusClass(
+                              item.status
+                            )}`}
+                          >
+                            {formatStatus(item.status)}
+                          </span>
                         </div>
 
-                        <p>{item.applicationId || 'No application ID'}</p>
-
-                        <div className="delivery-tracking-list-meta">
-                          <span className="delivery-tracking-type-chip">
+                        <div className="delivery-tracking-list-meta-grid">
+                          <span>
+                            <FaIdCard />
                             {formatStatus(item.applicationType || 'new')}
                           </span>
-                          <small>{item.phone || item.applicant?.phone || 'No phone'}</small>
+                          <span>
+                            <FaPhoneAlt />
+                            {phone}
+                          </span>
+                          <span>
+                            <FaRegClock />
+                            {item.deliveredAt
+                              ? `Delivered: ${formatDateTime(item.deliveredAt)}`
+                              : item.printedAt
+                                ? `Printed: ${formatDateTime(item.printedAt)}`
+                                : 'No workflow date'}
+                          </span>
                         </div>
                       </button>
 
                       <button
                         type="button"
-                        className="delivery-tracking-check-button"
+                        className={
+                          isSelected
+                            ? 'delivery-tracking-check-button selected'
+                            : 'delivery-tracking-check-button'
+                        }
                         onClick={() => toggleApplicationSelect(item._id)}
                         disabled={!isPrinted}
                         title={isPrinted ? 'Select application' : 'Only printed items can be selected'}
                       >
                         {isSelected ? <FaCheckSquare /> : <FaSquare />}
+                        <span>{isPrinted ? (isSelected ? 'Selected' : 'Select') : 'Locked'}</span>
                       </button>
                     </div>
                   );
@@ -521,6 +562,7 @@ const DeliveryTracking = () => {
               <>
                 <div className="delivery-tracking-details-header">
                   <div>
+                    <span className="delivery-tracking-eyebrow">Selected application</span>
                     <h2>{selectedApplication.fullNameEnglish || 'Unnamed Applicant'}</h2>
                     <p>{selectedApplication.applicationId || 'No application ID'}</p>
                   </div>
@@ -535,42 +577,61 @@ const DeliveryTracking = () => {
                 </div>
 
                 <div className="delivery-tracking-summary-grid">
-                  <div className="delivery-tracking-summary-card">
-                    <p>Application Type</p>
-                    <h4>{formatStatus(selectedApplication.applicationType || 'new')}</h4>
+                  <div className="delivery-tracking-summary-card green">
+                    <div className="delivery-tracking-summary-icon">
+                      <FaIdCard />
+                    </div>
+                    <div>
+                      <p>Application Type</p>
+                      <h4>{formatStatus(selectedApplication.applicationType || 'new')}</h4>
+                    </div>
                   </div>
 
-                  <div className="delivery-tracking-summary-card">
-                    <p>Phone</p>
-                    <h4>{selectedApplication.phone || selectedApplication.applicant?.phone || 'N/A'}</h4>
+                  <div className="delivery-tracking-summary-card blue">
+                    <div className="delivery-tracking-summary-icon">
+                      <FaTruck />
+                    </div>
+                    <div>
+                      <p>Delivery Status</p>
+                      <h4>{formatStatus(selectedApplication.status || 'N/A')}</h4>
+                    </div>
                   </div>
 
-                  <div className="delivery-tracking-summary-card">
-                    <p>Printed At</p>
-                    <h4>
-                      {selectedApplication.printedAt
-                        ? formatDateTime(selectedApplication.printedAt)
-                        : 'Not printed yet'}
-                    </h4>
+                  <div className="delivery-tracking-summary-card slate">
+                    <div className="delivery-tracking-summary-icon">
+                      <FaPhoneAlt />
+                    </div>
+                    <div>
+                      <p>Phone</p>
+                      <h4>{getApplicantPhone(selectedApplication)}</h4>
+                    </div>
                   </div>
 
-                  <div className="delivery-tracking-summary-card">
-                    <p>Delivered At</p>
-                    <h4>
-                      {selectedApplication.deliveredAt
-                        ? formatDateTime(selectedApplication.deliveredAt)
-                        : 'Not delivered yet'}
-                    </h4>
+                  <div className="delivery-tracking-summary-card violet">
+                    <div className="delivery-tracking-summary-icon">
+                      <FaRegClock />
+                    </div>
+                    <div>
+                      <p>Delivered At</p>
+                      <h4>
+                        {selectedApplication.deliveredAt
+                          ? formatDateTime(selectedApplication.deliveredAt)
+                          : 'Not delivered yet'}
+                      </h4>
+                    </div>
                   </div>
                 </div>
 
                 <div className="delivery-tracking-section-card">
-                  <h3>Applicant Information</h3>
+                  <div className="delivery-tracking-section-title">
+                    <FaUser />
+                    <h3>Applicant Information</h3>
+                  </div>
 
                   <div className="delivery-tracking-detail-grid">
                     <div>
                       <p>Email</p>
-                      <h4>{selectedApplication.email || selectedApplication.applicant?.email || 'N/A'}</h4>
+                      <h4>{getApplicantEmail(selectedApplication)}</h4>
                     </div>
 
                     <div>
@@ -595,7 +656,33 @@ const DeliveryTracking = () => {
                 </div>
 
                 <div className="delivery-tracking-section-card">
-                  <h3>Status History</h3>
+                  <div className="delivery-tracking-section-title">
+                    <FaEnvelope />
+                    <h3>Delivery Record</h3>
+                  </div>
+
+                  <div className="delivery-tracking-detail-grid compact">
+                    <div>
+                      <p>Printed At</p>
+                      <h4>
+                        {selectedApplication.printedAt
+                          ? formatDateTime(selectedApplication.printedAt)
+                          : 'Not printed yet'}
+                      </h4>
+                    </div>
+
+                    <div>
+                      <p>Delivery Reference</p>
+                      <h4>{selectedApplication.deliveryReference || 'Not recorded'}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="delivery-tracking-section-card">
+                  <div className="delivery-tracking-section-title">
+                    <FaHistory />
+                    <h3>Status History</h3>
+                  </div>
 
                   {selectedHistory.length === 0 ? (
                     <div className="delivery-tracking-empty-inline">

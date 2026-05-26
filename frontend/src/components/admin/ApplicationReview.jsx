@@ -1,7 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFilter, FaSearch, FaSpinner } from 'react-icons/fa';
+import {
+  FaCheckCircle,
+  FaChevronDown,
+  FaClipboardList,
+  FaClock,
+  FaFileAlt,
+  FaFilter,
+  FaHourglassHalf,
+  FaInbox,
+  FaSearch,
+  FaSpinner,
+  FaUser
+} from 'react-icons/fa';
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
@@ -9,6 +21,31 @@ import '../styles/ApplicationReview.css';
 
 const DEFAULT_SORT = '-createdAt';
 const PAGE_LIMIT = 25;
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Status' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'under_review', label: 'Under Review' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'printed', label: 'Printed' },
+  { value: 'delivered', label: 'Delivered' }
+];
+
+const TYPE_OPTIONS = [
+  { value: '', label: 'All Types' },
+  { value: 'new', label: 'New' },
+  { value: 'correction', label: 'Correction' },
+  { value: 'reissue', label: 'Reissue' }
+];
+
+const SORT_OPTIONS = [
+  { value: '-createdAt', label: 'Newest First' },
+  { value: 'createdAt', label: 'Oldest First' },
+  { value: '-updatedAt', label: 'Recently Updated' },
+  { value: 'updatedAt', label: 'Least Recently Updated' }
+];
+
 
 const emptyMeta = {
   totalMatching: 0,
@@ -81,6 +118,63 @@ const getEvidenceCount = (item) => {
   const summary = item?.documentSummary || {};
   return Object.values(summary).filter(Boolean).length;
 };
+
+
+function QueueDropdown({ icon: Icon = FaFilter, label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const selected = options.find((option) => option.value === value) || options[0];
+
+  useEffect(() => {
+    const handleClickAway = (event) => {
+      if (!dropdownRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickAway);
+    return () => document.removeEventListener('mousedown', handleClickAway);
+  }, []);
+
+  return (
+    <div className={`gov-queue-dropdown ${open ? 'open' : ''}`} ref={dropdownRef}>
+      <button
+        type="button"
+        className="gov-queue-dropdown-trigger"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="gov-queue-dropdown-left">
+          <span className="gov-queue-dropdown-icon">
+            <Icon />
+          </span>
+          <span>{selected.label}</span>
+        </span>
+        <FaChevronDown className="gov-queue-dropdown-chevron" />
+      </button>
+
+      {open ? (
+        <div className="gov-queue-dropdown-menu" role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <button
+              key={option.value || 'all'}
+              type="button"
+              className={`gov-queue-dropdown-option ${option.value === value ? 'selected' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              <span>{option.label}</span>
+              {option.value === value ? <FaCheckCircle /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function ApplicationReview() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -248,22 +342,30 @@ export default function ApplicationReview() {
     {
       title: 'Total Applications',
       value: stats?.totalApplications || 0,
-      tone: 'neutral'
+      tone: 'neutral',
+      icon: FaClipboardList,
+      caption: 'Complete queue size'
     },
     {
       title: 'Submitted',
       value: stats?.submittedApplications || 0,
-      tone: 'blue'
+      tone: 'blue',
+      icon: FaInbox,
+      caption: 'Newly received'
     },
     {
       title: 'Under Review',
       value: stats?.underReviewApplications || 0,
-      tone: 'yellow'
+      tone: 'yellow',
+      icon: FaHourglassHalf,
+      caption: 'Needs officer action'
     },
     {
       title: 'Approved',
       value: stats?.approvedApplications || 0,
-      tone: 'green'
+      tone: 'green',
+      icon: FaCheckCircle,
+      caption: 'Ready for next step'
     }
   ];
 
@@ -278,12 +380,22 @@ export default function ApplicationReview() {
         </div>
 
         <div className="gov-queue-stats-grid">
-          {statsCards.map((card) => (
-            <div key={card.title} className={`gov-queue-stat-card ${card.tone}`}>
-              <p>{card.title}</p>
-              <h3>{statsLoading ? '...' : card.value}</h3>
-            </div>
-          ))}
+          {statsCards.map((card) => {
+            const Icon = card.icon;
+
+            return (
+              <div key={card.title} className={`gov-queue-stat-card ${card.tone}`}>
+                <div className="gov-queue-stat-icon">
+                  <Icon />
+                </div>
+                <div>
+                  <p>{card.title}</p>
+                  <h3>{statsLoading ? '...' : card.value}</h3>
+                  <small>{card.caption}</small>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="gov-queue-toolbar-card">
@@ -308,41 +420,26 @@ export default function ApplicationReview() {
           </form>
 
           <div className="gov-queue-filter-row">
-            <div className="gov-queue-filter-box">
-              <FaFilter className="gov-queue-field-icon" />
-              <select value={filters.status} onChange={(e) => handleFilter('status', e.target.value)}>
-                <option value="">All Status</option>
-                <option value="submitted">Submitted</option>
-                <option value="under_review">Under Review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="printed">Printed</option>
-                <option value="delivered">Delivered</option>
-              </select>
-            </div>
+            <QueueDropdown
+              label="Filter by application status"
+              value={filters.status}
+              options={STATUS_OPTIONS}
+              onChange={(value) => handleFilter('status', value)}
+            />
 
-            <div className="gov-queue-filter-box">
-              <FaFilter className="gov-queue-field-icon" />
-              <select
-                value={filters.applicationType}
-                onChange={(e) => handleFilter('applicationType', e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="new">New</option>
-                <option value="correction">Correction</option>
-                <option value="reissue">Reissue</option>
-              </select>
-            </div>
+            <QueueDropdown
+              label="Filter by application type"
+              value={filters.applicationType}
+              options={TYPE_OPTIONS}
+              onChange={(value) => handleFilter('applicationType', value)}
+            />
 
-            <div className="gov-queue-filter-box">
-              <FaFilter className="gov-queue-field-icon" />
-              <select value={filters.sort} onChange={(e) => handleFilter('sort', e.target.value)}>
-                <option value="-createdAt">Newest First</option>
-                <option value="createdAt">Oldest First</option>
-                <option value="-updatedAt">Recently Updated</option>
-                <option value="updatedAt">Least Recently Updated</option>
-              </select>
-            </div>
+            <QueueDropdown
+              label="Sort application queue"
+              value={filters.sort}
+              options={SORT_OPTIONS}
+              onChange={(value) => handleFilter('sort', value)}
+            />
           </div>
         </div>
 
@@ -448,6 +545,57 @@ export default function ApplicationReview() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="gov-queue-mobile-list">
+                {queue.map((item) => {
+                  const evidenceCount = getEvidenceCount(item);
+                  const statusTone = getStatusTone(item.status);
+                  const submittedAt = item.submittedAt || item.createdAt;
+
+                  return (
+                    <article key={item._id} className="gov-queue-mobile-card">
+                      <div className="gov-queue-mobile-card-top">
+                        <div>
+                          <span className="gov-queue-mobile-label">Application</span>
+                          <h4>#{item.applicationId || item._id?.slice(-6)}</h4>
+                          <p>{item.birthRegistrationNumber || 'No BRN'}</p>
+                        </div>
+                        <span className={`gov-status ${statusTone}`}>{formatStatus(item.status)}</span>
+                      </div>
+
+                      <div className="gov-queue-mobile-info-grid">
+                        <div>
+                          <span><FaUser /> Applicant</span>
+                          <strong>{getApplicantName(item)}</strong>
+                          <small>{maskPhone(getApplicantPhone(item))}</small>
+                        </div>
+                        <div>
+                          <span><FaFileAlt /> Evidence</span>
+                          <strong>{evidenceCount}/3 files</strong>
+                          <small>{formatStatus(item.applicationType || 'new')}</small>
+                        </div>
+                        <div>
+                          <span><FaClock /> Submitted</span>
+                          <strong>{formatDate(submittedAt)}</strong>
+                          <small>{formatDateTime(submittedAt)}</small>
+                        </div>
+                        <div>
+                          <span><FaHourglassHalf /> Queue Age</span>
+                          <strong>{getQueueAge(item.submittedAt, item.createdAt)}</strong>
+                          <small>waiting time</small>
+                        </div>
+                      </div>
+
+                      <Link
+                        to={`/admin/applications/review/${item._id}`}
+                        className="gov-queue-review-btn gov-queue-mobile-review-btn"
+                      >
+                        Review Application
+                      </Link>
+                    </article>
+                  );
+                })}
               </div>
 
               <div ref={loadMoreRef} className="gov-queue-load-anchor" />
