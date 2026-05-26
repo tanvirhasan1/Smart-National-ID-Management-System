@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  FaChevronDown,
   FaExclamationTriangle,
   FaFilter,
   FaHistory,
@@ -53,6 +54,100 @@ const prettyJson = (value) => {
   } catch {
     return 'Unable to render data';
   }
+};
+
+
+const ENTITY_FILTER_OPTIONS = [
+  { value: '', label: 'All Entities' },
+  { value: 'User', label: 'User' },
+  { value: 'Application', label: 'Application' },
+  { value: 'SupportTicket', label: 'Support Ticket' },
+  { value: 'Center', label: 'Center' }
+];
+
+const ACTOR_ROLE_FILTER_OPTIONS = [
+  { value: '', label: 'All Actor Roles' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'system_supervisor', label: 'System Supervisor' },
+  { value: 'support_staff', label: 'Support Staff' },
+  { value: 'citizen', label: 'Citizen' }
+];
+
+const SEVERITY_FILTER_OPTIONS = [
+  { value: '', label: 'All Severity' },
+  { value: 'info', label: 'Info' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'critical', label: 'Critical' }
+];
+
+const SOURCE_FILTER_OPTIONS = [
+  { value: '', label: 'All Sources' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'admin.applications', label: 'Admin Applications' },
+  { value: 'admin.delivery', label: 'Admin Delivery' },
+  { value: 'admin.printing', label: 'Admin Printing' },
+  { value: 'admin.support', label: 'Admin Support' },
+  { value: 'support', label: 'Support' },
+  { value: 'applications', label: 'Applications' }
+];
+
+const AuditFilterSelect = ({ label, value, options, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value) || options[0];
+
+  const handleSelect = (nextValue) => {
+    onChange(nextValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <div
+      className={`audit-logs-filter-select${isOpen ? ' open' : ''}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        className="audit-logs-filter-trigger"
+        onClick={() => setIsOpen((current) => !current)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={label}
+      >
+        <span className="audit-logs-filter-leading-icon" aria-hidden="true">
+          <FaFilter />
+        </span>
+        <span className="audit-logs-filter-value">{selectedOption.label}</span>
+        <FaChevronDown className="audit-logs-filter-chevron" aria-hidden="true" />
+      </button>
+
+      {isOpen && (
+        <div className="audit-logs-filter-menu" role="listbox" aria-label={label}>
+          {options.map((option) => {
+            const isSelected = option.value === value;
+
+            return (
+              <button
+                key={`${label}-${option.value || 'all'}`}
+                type="button"
+                className={`audit-logs-filter-option${isSelected ? ' selected' : ''}`}
+                role="option"
+                aria-selected={isSelected}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleSelect(option.value)}
+              >
+                <span>{option.label}</span>
+                {isSelected && <span className="audit-logs-filter-check">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const AuditLogs = () => {
@@ -253,63 +348,33 @@ const AuditLogs = () => {
           </div>
 
           <div className="audit-logs-filter-row">
-            <div className="audit-logs-filter-group">
-              <FaFilter className="audit-logs-field-icon" />
-              <select
-                value={entityFilter}
-                onChange={(event) => setEntityFilter(event.target.value)}
-              >
-                <option value="">All Entities</option>
-                <option value="User">User</option>
-                <option value="Application">Application</option>
-                <option value="SupportTicket">Support Ticket</option>
-                <option value="Center">Center</option>
-              </select>
-            </div>
+            <AuditFilterSelect
+              label="Filter by entity"
+              value={entityFilter}
+              options={ENTITY_FILTER_OPTIONS}
+              onChange={setEntityFilter}
+            />
 
-            <div className="audit-logs-filter-group">
-              <FaFilter className="audit-logs-field-icon" />
-              <select
-                value={actorRoleFilter}
-                onChange={(event) => setActorRoleFilter(event.target.value)}
-              >
-                <option value="">All Actor Roles</option>
-                <option value="admin">Admin</option>
-                <option value="system_supervisor">System Supervisor</option>
-                <option value="support_staff">Support Staff</option>
-                <option value="citizen">Citizen</option>
-              </select>
-            </div>
+            <AuditFilterSelect
+              label="Filter by actor role"
+              value={actorRoleFilter}
+              options={ACTOR_ROLE_FILTER_OPTIONS}
+              onChange={setActorRoleFilter}
+            />
 
-            <div className="audit-logs-filter-group">
-              <FaFilter className="audit-logs-field-icon" />
-              <select
-                value={severityFilter}
-                onChange={(event) => setSeverityFilter(event.target.value)}
-              >
-                <option value="">All Severity</option>
-                <option value="info">Info</option>
-                <option value="warning">Warning</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
+            <AuditFilterSelect
+              label="Filter by severity"
+              value={severityFilter}
+              options={SEVERITY_FILTER_OPTIONS}
+              onChange={setSeverityFilter}
+            />
 
-            <div className="audit-logs-filter-group">
-              <FaFilter className="audit-logs-field-icon" />
-              <select
-                value={sourceFilter}
-                onChange={(event) => setSourceFilter(event.target.value)}
-              >
-                <option value="">All Sources</option>
-                <option value="admin">admin</option>
-                <option value="admin.applications">admin.applications</option>
-                <option value="admin.delivery">admin.delivery</option>
-                <option value="admin.printing">admin.printing</option>
-                <option value="admin.support">admin.support</option>
-                <option value="support">support</option>
-                <option value="applications">applications</option>
-              </select>
-            </div>
+            <AuditFilterSelect
+              label="Filter by source"
+              value={sourceFilter}
+              options={SOURCE_FILTER_OPTIONS}
+              onChange={setSourceFilter}
+            />
 
             <button
               type="button"

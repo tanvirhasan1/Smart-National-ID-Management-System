@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
+  FaCheck,
+  FaChevronDown,
   FaCircle,
   FaEdit,
   FaEnvelope,
@@ -55,7 +57,7 @@ const IDENTITY_TILE_LABEL_STYLE = {
   display: 'block',
   color: '#64748b',
   fontSize: '0.78rem',
-  fontWeight: 800,
+  fontWeight: 600,
   letterSpacing: '0.04em',
   lineHeight: 1.2,
   textTransform: 'uppercase'
@@ -66,7 +68,7 @@ const IDENTITY_TILE_VALUE_STYLE = {
   margin: 0,
   color: '#0f172a',
   fontSize: '1.12rem',
-  fontWeight: 850,
+  fontWeight: 600,
   lineHeight: 1.28,
   overflowWrap: 'anywhere',
   wordBreak: 'normal'
@@ -143,6 +145,82 @@ const getIdentityIconInlineStyle = (variant) => ({
   background: variant.accent,
   boxShadow: `0 12px 22px ${variant.accent}33`
 });
+
+
+const FILTER_OPTIONS = {
+  roles: [
+    { value: '', label: 'All Roles' },
+    { value: 'admin', label: 'Admin Officer' },
+    { value: 'system_supervisor', label: 'System Supervisor' },
+    { value: 'support_staff', label: 'Support Staff' }
+  ],
+  accountStatus: [
+    { value: '', label: 'All Account Status' },
+    { value: 'active', label: 'Active' },
+    { value: 'blocked', label: 'Blocked' },
+    { value: 'pending', label: 'Pending' }
+  ],
+  workingStatus: [
+    { value: '', label: 'All Working Status' },
+    { value: 'live', label: 'Live Now' },
+    { value: 'offline', label: 'Offline' }
+  ]
+};
+
+const FilterDropdown = ({ value, options, onChange, ariaLabel }) => {
+  const [open, setOpen] = useState(false);
+  const selectedOption =
+    options.find((option) => option.value === value) || options[0];
+
+  return (
+    <div
+      className={`admin-users-filter-dropdown${open ? ' open' : ''}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        className="admin-users-filter-trigger"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{selectedOption.label}</span>
+        <FaChevronDown className="admin-users-filter-chevron" />
+      </button>
+
+      {open ? (
+        <div className="admin-users-filter-menu" role="listbox" tabIndex={-1}>
+          {options.map((option) => {
+            const selected = option.value === value;
+
+            return (
+              <button
+                type="button"
+                key={option.value || 'all'}
+                className={`admin-users-filter-option${selected ? ' selected' : ''}`}
+                role="option"
+                aria-selected={selected}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {selected ? <FaCheck /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 const getUsersFromResponse = (response) =>
   response?.data?.data || response?.data?.users || [];
@@ -235,6 +313,8 @@ const AdminUsers = () => {
 
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const detailsCardRef = useRef(null);
+  const [directoryPanelHeight, setDirectoryPanelHeight] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
@@ -308,6 +388,7 @@ const AdminUsers = () => {
     fetchUsers();
   }, []);
 
+
   const summary = useMemo(() => {
     return {
       total: users.length,
@@ -353,6 +434,49 @@ const AdminUsers = () => {
     });
   }, [users, searchInput, roleFilter, statusFilter, workingFilter]);
 
+
+  useEffect(() => {
+    const syncDirectoryHeight = () => {
+      const detailsNode = detailsCardRef.current;
+      const shouldMatchDesktop =
+        typeof window !== 'undefined' && window.innerWidth > 1280;
+
+      if (!detailsNode || !shouldMatchDesktop) {
+        setDirectoryPanelHeight(null);
+        return;
+      }
+
+      const measuredHeight = Math.ceil(detailsNode.getBoundingClientRect().height);
+      setDirectoryPanelHeight(measuredHeight > 0 ? measuredHeight : null);
+    };
+
+    syncDirectoryHeight();
+
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined' && detailsCardRef.current) {
+      resizeObserver = new ResizeObserver(syncDirectoryHeight);
+      resizeObserver.observe(detailsCardRef.current);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', syncDirectoryHeight);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', syncDirectoryHeight);
+      }
+
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [selectedUser, visibleUsers.length]);
+
+  const directoryCardStyle = directoryPanelHeight
+    ? { '--admin-users-directory-height': `${directoryPanelHeight}px` }
+    : undefined;
+
   useEffect(() => {
     if (!visibleUsers.length) {
       setSelectedUser(null);
@@ -369,6 +493,20 @@ const AdminUsers = () => {
       return stillExists || visibleUsers[0];
     });
   }, [visibleUsers]);
+
+
+  const selectInternalUser = (item) => {
+    setSelectedUser(item);
+
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      window.setTimeout(() => {
+        detailsCardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 90);
+    }
+  };
 
   const selectedIsRootMainAdmin = isRootMainAdminUser(selectedUser);
   const selectedIsSelf = selectedUser?._id === user?._id;
@@ -720,40 +858,26 @@ const AdminUsers = () => {
           </div>
 
           <div className="admin-users-filter-row">
-            <div className="admin-users-filter-group">
-              <select
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-              >
-                <option value="">All Roles</option>
-                <option value="admin">Admin Officer</option>
-                <option value="system_supervisor">System Supervisor</option>
-                <option value="support_staff">Support Staff</option>
-              </select>
-            </div>
+            <FilterDropdown
+              ariaLabel="Filter by role"
+              value={roleFilter}
+              options={FILTER_OPTIONS.roles}
+              onChange={setRoleFilter}
+            />
 
-            <div className="admin-users-filter-group">
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="">All Account Status</option>
-                <option value="active">Active</option>
-                <option value="blocked">Blocked</option>
-                <option value="pending">Pending</option>
-              </select>
-            </div>
+            <FilterDropdown
+              ariaLabel="Filter by account status"
+              value={statusFilter}
+              options={FILTER_OPTIONS.accountStatus}
+              onChange={setStatusFilter}
+            />
 
-            <div className="admin-users-filter-group">
-              <select
-                value={workingFilter}
-                onChange={(event) => setWorkingFilter(event.target.value)}
-              >
-                <option value="">All Working Status</option>
-                <option value="live">Live Now</option>
-                <option value="offline">Offline</option>
-              </select>
-            </div>
+            <FilterDropdown
+              ariaLabel="Filter by working status"
+              value={workingFilter}
+              options={FILTER_OPTIONS.workingStatus}
+              onChange={setWorkingFilter}
+            />
 
             <button
               type="button"
@@ -767,7 +891,7 @@ const AdminUsers = () => {
 
         <div className="admin-users-content">
           {/* Directory list */}
-          <div className="admin-users-list-card">
+          <div className="admin-users-list-card" style={directoryCardStyle}>
             <div className="admin-users-card-header">
               <div>
                 <h3>Internal Team Directory</h3>
@@ -792,7 +916,7 @@ const AdminUsers = () => {
                         ? 'admin-users-list-item active'
                         : 'admin-users-list-item'
                     }
-                    onClick={() => setSelectedUser(item)}
+                    onClick={() => selectInternalUser(item)}
                   >
                     <div className="admin-users-list-top">
                       <h4>{item.fullName || 'Unnamed User'}</h4>
@@ -839,7 +963,7 @@ const AdminUsers = () => {
           </div>
 
           {/* Selected user details */}
-          <div className="admin-users-details-card">
+          <div className="admin-users-details-card" ref={detailsCardRef}>
             {selectedUser ? (
               <>
                 <div className="admin-users-details-header">
@@ -887,7 +1011,7 @@ const AdminUsers = () => {
                     className="admin-users-identity-tile polished role"
                     style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.role)}
                   >
-                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                    <div className="admin-users-identity-tile-head" style={IDENTITY_TILE_HEAD_STYLE}>
                       <span
                         className="admin-users-identity-icon"
                         style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.role)}
@@ -895,7 +1019,7 @@ const AdminUsers = () => {
                       >
                         <FaUserShield />
                       </span>
-                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                      <div className="admin-users-identity-copy" style={IDENTITY_TILE_COPY_STYLE}>
                         <span style={IDENTITY_TILE_LABEL_STYLE}>Access Role</span>
                         <strong style={IDENTITY_TILE_VALUE_STYLE}>
                           {getRoleLabel(selectedUser.role, selectedUser)}
@@ -909,7 +1033,7 @@ const AdminUsers = () => {
                     className="admin-users-identity-tile polished status"
                     style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.status)}
                   >
-                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                    <div className="admin-users-identity-tile-head" style={IDENTITY_TILE_HEAD_STYLE}>
                       <span
                         className="admin-users-identity-icon"
                         style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.status)}
@@ -917,7 +1041,7 @@ const AdminUsers = () => {
                       >
                         <FaUserCheck />
                       </span>
-                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                      <div className="admin-users-identity-copy" style={IDENTITY_TILE_COPY_STYLE}>
                         <span style={IDENTITY_TILE_LABEL_STYLE}>Account Status</span>
                         <strong style={IDENTITY_TILE_VALUE_STYLE}>
                           {formatStatus(
@@ -941,7 +1065,7 @@ const AdminUsers = () => {
                         : IDENTITY_TILE_VARIANTS.offline
                     )}
                   >
-                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                    <div className="admin-users-identity-tile-head" style={IDENTITY_TILE_HEAD_STYLE}>
                       <span
                         className="admin-users-identity-icon"
                         style={getIdentityIconInlineStyle(
@@ -953,7 +1077,7 @@ const AdminUsers = () => {
                       >
                         {selectedUser.liveStatus?.isLive ? <FaCircle /> : <FaUserClock />}
                       </span>
-                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                      <div className="admin-users-identity-copy" style={IDENTITY_TILE_COPY_STYLE}>
                         <span style={IDENTITY_TILE_LABEL_STYLE}>Working Status</span>
                         <strong style={IDENTITY_TILE_VALUE_STYLE}>
                           {getWorkingStatusText(selectedUser)}
@@ -967,7 +1091,7 @@ const AdminUsers = () => {
                     className="admin-users-identity-tile polished workspace"
                     style={getIdentityTileInlineStyle(IDENTITY_TILE_VARIANTS.workspace)}
                   >
-                    <div style={IDENTITY_TILE_HEAD_STYLE}>
+                    <div className="admin-users-identity-tile-head" style={IDENTITY_TILE_HEAD_STYLE}>
                       <span
                         className="admin-users-identity-icon"
                         style={getIdentityIconInlineStyle(IDENTITY_TILE_VARIANTS.workspace)}
@@ -975,7 +1099,7 @@ const AdminUsers = () => {
                       >
                         <FaMapSigns />
                       </span>
-                      <div style={IDENTITY_TILE_COPY_STYLE}>
+                      <div className="admin-users-identity-copy" style={IDENTITY_TILE_COPY_STYLE}>
                         <span style={IDENTITY_TILE_LABEL_STYLE}>
                           {getWorkspaceLabel(selectedUser)}
                         </span>
