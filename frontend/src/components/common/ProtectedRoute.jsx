@@ -2,8 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loader from './Loader';
-
-const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
+import { INTERNAL_USER_ROLES, getRoleHomePath } from '../utils/roles';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -33,9 +32,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    const redirectPath = INTERNAL_USER_ROLES.includes(user?.role)
-      ? '/admin/dashboard'
-      : '/dashboard';
+    const redirectPath = getRoleHomePath(user?.role);
 
     return <Navigate to={redirectPath} replace />;
   }

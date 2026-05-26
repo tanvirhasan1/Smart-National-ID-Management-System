@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../api/axios';
+import { isInternalUserRole } from '../utils/roles';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'token';
@@ -137,7 +138,7 @@ export const AuthProvider = ({ children }) => {
       const result = await login(email, password);
       const role = result.user?.role;
 
-      if (!['admin', 'system_supervisor', 'support_staff'].includes(role)) {
+      if (!isInternalUserRole(role)) {
         clearAuthState({ setToken, setUser, setIsAuthenticated });
         throw { message: 'Unauthorized access' };
       }

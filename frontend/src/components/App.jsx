@@ -41,6 +41,7 @@ import PrintingQueue from './admin/PrintingQueue';
 import DeliveryTracking from './admin/DeliveryTracking';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
+import { USER_ROLES, ADMIN_MENU_ACCESS, INTERNAL_USER_ROLES } from './utils/roles';
 
 const AppShell = () => {
   const location = useLocation();
@@ -111,7 +112,7 @@ const AppShell = () => {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <CitizenDashboard />
               </ProtectedRoute>
             }
@@ -121,7 +122,7 @@ const AppShell = () => {
             path="/profile"
             element={
               <ProtectedRoute
-                allowedRoles={['citizen', 'admin', 'system_supervisor', 'support_staff']}
+                allowedRoles={[USER_ROLES.CITIZEN, ...INTERNAL_USER_ROLES]}
               >
                 <Profile />
               </ProtectedRoute>
@@ -131,7 +132,7 @@ const AppShell = () => {
           <Route
             path="/apply"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <ApplicationForm />
               </ProtectedRoute>
             }
@@ -140,7 +141,7 @@ const AppShell = () => {
           <Route
             path="/book-appointment/:applicationId"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <AppointmentBooking />
               </ProtectedRoute>
             }
@@ -149,7 +150,7 @@ const AppShell = () => {
           <Route
             path="/track-application"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <ApplicationTracker />
               </ProtectedRoute>
             }
@@ -158,7 +159,7 @@ const AppShell = () => {
           <Route
             path="/digital-nid/:id"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <DigitalNID />
               </ProtectedRoute>
             }
@@ -167,7 +168,7 @@ const AppShell = () => {
           <Route
             path="/support"
             element={
-              <ProtectedRoute allowedRoles={['citizen']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <SupportTicket />
               </ProtectedRoute>
             }
@@ -177,7 +178,7 @@ const AppShell = () => {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'system_supervisor', 'support_staff']}>
+              <ProtectedRoute allowedRoles={ADMIN_MENU_ACCESS.dashboard}>
                 <AdminDashboard />
               </ProtectedRoute>
             }
@@ -186,7 +187,7 @@ const AppShell = () => {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <AdminUsers />
               </ProtectedRoute>
             }
@@ -195,7 +196,7 @@ const AppShell = () => {
           <Route
             path="/admin/applications"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <ApplicationReview />
               </ProtectedRoute>
             }
@@ -204,7 +205,7 @@ const AppShell = () => {
           <Route
             path="/admin/applications/review/:id"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <ApplicationReviewDetails />
               </ProtectedRoute>
             }
@@ -213,7 +214,7 @@ const AppShell = () => {
           <Route
             path="/admin/appointments"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <AppointmentManagement />
               </ProtectedRoute>
             }
@@ -222,7 +223,7 @@ const AppShell = () => {
           <Route
             path="/admin/printing"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <PrintingQueue />
               </ProtectedRoute>
             }
@@ -231,7 +232,7 @@ const AppShell = () => {
           <Route
             path="/admin/delivery"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <DeliveryTracking />
               </ProtectedRoute>
             }
@@ -240,7 +241,7 @@ const AppShell = () => {
           <Route
             path="/admin/support"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'support_staff']}>
+              <ProtectedRoute allowedRoles={ADMIN_MENU_ACCESS.support}>
                 <SupportManagement />
               </ProtectedRoute>
             }
@@ -249,7 +250,7 @@ const AppShell = () => {
           <Route
             path="/admin/audit-logs"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'system_supervisor']}>
+              <ProtectedRoute allowedRoles={ADMIN_MENU_ACCESS.auditLogs}>
                 <AuditLogs />
               </ProtectedRoute>
             }
