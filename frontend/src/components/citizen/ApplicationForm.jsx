@@ -102,6 +102,8 @@ const APPLICATION_ERROR_MESSAGES = {
     'The document could not be read clearly. Please upload a clearer image.',
   DOCUMENT_LOW_CONFIDENCE:
     'The document text could not be verified confidently. Please upload a clearer image.',
+  DOCUMENT_VERIFICATION_TIMEOUT:
+    'Document verification is taking longer than expected. Please try again.',
   DOCUMENT_VERIFICATION_UNAVAILABLE:
     'Document verification service is temporarily unavailable. Please try again later.'
 };
@@ -160,6 +162,12 @@ const formatEligibilityDate = (value) => {
 
 const getDocumentVerificationUnavailableMessage = (error) => {
   const responseData = error?.response?.data || {};
+  const code = responseData.code || '';
+
+  if (code === 'DOCUMENT_VERIFICATION_TIMEOUT') {
+    return 'Document verification is taking longer than expected. Please try again.';
+  }
+
   const reason = String(
     responseData.failureReason ||
       responseData.verification?.failureReason ||
@@ -178,8 +186,19 @@ const getDocumentVerificationUnavailableMessage = (error) => {
 const getApplicationSubmitErrorMessage = (error) => {
   const code = error?.response?.data?.code;
 
-  if (code === 'DOCUMENT_VERIFICATION_UNAVAILABLE') {
+  if (
+    code === 'DOCUMENT_VERIFICATION_UNAVAILABLE' ||
+    code === 'DOCUMENT_VERIFICATION_TIMEOUT'
+  ) {
     return getDocumentVerificationUnavailableMessage(error);
+  }
+
+  if (
+    error?.safeMessage ||
+    error?.code === 'ECONNABORTED' ||
+    error?.code === 'ETIMEDOUT'
+  ) {
+    return error.safeMessage || 'Request is taking longer than expected. Please try again.';
   }
 
   return (
@@ -242,8 +261,13 @@ const ApplicationForm = () => {
     watch,
     setValue,
     getValues,
+    trigger,
+    clearErrors,
     formState: { errors }
   } = useForm({
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    shouldFocusError: true,
     defaultValues: {
       applicationType: 'new',
       fullNameEnglish: '',
@@ -285,6 +309,33 @@ const ApplicationForm = () => {
   });
 
   const applicationType = watch('applicationType');
+  const bloodGroupValue = watch('bloodGroup');
+  const occupationValue = watch('occupation');
+
+  // These two flags make the validation feel natural:
+  // once the user selects/types a valid value, the red border disappears immediately.
+  const showBloodGroupError = Boolean(errors.bloodGroup && !bloodGroupValue);
+  const showOccupationError = Boolean(
+    errors.occupation && !occupationValue?.trim()
+  );
+
+  useEffect(() => {
+    // react-hook-form clears most errors on change, but this keeps the UI extra smooth
+    // for the custom step-by-step Continue validation.
+    if (bloodGroupValue) {
+      clearErrors('bloodGroup');
+    }
+
+    if (occupationValue?.trim()) {
+      clearErrors('occupation');
+    }
+  }, [bloodGroupValue, occupationValue, clearErrors]);
+
+  useEffect(() => {
+    // Keeps every new step starting from the top instead of staying at the old scroll position.
+    scrollToApplicationTop();
+  }, [currentStep]);
+
   const canUseCorrectionServices =
     Boolean(eligibility?.canRequestCorrection) || hasIssuedNid;
   const isCorrectionServiceLocked = !canUseCorrectionServices;
@@ -841,8 +892,117 @@ const ApplicationForm = () => {
     return failedUploads;
   };
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
-  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+  const scrollToApplicationTop = () => {
+    // After changing steps, bring the user back to the top of the form.
+    // The small offset keeps the title visible under the fixed/sticky navbar.
+    window.requestAnimationFrame(() => {
+      const formElement = document.querySelector('.application-form');
+      const navbarOffset = 110;
+      const targetTop = formElement
+        ? formElement.getBoundingClientRect().top + window.scrollY - navbarOffset
+        : 0;
+
+      window.scrollTo({
+        top: Math.max(targetTop, 0),
+        behavior: 'smooth'
+      });
+    });
+  };
+
+  const getStepValidationFields = (stepNumber) => {
+    // Only validate the fields that belong to the current step.
+    // This keeps the multi-step form friendly and prevents users from skipping required data.
+    if (stepNumber === 1) {
+      const fields = [
+        'applicationType',
+        'fullNameEnglish',
+        'dateOfBirth',
+        'gender',
+        'bloodGroup',
+        'phone',
+        'occupation'
+      ];
+
+      if (applicationType === 'correction' || applicationType === 'reissue') {
+        fields.push('existingNidNumber');
+      }
+
+      if (applicationType === 'correction') {
+        fields.push('correctionReason');
+      }
+
+      return fields;
+    }
+
+    if (stepNumber === 2) {
+      const fields = [
+        'presentAddress.division',
+        'presentAddress.district',
+        'presentAddress.upazila',
+        'fatherName',
+        'motherName'
+      ];
+
+      if (!sameAddress) {
+        fields.push(
+          'permanentAddress.division',
+          'permanentAddress.district',
+          'permanentAddress.upazila'
+        );
+      }
+
+      return fields;
+    }
+
+    return [];
+  };
+
+  const validateDocumentStep = () => {
+    // File inputs are handled by React state, so we validate them manually here.
+    if (!selectedFiles.photograph || !photoPreview) {
+      toast.error('Please upload your passport-size photo');
+      return false;
+    }
+
+    if (!selectedFiles.signature || !signaturePreview) {
+      toast.error('Please upload your signature');
+      return false;
+    }
+
+    if (applicationType === 'new' && !selectedFiles.birthCertificate) {
+      toast.error('Please upload your birth certificate');
+      return false;
+    }
+
+    if (applicationType === 'correction' && !selectedFiles.correctionProof) {
+      toast.error('Please upload correction proof');
+      return false;
+    }
+
+    return true;
+  };
+
+  const nextStep = async () => {
+    if (currentStep === 1 || currentStep === 2) {
+      const fieldsToValidate = getStepValidationFields(currentStep);
+      const isStepValid = await trigger(fieldsToValidate, { shouldFocus: true });
+
+      if (!isStepValid) {
+        toast.error('Please fill all required fields before continuing.');
+        return;
+      }
+    }
+
+    if (currentStep === 3 && !validateDocumentStep()) {
+      return;
+    }
+
+    setCurrentStep((prev) => Math.min(prev + 1, 4));
+  };
+  const prevStep = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    scrollToApplicationTop();
+  };
 
   const onSubmit = async (data) => {
     if (submitInProgressRef.current) {
@@ -1157,6 +1317,11 @@ const ApplicationForm = () => {
                 Select application type and provide your core information.
               </p>
 
+              {/* 
+                Application type cards:
+                Correction/Reissue stay locked in logic until the user is eligible,
+                but the extra visible "Locked" text is hidden for a cleaner UI.
+              */}
               <div className="application-types mb-8 grid gap-5 md:grid-cols-3">
                 <label
                   className={`type-card ${
@@ -1183,19 +1348,16 @@ const ApplicationForm = () => {
                   <input
                     type="radio"
                     value="correction"
+                    // UI is clean, but the actual lock condition still protects this option.
                     disabled={isCorrectionServiceLocked}
                     {...register('applicationType')}
                   />
                   <div className="type-content">
-                    <span className="type-lock-badge">Locked</span>
                     <div className="type-icon correction-icon">
                       <FaIdCard />
                     </div>
                     <h4>Correction</h4>
                     <p>Correct existing NID information</p>
-                    {isCorrectionServiceLocked && (
-                      <small>Available after New NID approval</small>
-                    )}
                   </div>
                 </label>
 
@@ -1209,29 +1371,19 @@ const ApplicationForm = () => {
                   <input
                     type="radio"
                     value="reissue"
+                    // UI is clean, but the actual lock condition still protects this option.
                     disabled={isCorrectionServiceLocked}
                     {...register('applicationType')}
                   />
                   <div className="type-content">
-                    <span className="type-lock-badge">Locked</span>
                     <div className="type-icon renewal-icon">
                       <FaIdCard />
                     </div>
                     <h4>Reissue</h4>
                     <p>Reissue lost or damaged NID</p>
-                    {isCorrectionServiceLocked && (
-                      <small>Available after New NID approval</small>
-                    )}
                   </div>
                 </label>
               </div>
-
-              {isCorrectionServiceLocked && !isNidEligibilityLoading && (
-                <div className="application-type-lock-note" role="note">
-                  Correction and Reissue are locked now. They will become selectable
-                  after your New NID application is approved or issued.
-                </div>
-              )}
 
               {newNidBlocked ? (
                 <div className="application-eligibility-note blocked" role="alert">
@@ -1277,7 +1429,7 @@ const ApplicationForm = () => {
                 </div>
               ) : null}
 
-              <div className="info-section">
+              <div className="info-section applicant-info-section">
                 <h3>Applicant Information</h3>
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
@@ -1396,8 +1548,13 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Blood Group</label>
-                    <select className={getSelectClass(false)} {...register('bloodGroup')}>
+                    <label className="form-label">Blood Group *</label>
+                    <select
+                      className={getSelectClass(showBloodGroupError)}
+                      {...register('bloodGroup', {
+                        required: 'Blood group is required'
+                      })}
+                    >
                       <option value="">Select blood group</option>
                       <option value="A+">A+</option>
                       <option value="A-">A-</option>
@@ -1475,14 +1632,18 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaBriefcase className="text-[#16A34A]" />
-                        Occupation
+                        Occupation *
                       </span>
                     </label>
                     <input
                       type="text"
-                      className={getInputClass(false)}
+                      className={getInputClass(showOccupationError)}
                       placeholder="Enter your occupation"
-                      {...register('occupation')}
+                      {...register('occupation', {
+                        required: 'Occupation is required',
+                        validate: (value) =>
+                          value.trim().length > 0 || 'Occupation is required'
+                      })}
                     />
                   </div>
                 </div>
