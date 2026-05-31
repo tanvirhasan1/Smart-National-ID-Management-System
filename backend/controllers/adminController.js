@@ -14,6 +14,11 @@ const {
 const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
 const { syncUserBuckets } = require('../utils/userBuckets');
 const {
+  isNationalScope,
+  applyAdminJurisdictionFilter,
+  canAccessApplicationByJurisdiction
+} = require('../utils/adminScope');
+const {
   buildInternalPresenceMap,
   markInternalUserOffline
 } = require('../utils/internalPresence');
@@ -54,6 +59,66 @@ const buildPaginationMeta = ({ page, limit, total }) => {
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const normalizeAdminScope = (value = {}, fallback = null) => {
+  const incoming = value && typeof value === 'object' ? value : {};
+  const base = fallback && typeof fallback === 'object' ? fallback : {};
+  const scopeType =
+    (incoming.scopeType || base.scopeType) === 'district'
+      ? 'district'
+      : 'national';
+  const rawDistricts =
+    incoming.districts !== undefined ? incoming.districts : base.districts;
+  const districtValues = Array.isArray(rawDistricts)
+    ? rawDistricts
+    : String(rawDistricts || '')
+        .split(',');
+  const districtMap = new Map();
+
+  districtValues.forEach((district) => {
+    const trimmed = String(district || '').trim();
+    if (!trimmed) return;
+    districtMap.set(trimmed.toLowerCase(), trimmed);
+  });
+
+  const primaryDistrict = String(
+    incoming.primaryDistrict ?? base.primaryDistrict ?? ''
+  ).trim();
+
+  if (primaryDistrict) {
+    districtMap.set(primaryDistrict.toLowerCase(), primaryDistrict);
+  }
+
+  return {
+    scopeType,
+    districts: scopeType === 'district' ? [...districtMap.values()] : [],
+    primaryDistrict: scopeType === 'district' ? primaryDistrict : '',
+    scopeUpdatedAt:
+      incoming.scopeUpdatedAt || base.scopeUpdatedAt || null
+  };
+};
+
+const validateAdminScope = (scope) => {
+  if (scope.scopeType === 'district' && scope.districts.length === 0) {
+    return 'At least one district is required for district-scoped admins';
+  }
+
+  if (
+    scope.scopeType === 'district' &&
+    scope.primaryDistrict &&
+    !scope.districts.includes(scope.primaryDistrict)
+  ) {
+    return 'Primary district must be included in assigned districts';
+  }
+
+  return '';
+};
+
+const canManageInternalUsers = (user) =>
+  ['admin', 'system_supervisor'].includes(user?.role) && isNationalScope(user);
+
+const serializeAdminScope = (scope) =>
+  JSON.stringify(normalizeAdminScope(scope));
+
 const getSafeSort = (sortValue, fallback = { createdAt: -1 }, allowed = []) => {
   if (!sortValue || typeof sortValue !== 'string') {
     return fallback;
@@ -77,6 +142,7 @@ const mapInternalUserResponse = (user) => ({
   phone: user.phone,
   role: user.role,
   permissions: user.permissions || [],
+  adminScope: normalizeAdminScope(user.adminScope),
   status: user.status,
   accountStatus: user.status,
   isVerified: user.isVerified,
@@ -88,12 +154,11 @@ const mapInternalUserResponse = (user) => ({
   updatedAt: user.updatedAt
 });
 
-// Only the first admin account should manage internal users.
 const ensureMainAdminAccess = (req, res) => {
-  if (!isMainAdminUser(req.user)) {
+  if (!canManageInternalUsers(req.user)) {
     res.status(403).json({
       success: false,
-      message: 'Only main admin can manage internal users'
+      message: 'Only national-scope admin users can manage internal users'
     });
     return false;
   }
@@ -106,6 +171,7 @@ const buildInternalUserSnapshot = (user) => ({
   email: user.email,
   phone: user.phone,
   role: user.role,
+  adminScope: normalizeAdminScope(user.adminScope),
   status: user.status,
   isVerified: user.isVerified,
   isArchived: user.isArchived,
@@ -201,13 +267,16 @@ const getAdminDashboardSummary = async (req, res) => {
     const last24HoursStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const isMainAdmin = isMainAdminUser(req.user);
     const viewerRole = req.user?.role || 'admin';
+    const canManageUsers = canManageInternalUsers(req.user);
+    const appScopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
 
     const activeUserFilter = { isArchived: { $ne: true } };
 
     const access = {
       viewerRole,
       isMainAdmin,
-      canManageUsers: viewerRole === 'admin' && isMainAdmin,
+      canManageUsers,
       canManageApplications: viewerRole === 'admin',
       canManageAppointments: viewerRole === 'admin',
       canManagePrinting: viewerRole === 'admin',
@@ -260,19 +329,19 @@ const getAdminDashboardSummary = async (req, res) => {
 
       auditLogsLast24Hours
     ] = await Promise.all([
-      Application.countDocuments(),
-      Application.countDocuments({ status: 'submitted' }),
-      Application.countDocuments({ status: 'under_review' }),
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'rejected' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({ status: 'cancelled' }),
-      Application.countDocuments({ createdAt: { $gte: startOfToday } }),
-      Application.countDocuments({
+      Application.countDocuments(appScopeFilter()),
+      Application.countDocuments(appScopeFilter({ status: 'submitted' })),
+      Application.countDocuments(appScopeFilter({ status: 'under_review' })),
+      Application.countDocuments(appScopeFilter({ status: 'approved' })),
+      Application.countDocuments(appScopeFilter({ status: 'rejected' })),
+      Application.countDocuments(appScopeFilter({ status: 'printed' })),
+      Application.countDocuments(appScopeFilter({ status: 'delivered' })),
+      Application.countDocuments(appScopeFilter({ status: 'cancelled' })),
+      Application.countDocuments(appScopeFilter({ createdAt: { $gte: startOfToday } })),
+      Application.countDocuments(appScopeFilter({
         status: 'rejected',
         updatedAt: { $gte: startOfToday }
-      }),
+      })),
 
       Appointment.countDocuments(),
       Appointment.countDocuments({ status: 'booked' }),
@@ -518,6 +587,8 @@ const createInternalUser = async (req, res) => {
     const phone = String(req.body.phone || '').trim();
     const password = String(req.body.password || '');
     const role = String(req.body.role || '').trim();
+    const adminScope = normalizeAdminScope(req.body.adminScope);
+    const adminScopeError = validateAdminScope(adminScope);
 
     if (!fullName || !email || !phone || !password || !role) {
       return res.status(400).json({
@@ -530,6 +601,20 @@ const createInternalUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid internal user role'
+      });
+    }
+
+    if (adminScopeError) {
+      return res.status(400).json({
+        success: false,
+        message: adminScopeError
+      });
+    }
+
+    if (adminScope.scopeType === 'national' && !isNationalScope(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only national-scope admins can create national-scope users'
       });
     }
 
@@ -563,6 +648,10 @@ const createInternalUser = async (req, res) => {
       password,
       role,
       permissions: getDefaultPermissions(role),
+      adminScope: {
+        ...adminScope,
+        scopeUpdatedAt: new Date()
+      },
       isVerified: true,
       status: 'active',
       createdBy: req.user._id,
@@ -582,11 +671,12 @@ const createInternalUser = async (req, res) => {
       entityId: user._id,
       message: `Created internal user ${user.fullName}`,
       meta: {
-        reason: 'Internal user created by main admin',
+        reason: 'Internal user created by national-scope admin',
         before: null,
         after: buildInternalUserSnapshot(user),
         createdUserRole: user.role,
-        createdUserEmail: user.email
+        createdUserEmail: user.email,
+        adminScope: normalizeAdminScope(user.adminScope)
       }
     });
 
@@ -664,9 +754,14 @@ const updateInternalUser = async (req, res) => {
       req.body.status !== undefined
         ? String(req.body.status || '').trim()
         : targetUser.status;
+    const adminScope = normalizeAdminScope(
+      req.body.adminScope,
+      targetUser.adminScope
+    );
+    const adminScopeError = validateAdminScope(adminScope);
 
     const updateReason = String(
-      req.body.updateReason || 'Internal user updated by main admin'
+      req.body.updateReason || 'Internal user updated by national-scope admin'
     ).trim();
 
     if (!fullName || !email || !phone || !role || !status) {
@@ -687,6 +782,20 @@ const updateInternalUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid account status'
+      });
+    }
+
+    if (adminScopeError) {
+      return res.status(400).json({
+        success: false,
+        message: adminScopeError
+      });
+    }
+
+    if (adminScope.scopeType === 'national' && !isNationalScope(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only national-scope admins can assign national scope'
       });
     }
 
@@ -721,6 +830,15 @@ const updateInternalUser = async (req, res) => {
     targetUser.phone = phone;
     targetUser.role = role;
     targetUser.status = status;
+    const beforeScope = normalizeAdminScope(before.adminScope);
+    const nextScope = {
+      ...adminScope,
+      scopeUpdatedAt:
+        serializeAdminScope(beforeScope) === serializeAdminScope(adminScope)
+          ? beforeScope.scopeUpdatedAt
+          : new Date()
+    };
+    targetUser.adminScope = nextScope;
 
     // Reset permissions when role changes so access stays clean.
     if (before.role !== role) {
@@ -763,6 +881,22 @@ const updateInternalUser = async (req, res) => {
         after: buildInternalUserSnapshot(updatedUser)
       }
     });
+
+    if (serializeAdminScope(beforeScope) !== serializeAdminScope(nextScope)) {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'ADMIN_SCOPE_UPDATED',
+        entityType: 'User',
+        entityId: updatedUser._id,
+        message: `Updated admin scope for ${updatedUser.fullName}`,
+        meta: {
+          reason: updateReason,
+          before: beforeScope,
+          after: normalizeAdminScope(updatedUser.adminScope)
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -1436,7 +1570,9 @@ const getPrintingQueue = async (req, res) => {
       filter.status = { $in: ['approved', 'printed'] };
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone role')
       .sort({ approvedAt: 1, createdAt: 1 });
 
@@ -1468,6 +1604,13 @@ const markApplicationAsPrinted = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1566,13 +1709,15 @@ const getDeliveryQueue = async (req, res) => {
       ];
     }
 
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
     const [applications, total] = await Promise.all([
-      Application.find(filter)
+      Application.find(scopedFilter)
         .populate('applicant', 'fullName email phone role')
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Application.countDocuments(filter)
+      Application.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1605,6 +1750,13 @@ const markApplicationAsDelivered = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1706,13 +1858,15 @@ const getAllApplicationsForAdmin = async (req, res) => {
       ];
     }
 
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
     const [applications, total] = await Promise.all([
-      Application.find(filter)
+      Application.find(scopedFilter)
         .populate('applicant', 'fullName email phone role')
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Application.countDocuments(filter)
+      Application.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1746,6 +1900,13 @@ const getSingleApplicationForAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1787,6 +1948,13 @@ const reviewApplicationByAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1835,6 +2003,7 @@ const reviewApplicationByAdmin = async (req, res) => {
     if (status === 'approved') {
       application.approvedAt = new Date();
       application.rejectionReason = '';
+      // TODO: Apply approved correction changes to a stable issued-NID profile model when that model exists.
     }
 
     if (status === 'rejected') {
@@ -1897,6 +2066,9 @@ const reviewApplicationByAdmin = async (req, res) => {
 
 const getApplicationStatsForAdmin = async (req, res) => {
   try {
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
+
     const [
       totalApplications,
       submittedApplications,
@@ -1907,14 +2079,14 @@ const getApplicationStatsForAdmin = async (req, res) => {
       deliveredApplications,
       cancelledApplications
     ] = await Promise.all([
-      Application.countDocuments(),
-      Application.countDocuments({ status: 'submitted' }),
-      Application.countDocuments({ status: 'under_review' }),
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'rejected' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({ status: 'cancelled' })
+      Application.countDocuments(scopeFilter()),
+      Application.countDocuments(scopeFilter({ status: 'submitted' })),
+      Application.countDocuments(scopeFilter({ status: 'under_review' })),
+      Application.countDocuments(scopeFilter({ status: 'approved' })),
+      Application.countDocuments(scopeFilter({ status: 'rejected' })),
+      Application.countDocuments(scopeFilter({ status: 'printed' })),
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({ status: 'cancelled' }))
     ]);
 
     res.status(200).json({
@@ -1966,6 +2138,16 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
     const applications = await Application.find({
       _id: { $in: validIds }
     });
+    const inaccessibleApplication = applications.find(
+      (application) => !canAccessApplicationByJurisdiction(req, application)
+    );
+
+    if (inaccessibleApplication) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to one or more application jurisdictions'
+      });
+    }
 
     let updatedCount = 0;
     const skipped = [];
@@ -2065,6 +2247,16 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
     const applications = await Application.find({
       _id: { $in: validIds }
     });
+    const inaccessibleApplication = applications.find(
+      (application) => !canAccessApplicationByJurisdiction(req, application)
+    );
+
+    if (inaccessibleApplication) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to one or more application jurisdictions'
+      });
+    }
 
     let updatedCount = 0;
     const skipped = [];
@@ -2210,6 +2402,8 @@ const getPrintingStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
 
     const [
       approvedForPrint,
@@ -2217,12 +2411,12 @@ const getPrintingStats = async (req, res) => {
       deliveredAfterPrint,
       printedToday
     ] = await Promise.all([
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({
+      Application.countDocuments(scopeFilter({ status: 'approved' })),
+      Application.countDocuments(scopeFilter({ status: 'printed' })),
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({
         printedAt: { $gte: today }
-      })
+      }))
     ]);
 
     res.status(200).json({
@@ -2246,6 +2440,8 @@ const getDeliveryStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
 
     const [
       readyForDelivery,
@@ -2253,12 +2449,12 @@ const getDeliveryStats = async (req, res) => {
       deliveredToday,
       cancelledCount
     ] = await Promise.all([
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({
+      Application.countDocuments(scopeFilter({ status: 'printed' })),
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({
         deliveredAt: { $gte: today }
-      }),
-      Application.countDocuments({ status: 'cancelled' })
+      })),
+      Application.countDocuments(scopeFilter({ status: 'cancelled' }))
     ]);
 
     res.status(200).json({
@@ -2325,7 +2521,9 @@ const exportPrintingReport = async (req, res) => {
       filter.status = { $in: ['approved', 'printed', 'delivered'] };
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone')
       .sort({ createdAt: -1 });
 
@@ -2366,7 +2564,9 @@ const exportDeliveryReport = async (req, res) => {
       filter.status = { $in: ['printed', 'delivered', 'cancelled'] };
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone')
       .sort({ createdAt: -1 });
 

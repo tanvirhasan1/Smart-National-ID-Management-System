@@ -1,5 +1,29 @@
 const mongoose = require('mongoose');
 
+const adminScopeSchema = new mongoose.Schema(
+  {
+    scopeType: {
+      type: String,
+      enum: ['national', 'district'],
+      default: 'national'
+    },
+    districts: {
+      type: [String],
+      default: []
+    },
+    primaryDistrict: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    scopeUpdatedAt: {
+      type: Date,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
 const adminUserSchema = new mongoose.Schema(
   {
     userId: {
@@ -37,6 +61,10 @@ const adminUserSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    adminScope: {
+      type: adminScopeSchema,
+      default: () => ({})
+    },
     status: {
       type: String,
       enum: ['active', 'blocked', 'pending'],
@@ -52,6 +80,8 @@ const adminUserSchema = new mongoose.Schema(
     collection: 'admin_users'
   }
 );
+
+adminUserSchema.index({ role: 1, 'adminScope.scopeType': 1, 'adminScope.districts': 1 });
 
 module.exports =
   mongoose.models.AdminUser || mongoose.model('AdminUser', adminUserSchema);

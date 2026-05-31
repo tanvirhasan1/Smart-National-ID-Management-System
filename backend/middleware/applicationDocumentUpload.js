@@ -40,7 +40,23 @@ const uploadSingleApplicationDocument = (req, res, next) => {
   });
 };
 
+const uploadBirthCertificateVerificationDocument = (req, res, next) => {
+  const uploadHandler = applicationDocumentUpload.single('birthCertificate');
+
+  uploadHandler(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    next();
+  });
+};
+
 module.exports = {
   applicationDocumentUpload,
-  uploadSingleApplicationDocument
+  uploadSingleApplicationDocument,
+  uploadBirthCertificateVerificationDocument
 };

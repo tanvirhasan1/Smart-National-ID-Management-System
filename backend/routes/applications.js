@@ -2,6 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
+  verifyBirthCertificateDocument,
+  getApplicationEligibility,
   uploadApplicationDocument,
   getApplicationPrefill,
   getMyApplications,
@@ -15,7 +17,8 @@ const {
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
-  uploadSingleApplicationDocument
+  uploadSingleApplicationDocument,
+  uploadBirthCertificateVerificationDocument
 } = require('../middleware/applicationDocumentUpload');
 
 const router = express.Router();
@@ -23,21 +26,21 @@ const router = express.Router();
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   getAdminDashboardStats
 );
 
 router.get(
   '/admin/all',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'system_supervisor'),
   getSingleApplicationForAdmin
 );
 
@@ -46,6 +49,21 @@ router.patch(
   protect,
   authorize('admin', 'super_admin'),
   reviewApplicationByAdmin
+);
+
+router.post(
+  '/document-verification/birth-certificate',
+  protect,
+  authorize('citizen'),
+  uploadBirthCertificateVerificationDocument,
+  verifyBirthCertificateDocument
+);
+
+router.get(
+  '/eligibility',
+  protect,
+  authorize('citizen'),
+  getApplicationEligibility
 );
 
 router.post(

@@ -4,7 +4,29 @@ const { randomUUID } = require('crypto');
 const { validationResult } = require('express-validator');
 const Application = require('../models/Application');
 const BiometricVerificationSession = require('../models/BiometricVerificationSession');
-const { createAuditLog } = require('../utils/auditLogger');
+const DocumentVerificationSession = require('../models/DocumentVerificationSession');
+const {
+  createAuditLog,
+  getRequestAuditContext
+} = require('../utils/auditLogger');
+const {
+  verifyBirthCertificate
+} = require('../utils/documentOcrServiceClient');
+const {
+  CLAIMED_FIELD_KEYS,
+  normalizeClaimedBirthCertificateFields,
+  buildClaimedFieldsFromApplicationPayload,
+  hashFileBuffer,
+  hashClaimedFields,
+  generateVerificationToken,
+  hashVerificationToken,
+  sanitizeVerificationResult,
+  getDocumentVerificationTtlMinutes
+} = require('../utils/documentVerification');
+const {
+  applyAdminJurisdictionFilter,
+  canAccessApplicationByJurisdiction
+} = require('../utils/adminScope');
 const uploadApplicationDocumentToCloudinary = require('../utils/uploadApplicationDocumentToCloudinary');
 
 const BIOMETRIC_FAILURE_MESSAGE =
@@ -16,7 +38,32 @@ const APPLICATION_ERROR_CODES = {
   BIOMETRIC_SESSION_EXPIRED: 'APPLICATION_BIOMETRIC_SESSION_EXPIRED',
   BIOMETRIC_SESSION_ALREADY_USED: 'APPLICATION_BIOMETRIC_SESSION_ALREADY_USED',
   BIOMETRIC_OWNER_MISMATCH: 'APPLICATION_BIOMETRIC_OWNER_MISMATCH',
-  VALIDATION_FAILED: 'APPLICATION_VALIDATION_FAILED'
+  VALIDATION_FAILED: 'APPLICATION_VALIDATION_FAILED',
+  BIRTH_CERTIFICATE_VERIFICATION_REQUIRED:
+    'BIRTH_CERTIFICATE_VERIFICATION_REQUIRED',
+  BIRTH_CERTIFICATE_VERIFICATION_EXPIRED:
+    'BIRTH_CERTIFICATE_VERIFICATION_EXPIRED',
+  BIRTH_CERTIFICATE_VERIFICATION_FIELD_CHANGED:
+    'BIRTH_CERTIFICATE_VERIFICATION_FIELD_CHANGED',
+  BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED:
+    'BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED',
+  NEW_NID_APPLICATION_EXISTS: 'NEW_NID_APPLICATION_EXISTS',
+  ACTIVE_NEW_APPLICATION_EXISTS: 'NEW_NID_ACTIVE_APPLICATION_EXISTS',
+  NEW_NID_ALREADY_APPROVED: 'NEW_NID_ALREADY_APPROVED',
+  NEW_NID_RESUBMISSION_ALLOWED: 'NEW_NID_RESUBMISSION_ALLOWED',
+  ISSUED_NEW_NID_REQUIRED: 'ISSUED_NEW_NID_REQUIRED'
+};
+const DOCUMENT_VERIFICATION_ERROR_CODES = {
+  MISMATCH: 'DOCUMENT_VERIFICATION_MISMATCH',
+  FIELD_MISMATCH: 'FIELD_MISMATCH',
+  REGISTRY_MISMATCH: 'REGISTRY_MISMATCH',
+  REGISTRY_RECORD_NOT_FOUND: 'REGISTRY_RECORD_NOT_FOUND',
+  OCR_UNREADABLE: 'OCR_UNREADABLE',
+  UNREADABLE: 'DOCUMENT_UNREADABLE',
+  LOW_CONFIDENCE: 'DOCUMENT_LOW_CONFIDENCE',
+  FAILED: 'DOCUMENT_VERIFICATION_FAILED',
+  UNAVAILABLE: 'DOCUMENT_VERIFICATION_UNAVAILABLE',
+  VALIDATION_FAILED: 'DOCUMENT_VERIFICATION_VALIDATION_FAILED'
 };
 
 const generateApplicationId = () => {
@@ -27,8 +74,29 @@ const generateApplicationId = () => {
 const citizenDocumentFieldMap = {
   photograph: 'photo',
   signature: 'signature',
-  birthCertificate: 'birthCertificate'
+  birthCertificate: 'birthCertificate',
+  correctionProof: 'correctionProof'
 };
+
+const ACTIVE_NEW_APPLICATION_STATUSES = ['draft', 'submitted', 'under_review'];
+
+const ISSUED_NEW_APPLICATION_STATUSES = [
+  'approved',
+  'printed',
+  'dispatched',
+  'delivered'
+];
+
+const DOCUMENT_VERIFIED_LOCKED_FIELDS = [
+  'applicationType',
+  'fullNameEnglish',
+  'fullNameBangla',
+  'fatherName',
+  'motherName',
+  'dateOfBirth',
+  'gender',
+  'birthRegistrationNumber'
+];
 
 const pushApplicationStatusHistory = ({
   application,
@@ -41,17 +109,19 @@ const pushApplicationStatusHistory = ({
   const currentHistory = Array.isArray(application.statusHistory)
     ? [...application.statusHistory]
     : [];
+  const changedAt = new Date();
 
   currentHistory.push({
     fromStatus,
     toStatus,
     note,
-    changedAt: new Date(),
+    changedAt,
     changedBy,
     changedByRole
   });
 
   application.statusHistory = currentHistory;
+  application.latestStatusChangedAt = changedAt;
 };
 
 const buildChangedFields = (application, payload, allowedFields) => {
@@ -74,10 +144,11 @@ const buildChangedFields = (application, payload, allowedFields) => {
   return changedFields;
 };
 
-const buildHttpError = (message, statusCode = 500, code = '') => {
+const buildHttpError = (message, statusCode = 500, code = '', details = {}) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
+  error.details = details;
   return error;
 };
 
@@ -99,6 +170,626 @@ const toSafeValidationErrors = (error) => {
   }
 
   return [];
+};
+
+const getLatestRejectedHistoryEntry = (application = {}) => {
+  const history = Array.isArray(application.statusHistory)
+    ? application.statusHistory
+    : [];
+
+  return [...history]
+    .reverse()
+    .find((item) => String(item?.toStatus || '').toLowerCase() === 'rejected');
+};
+
+const buildApplicationSummary = (application) => {
+  if (!application) {
+    return null;
+  }
+
+  return {
+    _id: application._id,
+    applicationId: application.applicationId || '',
+    status: application.status || '',
+    applicationType: application.applicationType || '',
+    createdAt: application.createdAt || null,
+    submittedAt: application.submittedAt || null,
+    latestStatusChangedAt: application.latestStatusChangedAt || null
+  };
+};
+
+const buildLatestRejectedApplicationSummary = (application) => {
+  if (!application) {
+    return null;
+  }
+
+  const rejectedHistory = getLatestRejectedHistoryEntry(application);
+  const rejectionReason =
+    application.rejectionReason ||
+    rejectedHistory?.reason ||
+    rejectedHistory?.note ||
+    '';
+  const rejectionNotes =
+    rejectedHistory?.note && rejectedHistory.note !== rejectionReason
+      ? rejectedHistory.note
+      : '';
+  const rejectedAt =
+    application.latestStatusChangedAt ||
+    rejectedHistory?.changedAt ||
+    application.updatedAt ||
+    null;
+
+  return {
+    _id: application._id || null,
+    applicationId: application.applicationId || '',
+    rejectedAt,
+    rejectionReason,
+    rejectionNotes,
+    statusHistoryReason: rejectedHistory?.reason || rejectedHistory?.note || ''
+  };
+};
+
+const buildNewNidBlockMessage = (blockedReasonCode) => {
+  if (blockedReasonCode === APPLICATION_ERROR_CODES.NEW_NID_ALREADY_APPROVED) {
+    return 'You already have a New NID record. Please use Correction or Reissue if you need changes.';
+  }
+
+  if (blockedReasonCode === APPLICATION_ERROR_CODES.ACTIVE_NEW_APPLICATION_EXISTS) {
+    return 'You already have an active New NID application. You cannot submit another New NID application.';
+  }
+
+  return 'You already have an active or completed New NID application. You cannot submit another New NID application.';
+};
+
+const getNewNidEligibilityContext = async (userId) => {
+  const [
+    activeNewApplication,
+    issuedNewApplication,
+    latestRejectedNewApplication,
+    rejectedNewApplicationCount
+  ] = await Promise.all([
+    Application.findOne({
+      applicant: userId,
+      applicationType: 'new',
+      status: { $in: ACTIVE_NEW_APPLICATION_STATUSES }
+    })
+      .sort({ createdAt: -1 })
+      .lean(),
+    Application.findOne({
+      applicant: userId,
+      applicationType: 'new',
+      status: { $in: ISSUED_NEW_APPLICATION_STATUSES }
+    })
+      .sort({ createdAt: -1 })
+      .lean(),
+    Application.findOne({
+      applicant: userId,
+      applicationType: 'new',
+      status: 'rejected'
+    })
+      .sort({ latestStatusChangedAt: -1, updatedAt: -1, createdAt: -1 })
+      .lean(),
+    Application.countDocuments({
+      applicant: userId,
+      applicationType: 'new',
+      status: 'rejected'
+    })
+  ]);
+
+  const blockingApplication = issuedNewApplication || activeNewApplication;
+  const blockedReasonCode = issuedNewApplication
+    ? APPLICATION_ERROR_CODES.NEW_NID_ALREADY_APPROVED
+    : activeNewApplication
+      ? APPLICATION_ERROR_CODES.ACTIVE_NEW_APPLICATION_EXISTS
+      : null;
+  const latestRejectedSummary = buildLatestRejectedApplicationSummary(
+    latestRejectedNewApplication
+  );
+
+  return {
+    canApplyNewNid: !blockingApplication,
+    blockedReasonCode,
+    blockedReasonMessage: blockedReasonCode
+      ? buildNewNidBlockMessage(blockedReasonCode)
+      : '',
+    blockingApplication,
+    activeNewApplication,
+    issuedNewApplication,
+    latestRejectedNewApplication,
+    latestRejectedSummary,
+    hasPreviousRejection: Boolean(latestRejectedNewApplication),
+    resubmissionAllowed:
+      !blockingApplication && Boolean(latestRejectedNewApplication),
+    resubmissionCount: rejectedNewApplicationCount
+  };
+};
+
+const buildNewNidDuplicateDetails = (eligibilityContext = {}) => ({
+  blockedReasonCode:
+    eligibilityContext.blockedReasonCode ||
+    APPLICATION_ERROR_CODES.NEW_NID_APPLICATION_EXISTS,
+  blockedReasonMessage:
+    eligibilityContext.blockedReasonMessage ||
+    buildNewNidBlockMessage(APPLICATION_ERROR_CODES.NEW_NID_APPLICATION_EXISTS),
+  blockedApplication: buildApplicationSummary(
+    eligibilityContext.blockingApplication
+  )
+});
+
+const auditNewNidDuplicateBlocked = async ({ req, eligibilityContext }) => {
+  const blockingApplication = eligibilityContext?.blockingApplication;
+
+  if (!blockingApplication?._id) {
+    return;
+  }
+
+  await createAuditLog({
+    actor: req.user._id,
+    actorRole: req.user.role,
+    action: 'NEW_NID_DUPLICATE_BLOCKED',
+    entityType: 'Application',
+    entityId: blockingApplication._id,
+    message: 'Duplicate New NID application attempt blocked',
+    severity: 'warning',
+    sourceModule: 'applications',
+    requestContext: getRequestAuditContext(req),
+    meta: {
+      blockedReasonCode: eligibilityContext.blockedReasonCode,
+      blockedApplicationId: blockingApplication.applicationId || '',
+      blockedApplicationStatus: blockingApplication.status || ''
+    }
+  });
+};
+
+const assertNewNidSubmissionAllowed = async ({ req, eligibilityContext = null }) => {
+  const context =
+    eligibilityContext || (await getNewNidEligibilityContext(req.user._id));
+
+  if (context.canApplyNewNid) {
+    return context;
+  }
+
+  await auditNewNidDuplicateBlocked({ req, eligibilityContext: context });
+
+  throw buildHttpError(
+    context.blockedReasonMessage,
+    409,
+    context.blockedReasonCode ||
+      APPLICATION_ERROR_CODES.NEW_NID_APPLICATION_EXISTS,
+    buildNewNidDuplicateDetails(context)
+  );
+};
+
+const buildJurisdiction = ({ permanentAddress = {}, presentAddress = {} }) => {
+  const district =
+    normalizeOptionalString(permanentAddress?.district) ||
+    normalizeOptionalString(presentAddress?.district) ||
+    '';
+  const division =
+    normalizeOptionalString(permanentAddress?.division) ||
+    normalizeOptionalString(presentAddress?.division) ||
+    '';
+
+  return {
+    district,
+    division,
+    source: permanentAddress?.district ? 'permanentAddress' : 'presentAddress'
+  };
+};
+
+const normalizeForCorrectionComparison = (value) => {
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
+
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(value) && !Number.isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+
+    return value.trim();
+  }
+
+  if (value && typeof value === 'object') {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  return value ?? '';
+};
+
+const valuesMatchForCorrection = (firstValue, secondValue) =>
+  JSON.stringify(normalizeForCorrectionComparison(firstValue)) ===
+  JSON.stringify(normalizeForCorrectionComparison(secondValue));
+
+const buildRequestedCorrectionChanges = ({
+  issuedNewApplication,
+  applicationPayload,
+  requestedChanges
+}) => {
+  if (Array.isArray(requestedChanges) && requestedChanges.length > 0) {
+    return requestedChanges
+      .map((item) => ({
+        field: String(item?.field || '').trim(),
+        oldValue: item?.oldValue ?? null,
+        newValue: item?.newValue ?? null
+      }))
+      .filter((item) => item.field);
+  }
+
+  const correctionFields = [
+    'fullNameEnglish',
+    'fullNameBangla',
+    'fatherName',
+    'motherName',
+    'spouseName',
+    'dateOfBirth',
+    'gender',
+    'bloodGroup',
+    'maritalStatus',
+    'phone',
+    'email',
+    'occupation',
+    'presentAddress',
+    'permanentAddress'
+  ];
+
+  return correctionFields
+    .filter(
+      (field) =>
+        !valuesMatchForCorrection(
+          issuedNewApplication?.[field],
+          applicationPayload?.[field]
+        )
+    )
+    .map((field) => ({
+      field,
+      oldValue: normalizeForCorrectionComparison(issuedNewApplication?.[field]),
+      newValue: normalizeForCorrectionComparison(applicationPayload?.[field])
+    }));
+};
+
+const buildCorrectionInfoPayload = ({
+  req,
+  issuedNewApplication,
+  applicationPayload,
+  documents = {}
+}) => {
+  const correctionInfo =
+    req.body?.correctionInfo && typeof req.body.correctionInfo === 'object'
+      ? req.body.correctionInfo
+      : {};
+
+  return {
+    correctionOf: issuedNewApplication?._id || null,
+    baseApplicationId: issuedNewApplication?.applicationId || '',
+    requestedChanges: buildRequestedCorrectionChanges({
+      issuedNewApplication,
+      applicationPayload,
+      requestedChanges: correctionInfo.requestedChanges
+    }),
+    reason:
+      String(correctionInfo.reason || req.body?.correctionReason || '').trim(),
+    proofStatus: documents?.correctionProof ? 'uploaded' : 'not_uploaded'
+  };
+};
+
+const parseClaimedFieldsJson = (value) => {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const getMissingRequiredClaimedFields = (claimedFields = {}) => {
+  const requiredFields = [
+    'birthRegistrationNumber',
+    'fullNameEnglish',
+    'fatherName',
+    'motherName',
+    'dateOfBirth',
+    'gender'
+  ];
+
+  return requiredFields.filter((field) => !claimedFields[field]);
+};
+
+const buildDocumentVerificationMessage = (status, failureReason = '') => {
+  if (status === 'passed') {
+    return 'Birth certificate information matched your application.';
+  }
+
+  if (
+    status === 'mismatch' ||
+    ['FIELD_MISMATCH', 'REGISTRY_MISMATCH'].includes(failureReason)
+  ) {
+    return 'Birth certificate information does not match your provided information.';
+  }
+
+  if (status === 'not_found' || failureReason === 'REGISTRY_RECORD_NOT_FOUND') {
+    return 'Birth registration record could not be found.';
+  }
+
+  if (
+    status === 'unreadable' ||
+    ['OCR_UNREADABLE', 'CRITICAL_FIELD_MISSING'].includes(failureReason)
+  ) {
+    return 'Birth registration number could not be read. Please upload a clearer image.';
+  }
+
+  if (status === 'low_confidence') {
+    return 'The document text could not be verified confidently. Please upload a clearer image.';
+  }
+
+  return 'Birth certificate verification failed. Please upload a clearer document and try again.';
+};
+
+const buildDocumentVerificationUnavailableMessage = (ocrResult = {}) =>
+  ocrResult.unavailableReason === 'timeout'
+    ? 'Document verification is taking longer than expected. Please try again.'
+    : 'Document verification service is temporarily unavailable. Please try again later.';
+
+const getDocumentVerificationResponseCode = (status, failureReason = '') => {
+  if (failureReason === 'REGISTRY_RECORD_NOT_FOUND' || status === 'not_found') {
+    return DOCUMENT_VERIFICATION_ERROR_CODES.REGISTRY_RECORD_NOT_FOUND;
+  }
+  if (failureReason === 'REGISTRY_MISMATCH') {
+    return DOCUMENT_VERIFICATION_ERROR_CODES.REGISTRY_MISMATCH;
+  }
+  if (failureReason === 'FIELD_MISMATCH') {
+    return DOCUMENT_VERIFICATION_ERROR_CODES.FIELD_MISMATCH;
+  }
+  if (status === 'mismatch') return DOCUMENT_VERIFICATION_ERROR_CODES.MISMATCH;
+  if (
+    status === 'unreadable' ||
+    ['OCR_UNREADABLE', 'CRITICAL_FIELD_MISSING'].includes(failureReason)
+  ) {
+    return DOCUMENT_VERIFICATION_ERROR_CODES.OCR_UNREADABLE;
+  }
+  if (status === 'low_confidence') {
+    return DOCUMENT_VERIFICATION_ERROR_CODES.LOW_CONFIDENCE;
+  }
+  return DOCUMENT_VERIFICATION_ERROR_CODES.FAILED;
+};
+
+const getDocumentVerificationAuditAction = (status, available = true) => {
+  if (!available) return 'DOCUMENT_OCR_SERVICE_UNAVAILABLE';
+  if (status === 'passed') return 'DOCUMENT_OCR_PASSED';
+  if (status === 'mismatch') return 'DOCUMENT_OCR_MISMATCH_BLOCKED';
+  if (status === 'not_found') return 'DOCUMENT_REGISTRY_RECORD_NOT_FOUND_BLOCKED';
+  if (status === 'unreadable') return 'DOCUMENT_OCR_UNREADABLE_BLOCKED';
+  if (status === 'low_confidence') {
+    return 'DOCUMENT_OCR_LOW_CONFIDENCE_BLOCKED';
+  }
+  return 'DOCUMENT_OCR_FAILED_BLOCKED';
+};
+
+const createDocumentVerificationSessionRecord = async ({
+  req,
+  verification,
+  birthCertificateFile,
+  claimedFields,
+  verificationToken = ''
+}) => {
+  const ttlMinutes = getDocumentVerificationTtlMinutes();
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+  return DocumentVerificationSession.create({
+    user: req.user._id,
+    tokenHash: verificationToken
+      ? hashVerificationToken(verificationToken)
+      : undefined,
+    documentHash: hashFileBuffer(birthCertificateFile.buffer),
+    claimedFieldsHash: hashClaimedFields(claimedFields),
+    status: verification.status,
+    provider: verification.provider,
+    verification,
+    expiresAt
+  });
+};
+
+const auditDocumentVerification = async ({
+  req,
+  session,
+  verification,
+  available = true
+}) => {
+  await createAuditLog({
+    actor: req.user._id,
+    actorRole: req.user.role,
+    action: getDocumentVerificationAuditAction(verification.status, available),
+    entityType: 'DocumentVerificationSession',
+    entityId: session._id,
+    message:
+      verification.status === 'passed'
+        ? 'Birth certificate OCR passed before application submission'
+        : buildDocumentVerificationMessage(
+            verification.status,
+            verification.failureReason
+          ),
+    severity: verification.status === 'passed' ? 'info' : 'warning',
+    sourceModule: 'applications.document-verification',
+    requestContext: getRequestAuditContext(req),
+    meta: {
+      status: verification.status,
+      provider: verification.provider,
+      confidence: verification.confidence,
+      blocksSubmission: verification.blocksSubmission,
+      available
+    }
+  });
+};
+
+const getVerificationSnapshot = (verification = {}) =>
+  sanitizeVerificationResult({
+    ...verification,
+    status: verification.status || 'failed',
+    checkedAt: verification.checkedAt || new Date()
+  });
+
+const getBirthCertificateVerificationFromSession = async ({
+  token,
+  userId,
+  claimedFields,
+  now
+}) => {
+  if (!token || typeof token !== 'string') {
+    throw buildHttpError(
+      'Passed birth certificate verification is required before New NID submission',
+      422,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_REQUIRED
+    );
+  }
+
+  const tokenHash = hashVerificationToken(token);
+  const claimedFieldsHash = hashClaimedFields(claimedFields);
+
+  const verificationSession = await DocumentVerificationSession.findOne({
+    user: userId,
+    tokenHash
+  })
+    .select('+tokenHash +documentHash')
+    .sort({ createdAt: -1 });
+
+  if (!verificationSession || verificationSession.status !== 'passed') {
+    throw buildHttpError(
+      'Passed birth certificate verification is required before New NID submission',
+      422,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_REQUIRED
+    );
+  }
+
+  if (verificationSession.usedAt) {
+    throw buildHttpError(
+      'Birth certificate verification token has already been used',
+      409,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED
+    );
+  }
+
+  if (verificationSession.expiresAt <= now) {
+    throw buildHttpError(
+      'Birth certificate verification has expired. Please verify the document again.',
+      409,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_EXPIRED
+    );
+  }
+
+  if (verificationSession.claimedFieldsHash !== claimedFieldsHash) {
+    throw buildHttpError(
+      'Application information changed after document verification. Please verify the birth certificate again.',
+      409,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_FIELD_CHANGED
+    );
+  }
+
+  return verificationSession;
+};
+
+const buildDocumentVerificationTokenError = async ({
+  sessionId,
+  userId,
+  now
+}) => {
+  const session = await DocumentVerificationSession.findOne({
+    _id: sessionId,
+    user: userId
+  });
+
+  if (session?.usedAt) {
+    return buildHttpError(
+      'Birth certificate verification token has already been used',
+      409,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED
+    );
+  }
+
+  if (session?.expiresAt && session.expiresAt <= now) {
+    return buildHttpError(
+      'Birth certificate verification has expired. Please verify the document again.',
+      409,
+      APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_EXPIRED
+    );
+  }
+
+  return buildHttpError(
+    'Passed birth certificate verification is required before New NID submission',
+    409,
+    APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_REQUIRED
+  );
+};
+
+const ensureApplicationTypeRules = async ({
+  req,
+  userId,
+  applicationType,
+  applicationPayload,
+  submittedAt,
+  newNidEligibilityContext = null
+}) => {
+  if (applicationType === 'new') {
+    const context = await assertNewNidSubmissionAllowed({
+      req,
+      eligibilityContext: newNidEligibilityContext
+    });
+    const latestRejectedApplication = context.latestRejectedNewApplication;
+
+    if (latestRejectedApplication) {
+      const rejectedSummary =
+        buildLatestRejectedApplicationSummary(latestRejectedApplication);
+
+      applicationPayload.resubmissionInfo = {
+        isResubmission: true,
+        previousApplication: latestRejectedApplication._id,
+        previousApplicationId: latestRejectedApplication.applicationId || '',
+        previousStatus: latestRejectedApplication.status,
+        previousRejectedAt: rejectedSummary?.rejectedAt || null,
+        previousRejectionReason: rejectedSummary?.rejectionReason || '',
+        previousRejectionNotes: rejectedSummary?.rejectionNotes || '',
+        rejectionReason: rejectedSummary?.rejectionReason || '',
+        rejectedAt: rejectedSummary?.rejectedAt || null,
+        resubmittedAt: submittedAt,
+        resubmissionCount: context.resubmissionCount || 0
+      };
+    }
+
+    return {
+      latestRejectedApplication,
+      resubmissionCount: context.resubmissionCount || 0
+    };
+  }
+
+  if (['correction', 'reissue'].includes(applicationType)) {
+    const issuedNewApplication = await Application.findOne({
+      applicant: userId,
+      applicationType: 'new',
+      status: { $in: ISSUED_NEW_APPLICATION_STATUSES }
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!issuedNewApplication) {
+      throw buildHttpError(
+        'Correction or reissue applications require an issued New NID application',
+        409,
+        APPLICATION_ERROR_CODES.ISSUED_NEW_NID_REQUIRED
+      );
+    }
+
+    return {
+      issuedNewApplication
+    };
+  }
+
+  return {};
 };
 
 const logApplicationCreateDebug = (details) => {
@@ -132,6 +823,7 @@ const isTransactionUnsupportedError = (error) => {
 
 const createApplicationWithoutTransaction = async ({
   biometricSession,
+  documentVerificationSession = null,
   citizenId,
   applicationPayload,
   now
@@ -166,8 +858,51 @@ const createApplicationWithoutTransaction = async ({
   }
 
   let application = null;
+  let reservedDocumentVerificationSession = null;
 
   try {
+    if (documentVerificationSession) {
+      reservedDocumentVerificationSession =
+        await DocumentVerificationSession.findOneAndUpdate(
+          {
+            _id: documentVerificationSession._id,
+            user: citizenId,
+            status: 'passed',
+            expiresAt: { $gt: now },
+            usedAt: null
+          },
+          {
+            $set: {
+              usedAt: reservedAt
+            }
+          },
+          {
+            new: true
+          }
+        );
+
+      if (!reservedDocumentVerificationSession) {
+        await BiometricVerificationSession.updateOne(
+          {
+            _id: reservedBiometricSession._id,
+            status: 'passed',
+            usedAt: reservedAt
+          },
+          {
+            $unset: {
+              usedAt: ''
+            }
+          }
+        );
+
+        throw await buildDocumentVerificationTokenError({
+          sessionId: documentVerificationSession._id,
+          userId: citizenId,
+          now
+        });
+      }
+    }
+
     application = await Application.create(applicationPayload);
   } catch (error) {
     await BiometricVerificationSession.updateOne(
@@ -182,6 +917,20 @@ const createApplicationWithoutTransaction = async ({
         }
       }
     );
+
+    if (reservedDocumentVerificationSession) {
+      await DocumentVerificationSession.updateOne(
+        {
+          _id: reservedDocumentVerificationSession._id,
+          usedAt: reservedAt
+        },
+        {
+          $unset: {
+            usedAt: ''
+          }
+        }
+      );
+    }
 
     throw error;
   }
@@ -222,6 +971,7 @@ const createApplicationWithoutTransaction = async ({
 
 const createApplicationWithBiometricSession = async ({
   biometricSession,
+  documentVerificationSession = null,
   citizenId,
   applicationPayload,
   now
@@ -264,6 +1014,36 @@ const createApplicationWithBiometricSession = async ({
         );
       }
 
+      if (documentVerificationSession) {
+        const usedDocumentVerificationSession =
+          await DocumentVerificationSession.findOneAndUpdate(
+            {
+              _id: documentVerificationSession._id,
+              user: citizenId,
+              status: 'passed',
+              expiresAt: { $gt: now },
+              usedAt: null
+            },
+            {
+              $set: {
+                usedAt: new Date()
+              }
+            },
+            {
+              new: true,
+              session: dbSession
+            }
+          );
+
+        if (!usedDocumentVerificationSession) {
+          throw await buildDocumentVerificationTokenError({
+            sessionId: documentVerificationSession._id,
+            userId: citizenId,
+            now
+          });
+        }
+      }
+
       const createdApplications = await Application.create([applicationPayload], {
         session: dbSession
       });
@@ -278,6 +1058,7 @@ const createApplicationWithBiometricSession = async ({
     if (isTransactionUnsupportedError(error)) {
       return createApplicationWithoutTransaction({
         biometricSession,
+        documentVerificationSession,
         citizenId,
         applicationPayload,
         now
@@ -290,8 +1071,204 @@ const createApplicationWithBiometricSession = async ({
   }
 };
 
+const verifyBirthCertificateDocument = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        code: DOCUMENT_VERIFICATION_ERROR_CODES.VALIDATION_FAILED,
+        message: 'Birth certificate file is required'
+      });
+    }
+
+    const parsedClaimedFields = parseClaimedFieldsJson(req.body.claimedFields);
+
+    if (!parsedClaimedFields) {
+      return res.status(400).json({
+        success: false,
+        code: DOCUMENT_VERIFICATION_ERROR_CODES.VALIDATION_FAILED,
+        message: 'claimedFields must be a valid JSON object'
+      });
+    }
+
+    const claimedFields =
+      normalizeClaimedBirthCertificateFields(parsedClaimedFields);
+    const missingFields = getMissingRequiredClaimedFields(claimedFields);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: DOCUMENT_VERIFICATION_ERROR_CODES.VALIDATION_FAILED,
+        message: 'Required claimed fields are missing',
+        missingFields,
+        expectedFields: CLAIMED_FIELD_KEYS
+      });
+    }
+
+    const newNidEligibilityContext = await getNewNidEligibilityContext(
+      req.user._id
+    );
+
+    if (!newNidEligibilityContext.canApplyNewNid) {
+      await auditNewNidDuplicateBlocked({
+        req,
+        eligibilityContext: newNidEligibilityContext
+      });
+
+      return res.status(409).json({
+        success: false,
+        code: newNidEligibilityContext.blockedReasonCode,
+        ...buildNewNidDuplicateDetails(newNidEligibilityContext),
+        message: newNidEligibilityContext.blockedReasonMessage
+      });
+    }
+
+    const ocrResult = await verifyBirthCertificate({
+      birthCertificateFile: req.file,
+      claimedFields
+    });
+
+    const verification = getVerificationSnapshot(ocrResult.verification);
+    const verificationToken =
+      ocrResult.available && verification.status === 'passed'
+        ? generateVerificationToken()
+        : '';
+
+    const verificationSession = await createDocumentVerificationSessionRecord({
+      req,
+      verification,
+      birthCertificateFile: req.file,
+      claimedFields,
+      verificationToken
+    });
+
+    await auditDocumentVerification({
+      req,
+      session: verificationSession,
+      verification,
+      available: ocrResult.available
+    });
+
+    if (!ocrResult.available) {
+      return res.status(503).json({
+        success: false,
+        code: DOCUMENT_VERIFICATION_ERROR_CODES.UNAVAILABLE,
+        status: 'unavailable',
+        canSubmit: false,
+        failureReason: ocrResult.unavailableReason || 'service_unavailable',
+        verification,
+        message: buildDocumentVerificationUnavailableMessage(ocrResult)
+      });
+    }
+
+    if (verification.status === 'passed') {
+      return res.status(200).json({
+        success: true,
+        status: 'passed',
+        canSubmit: true,
+        verificationToken,
+        verification,
+        message: buildDocumentVerificationMessage('passed')
+      });
+    }
+
+    return res.status(422).json({
+      success: false,
+      code: getDocumentVerificationResponseCode(
+        verification.status,
+        verification.failureReason
+      ),
+      status: verification.status,
+      canSubmit: false,
+      verification,
+      message: buildDocumentVerificationMessage(
+        verification.status,
+        verification.failureReason
+      )
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      code: DOCUMENT_VERIFICATION_ERROR_CODES.FAILED,
+      message: 'Failed to verify birth certificate document'
+    });
+  }
+};
+
+const getApplicationEligibility = async (req, res) => {
+  try {
+    const eligibilityContext = await getNewNidEligibilityContext(req.user._id);
+    const rejectionNotice = eligibilityContext.latestRejectedSummary;
+
+    const canApplyNew = eligibilityContext.canApplyNewNid;
+    const canRequestCorrection = Boolean(
+      eligibilityContext.issuedNewApplication
+    );
+    const canRequestReissue = Boolean(eligibilityContext.issuedNewApplication);
+    const isSubmitIntent =
+      String(req.query.intent || '').toLowerCase() === 'submit';
+
+    let message = '';
+    if (!canApplyNew) {
+      message = eligibilityContext.blockedReasonMessage;
+      if (isSubmitIntent) {
+        await auditNewNidDuplicateBlocked({ req, eligibilityContext });
+      }
+    } else if (rejectionNotice) {
+      message =
+        'Your previous New NID application was rejected. You can apply again after correcting the issues.';
+    } else if (!canRequestCorrection) {
+      message = 'Correction and reissue unlock after your New NID is approved or issued.';
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        canApplyNewNid: canApplyNew,
+        canApplyNew,
+        blockedReasonCode: eligibilityContext.blockedReasonCode,
+        blockedReasonMessage: eligibilityContext.blockedReasonMessage || '',
+        hasPreviousRejection: eligibilityContext.hasPreviousRejection,
+        resubmissionAllowed: eligibilityContext.resubmissionAllowed,
+        latestRejectedApplicationId: rejectionNotice?.applicationId || '',
+        latestRejectedAt: rejectionNotice?.rejectedAt || null,
+        latestRejectionReason: rejectionNotice?.rejectionReason || '',
+        latestRejectionNotes: rejectionNotice?.rejectionNotes || '',
+        resubmissionCount: eligibilityContext.resubmissionCount || 0,
+        canRequestCorrection,
+        canRequestReissue,
+        activeNewApplication: buildApplicationSummary(
+          eligibilityContext.activeNewApplication
+        ),
+        issuedNewApplication: buildApplicationSummary(
+          eligibilityContext.issuedNewApplication
+        ),
+        latestRejectedNewApplication: rejectionNotice,
+        rejectionNotice,
+        message
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load application eligibility'
+    });
+  }
+};
+
 const createApplication = async (req, res) => {
   try {
+    const normalizedApplicationType = ['correction', 'reissue'].includes(
+      req.body?.applicationType
+    )
+      ? req.body.applicationType
+      : 'new';
+    let newNidEligibilityContext = null;
+
+    if (normalizedApplicationType === 'new') {
+      newNidEligibilityContext = await assertNewNidSubmissionAllowed({ req });
+    }
+
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -310,7 +1287,6 @@ const createApplication = async (req, res) => {
     }
 
     const {
-      applicationType,
       fullNameEnglish,
       fullNameBangla,
       fatherName,
@@ -328,7 +1304,8 @@ const createApplication = async (req, res) => {
       presentAddress,
       permanentAddress,
       documents,
-      biometricSessionId
+      biometricSessionId,
+      birthCertificateVerificationToken
     } = req.body;
 
     if (!biometricSessionId) {
@@ -470,12 +1447,36 @@ const createApplication = async (req, res) => {
       });
     }
 
+    const documentClaimedFields = buildClaimedFieldsFromApplicationPayload({
+      birthRegistrationNumber,
+      fullNameEnglish,
+      fullNameBangla,
+      fatherName,
+      motherName,
+      dateOfBirth,
+      gender
+    });
+
+    const documentVerificationSession =
+      normalizedApplicationType === 'new'
+        ? await getBirthCertificateVerificationFromSession({
+            token: birthCertificateVerificationToken,
+            userId: req.user._id,
+            claimedFields: documentClaimedFields,
+            now
+          })
+        : null;
+
+    const birthCertificateVerificationSnapshot = documentVerificationSession
+      ? getVerificationSnapshot(documentVerificationSession.verification)
+      : null;
+
     const submittedAt = new Date();
 
     const applicationPayload = {
       applicant: req.user._id,
       applicationId: generateApplicationId(),
-      applicationType,
+      applicationType: normalizedApplicationType,
       fullNameEnglish,
       fullNameBangla,
       fatherName,
@@ -487,6 +1488,7 @@ const createApplication = async (req, res) => {
       maritalStatus,
       birthRegistrationNumber,
       existingNidNumber,
+      jurisdiction: buildJurisdiction({ permanentAddress, presentAddress }),
       phone,
       email: normalizeOptionalString(email),
       occupation,
@@ -498,9 +1500,18 @@ const createApplication = async (req, res) => {
         motherNid: documents?.motherNid || '',
         utilityBill: documents?.utilityBill || '',
         passport: documents?.passport || '',
+        correctionProof: documents?.correctionProof || '',
         photo: documents?.photo || '',
         signature: documents?.signature || ''
       },
+      documentAssets: documentVerificationSession
+        ? {
+            birthCertificate: {
+              verification: birthCertificateVerificationSnapshot
+            }
+          }
+        : undefined,
+      documentVerificationSession: documentVerificationSession?._id || null,
       biometricVerification: {
         status: 'passed',
         sessionId: biometricSession.sessionId,
@@ -530,8 +1541,27 @@ const createApplication = async (req, res) => {
       ]
     };
 
+    const applicationTypeRuleContext = await ensureApplicationTypeRules({
+      req,
+      userId: req.user._id,
+      applicationType: normalizedApplicationType,
+      applicationPayload,
+      submittedAt,
+      newNidEligibilityContext
+    });
+
+    if (normalizedApplicationType === 'correction') {
+      applicationPayload.correctionInfo = buildCorrectionInfoPayload({
+        req,
+        issuedNewApplication: applicationTypeRuleContext?.issuedNewApplication,
+        applicationPayload,
+        documents: applicationPayload.documents
+      });
+    }
+
     const { application } = await createApplicationWithBiometricSession({
       biometricSession,
+      documentVerificationSession,
       citizenId: req.user._id,
       applicationPayload,
       now
@@ -557,6 +1587,50 @@ const createApplication = async (req, res) => {
       }
     });
 
+    if (application.resubmissionInfo?.isResubmission) {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'NEW_NID_RESUBMISSION_CREATED',
+        entityType: 'Application',
+        entityId: application._id,
+        message: `Citizen resubmitted New NID application ${application.applicationId}`,
+        meta: {
+          applicationId: application.applicationId,
+          previousApplicationId:
+            application.resubmissionInfo.previousApplicationId,
+          previousRejectedAt:
+            application.resubmissionInfo.previousRejectedAt ||
+            application.resubmissionInfo.rejectedAt ||
+            null,
+          rejectionReason:
+            application.resubmissionInfo.previousRejectionReason ||
+            application.resubmissionInfo.rejectionReason ||
+            '',
+          resubmissionCount: application.resubmissionInfo.resubmissionCount || 0
+        }
+      });
+    }
+
+    if (application.applicationType === 'correction') {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'APPLICATION_CORRECTION_REQUEST_CREATED',
+        entityType: 'Application',
+        entityId: application._id,
+        message: `Citizen submitted correction request ${application.applicationId}`,
+        meta: {
+          applicationId: application.applicationId,
+          baseApplicationId:
+            application.correctionInfo?.baseApplicationId || '',
+          requestedChanges:
+            application.correctionInfo?.requestedChanges?.length || 0,
+          proofStatus: application.correctionInfo?.proofStatus || 'not_uploaded'
+        }
+      });
+    }
+
     await createAuditLog({
       actor: req.user._id,
       actorRole: req.user.role,
@@ -573,10 +1647,16 @@ const createApplication = async (req, res) => {
       }
     });
 
+    const applicationResponse =
+      typeof application.toObject === 'function'
+        ? application.toObject()
+        : { ...application };
+    delete applicationResponse.documentVerificationSession;
+
     return res.status(201).json({
       success: true,
       message: 'Application submitted successfully',
-      application
+      application: applicationResponse
     });
   } catch (error) {
     if (error?.name === 'ValidationError') {
@@ -608,6 +1688,9 @@ const createApplication = async (req, res) => {
     return res.status(error.statusCode || 500).json({
       success: false,
       code: safeErrorCode,
+      ...(error.details && typeof error.details === 'object'
+        ? error.details
+        : {}),
       message:
         error.statusCode && error.statusCode < 500
           ? error.message
@@ -644,7 +1727,7 @@ const uploadApplicationDocument = async (req, res) => {
     const application = await Application.findOne({
       _id: req.params.id,
       applicant: req.user._id
-    });
+    }).select('+documentVerificationSession');
 
     if (!application) {
       return res.status(404).json({
@@ -662,6 +1745,97 @@ const uploadApplicationDocument = async (req, res) => {
         success: false,
         message: `Documents cannot be updated when status is '${application.status}'`
       });
+    }
+
+    let birthCertificateVerification =
+      application.documentAssets?.birthCertificate?.verification || null;
+
+    if (
+      documentType === 'birthCertificate' &&
+      application.applicationType === 'new'
+    ) {
+      const hasPassedVerification =
+        birthCertificateVerification?.status === 'passed';
+
+      if (hasPassedVerification && application.documentVerificationSession) {
+        const verificationSession = await DocumentVerificationSession.findById(
+          application.documentVerificationSession
+        ).select('+documentHash');
+
+        const uploadedDocumentHash = hashFileBuffer(req.file.buffer);
+
+        if (
+          verificationSession?.documentHash &&
+          verificationSession.documentHash !== uploadedDocumentHash
+        ) {
+          return res.status(422).json({
+            success: false,
+            code: DOCUMENT_VERIFICATION_ERROR_CODES.MISMATCH,
+            status: 'mismatch',
+            canSubmit: false,
+            message:
+              'Uploaded birth certificate does not match the verified document. Please upload the same verified document.'
+          });
+        }
+      }
+
+      if (!hasPassedVerification) {
+        const claimedFields = buildClaimedFieldsFromApplicationPayload(
+          application
+        );
+        const ocrResult = await verifyBirthCertificate({
+          birthCertificateFile: req.file,
+          claimedFields
+        });
+        const verification = getVerificationSnapshot(ocrResult.verification);
+
+        const verificationSession =
+          await createDocumentVerificationSessionRecord({
+            req,
+            verification,
+            birthCertificateFile: req.file,
+            claimedFields
+          });
+
+        await auditDocumentVerification({
+          req,
+          session: verificationSession,
+          verification,
+          available: ocrResult.available
+        });
+
+        if (!ocrResult.available) {
+          return res.status(503).json({
+            success: false,
+            code: DOCUMENT_VERIFICATION_ERROR_CODES.UNAVAILABLE,
+            status: 'unavailable',
+            canSubmit: false,
+            failureReason: ocrResult.unavailableReason || 'service_unavailable',
+            verification,
+            message: buildDocumentVerificationUnavailableMessage(ocrResult)
+          });
+        }
+
+        if (verification.status !== 'passed') {
+          return res.status(422).json({
+            success: false,
+            code: getDocumentVerificationResponseCode(
+              verification.status,
+              verification.failureReason
+            ),
+            status: verification.status,
+            canSubmit: false,
+            verification,
+            message: buildDocumentVerificationMessage(
+              verification.status,
+              verification.failureReason
+            )
+          });
+        }
+
+        birthCertificateVerification = verification;
+        application.documentVerificationSession = verificationSession._id;
+      }
     }
 
     const uploadResult = await uploadApplicationDocumentToCloudinary({
@@ -684,7 +1858,7 @@ const uploadApplicationDocument = async (req, res) => {
       req.file.originalname
     );
 
-    application.set(`documentAssets.${documentType}`, {
+    const nextDocumentAsset = {
       status: 'uploaded',
       cloudinary: {
         assetId: uploadResult.assetId,
@@ -721,7 +1895,23 @@ const uploadApplicationDocument = async (req, res) => {
           occurredAt: new Date()
         }
       ]
-    });
+    };
+
+    if (documentType === 'birthCertificate') {
+      nextDocumentAsset.verification =
+        birthCertificateVerification?.status === 'passed'
+          ? birthCertificateVerification
+          : application.documentAssets?.birthCertificate?.verification || {};
+    }
+
+    application.set(`documentAssets.${documentType}`, nextDocumentAsset);
+
+    if (
+      documentType === 'correctionProof' &&
+      application.applicationType === 'correction'
+    ) {
+      application.set('correctionInfo.proofStatus', 'uploaded');
+    }
 
     const updatedApplication = await application.save();
 
@@ -870,12 +2060,32 @@ const updateApplication = async (req, res) => {
       'documents'
     ];
 
+    const originalApplicationType = application.applicationType;
+    const originalBirthCertificateVerificationStatus =
+      application.documentAssets?.birthCertificate?.verification?.status || '';
+
     const changedFields = buildChangedFields(application, req.body, allowedFields);
 
     if (changedFields.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'No valid application changes were provided'
+      });
+    }
+
+    const changesDocumentVerifiedFields =
+      originalApplicationType === 'new' &&
+      originalBirthCertificateVerificationStatus === 'passed' &&
+      changedFields.some((field) =>
+        DOCUMENT_VERIFIED_LOCKED_FIELDS.includes(field)
+      );
+
+    if (changesDocumentVerifiedFields) {
+      return res.status(409).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIRTH_CERTIFICATE_VERIFICATION_REQUIRED,
+        message:
+          'Document-verified application fields cannot be changed after birth certificate verification.'
       });
     }
 
@@ -995,7 +2205,9 @@ const getAllApplicationsForAdmin = async (req, res) => {
       filter.applicationType = req.query.applicationType;
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone role')
       .sort({ createdAt: -1 });
 
@@ -1030,6 +2242,13 @@ const getSingleApplicationForAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1070,6 +2289,13 @@ const reviewApplicationByAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1149,6 +2375,9 @@ const reviewApplicationByAdmin = async (req, res) => {
 
 const getAdminDashboardStats = async (req, res) => {
   try {
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
+
     const [
       totalApplications,
       submittedCount,
@@ -1164,19 +2393,19 @@ const getAdminDashboardStats = async (req, res) => {
       reissueCount,
       recentApplications
     ] = await Promise.all([
-      Application.countDocuments(),
-      Application.countDocuments({ status: 'submitted' }),
-      Application.countDocuments({ status: 'under_review' }),
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'rejected' }),
-      Application.countDocuments({ status: 'cancelled' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'dispatched' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({ applicationType: 'new' }),
-      Application.countDocuments({ applicationType: 'correction' }),
-      Application.countDocuments({ applicationType: 'reissue' }),
-      Application.find()
+      Application.countDocuments(scopeFilter()),
+      Application.countDocuments(scopeFilter({ status: 'submitted' })),
+      Application.countDocuments(scopeFilter({ status: 'under_review' })),
+      Application.countDocuments(scopeFilter({ status: 'approved' })),
+      Application.countDocuments(scopeFilter({ status: 'rejected' })),
+      Application.countDocuments(scopeFilter({ status: 'cancelled' })),
+      Application.countDocuments(scopeFilter({ status: 'printed' })),
+      Application.countDocuments(scopeFilter({ status: 'dispatched' })),
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({ applicationType: 'new' })),
+      Application.countDocuments(scopeFilter({ applicationType: 'correction' })),
+      Application.countDocuments(scopeFilter({ applicationType: 'reissue' })),
+      Application.find(scopeFilter())
         .populate('applicant', 'fullName email phone role')
         .sort({ createdAt: -1 })
         .limit(5)
@@ -1290,6 +2519,8 @@ const getApplicationPrefill = async (req, res) => {
 
 module.exports = {
   createApplication,
+  verifyBirthCertificateDocument,
+  getApplicationEligibility,
   uploadApplicationDocument,
   getMyApplications,
   getSingleApplication,

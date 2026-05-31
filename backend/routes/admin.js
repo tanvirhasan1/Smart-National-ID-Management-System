@@ -69,7 +69,7 @@ router.get(
 router.get(
   '/applications/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationStatsForAdmin
 );
 
@@ -77,14 +77,14 @@ router.get(
 router.get(
   '/applications',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/applications/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getSingleApplicationForAdmin
 );
 
@@ -99,14 +99,14 @@ router.patch(
 router.get(
   '/application-review/queue',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationReviewQueue
 );
 
 router.get(
   '/application-review/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationReviewDetails
 );
 
@@ -121,21 +121,21 @@ router.patch(
 router.get(
   '/users',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getInternalUsers
 );
 
 router.post(
   '/users',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   createInternalUser
 );
 
 router.put(
   '/users/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   updateInternalUser
 );
 
@@ -215,7 +215,7 @@ router.patch(
 router.get(
   '/delivery/queue',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getDeliveryQueue
 );
 
@@ -245,7 +245,7 @@ router.get(
 router.get(
   '/printing/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getPrintingStats
 );
 
@@ -259,7 +259,7 @@ router.patch(
 router.get(
   '/printing/export',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   exportPrintingReport
 );
 
@@ -267,7 +267,7 @@ router.get(
 router.get(
   '/delivery/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getDeliveryStats
 );
 
@@ -281,7 +281,7 @@ router.patch(
 router.get(
   '/delivery/export',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   exportDeliveryReport
 );
 

@@ -9,6 +9,7 @@ const connectDB = require('./config/db');
 require('./models/User');
 require('./models/Application');
 require('./models/BiometricVerificationSession');
+require('./models/DocumentVerificationSession');
 require('./models/Appointment');
 require('./models/SupportTicket');
 require('./models/Center');

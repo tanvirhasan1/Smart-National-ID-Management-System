@@ -16,6 +16,11 @@ const documentConfigMap = {
     resourceType: 'auto',
     allowedFormats: ['jpg', 'jpeg', 'png', 'pdf'],
     folderName: 'birth-certificate'
+  },
+  correctionProof: {
+    resourceType: 'auto',
+    allowedFormats: ['jpg', 'jpeg', 'png', 'pdf'],
+    folderName: 'correction-proof'
   }
 };
 

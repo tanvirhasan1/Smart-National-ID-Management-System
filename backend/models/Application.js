@@ -61,6 +61,11 @@ const legacyDocumentSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    correctionProof: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     photo: {
       type: String,
       trim: true,
@@ -181,43 +186,191 @@ const documentHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
-const managedDocumentSchema = new mongoose.Schema(
+const documentVerificationExtractedFieldsSchema = new mongoose.Schema(
   {
-    status: {
-      type: String,
-      enum: ['not_uploaded', 'uploaded', 'verified', 'rejected'],
-      default: 'not_uploaded'
-    },
-    cloudinary: {
-      type: cloudinaryAssetSchema,
-      default: () => ({})
-    },
-    uploadedAt: {
-      type: Date,
-      default: null
-    },
-    uploadedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
-    },
-    verifiedAt: {
-      type: Date,
-      default: null
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
-    },
-    rejectionReason: {
+    birthRegistrationNumber: {
       type: String,
       trim: true,
       default: ''
     },
-    history: {
-      type: [documentHistorySchema],
+    fullNameEnglish: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    fullNameBangla: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    fatherName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    motherName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    dateOfBirth: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    gender: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: false }
+);
+
+const documentVerificationFieldComparisonSchema = new mongoose.Schema(
+  {
+    field: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    submittedValue: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    extractedValue: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    matched: {
+      type: Boolean,
+      default: false
+    },
+    confidence: {
+      type: Number,
+      default: null
+    },
+    note: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: false }
+);
+
+const documentVerificationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: [
+        'not_started',
+        'pending',
+        'passed',
+        'mismatch',
+        'not_found',
+        'unreadable',
+        'low_confidence',
+        'failed'
+      ],
+      default: 'not_started'
+    },
+    provider: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    confidence: {
+      type: Number,
+      default: null
+    },
+    message: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    checkedAt: {
+      type: Date,
+      default: null
+    },
+    rawTextPreview: {
+      type: String,
+      trim: true,
+      maxlength: 4000,
+      default: ''
+    },
+    extractedFields: {
+      type: documentVerificationExtractedFieldsSchema,
+      default: () => ({})
+    },
+    fieldComparisons: {
+      type: [documentVerificationFieldComparisonSchema],
       default: []
+    },
+    failureReason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    blocksSubmission: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { _id: false }
+);
+
+const managedDocumentFields = {
+  status: {
+    type: String,
+    enum: ['not_uploaded', 'uploaded', 'verified', 'rejected'],
+    default: 'not_uploaded'
+  },
+  cloudinary: {
+    type: cloudinaryAssetSchema,
+    default: () => ({})
+  },
+  uploadedAt: {
+    type: Date,
+    default: null
+  },
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  verifiedAt: {
+    type: Date,
+    default: null
+  },
+  verifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  history: {
+    type: [documentHistorySchema],
+    default: []
+  }
+};
+
+const managedDocumentSchema = new mongoose.Schema(managedDocumentFields, {
+  _id: false
+});
+
+const birthCertificateDocumentSchema = new mongoose.Schema(
+  {
+    ...managedDocumentFields,
+    verification: {
+      type: documentVerificationSchema,
+      default: () => ({})
     }
   },
   { _id: false }
@@ -234,8 +387,61 @@ const documentAssetsSchema = new mongoose.Schema(
       default: () => ({})
     },
     birthCertificate: {
+      type: birthCertificateDocumentSchema,
+      default: () => ({})
+    },
+    correctionProof: {
       type: managedDocumentSchema,
       default: () => ({})
+    }
+  },
+  { _id: false }
+);
+
+const correctionChangeSchema = new mongoose.Schema(
+  {
+    field: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    oldValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    newValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
+const correctionInfoSchema = new mongoose.Schema(
+  {
+    correctionOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Application',
+      default: null
+    },
+    baseApplicationId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    requestedChanges: {
+      type: [correctionChangeSchema],
+      default: []
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    proofStatus: {
+      type: String,
+      enum: ['not_uploaded', 'uploaded', 'verified', 'rejected'],
+      default: 'not_uploaded'
     }
   },
   { _id: false }
@@ -425,6 +631,14 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    jurisdiction: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({
+        district: '',
+        division: '',
+        source: 'permanentAddress'
+      })
+    },
     phone: {
       type: String,
       required: [true, 'Phone number is required'],
@@ -457,6 +671,68 @@ const applicationSchema = new mongoose.Schema(
     },
     biometricVerification: {
       type: biometricVerificationSchema,
+      default: () => ({})
+    },
+    documentVerificationSession: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DocumentVerificationSession',
+      select: false,
+      default: null
+    },
+    resubmissionInfo: {
+      isResubmission: {
+        type: Boolean,
+        default: false
+      },
+      previousApplication: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Application',
+        default: null
+      },
+      previousApplicationId: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      previousStatus: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      previousRejectedAt: {
+        type: Date,
+        default: null
+      },
+      previousRejectionReason: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      previousRejectionNotes: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      rejectionReason: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      rejectedAt: {
+        type: Date,
+        default: null
+      },
+      resubmittedAt: {
+        type: Date,
+        default: null
+      },
+      resubmissionCount: {
+        type: Number,
+        default: 0
+      }
+    },
+    correctionInfo: {
+      type: correctionInfoSchema,
       default: () => ({})
     },
     status: {
@@ -526,6 +802,19 @@ applicationSchema.index({ status: 1, updatedAt: -1, _id: -1 });
 applicationSchema.index({ phone: 1, createdAt: -1 });
 applicationSchema.index({ birthRegistrationNumber: 1, createdAt: -1 });
 applicationSchema.index({ existingNidNumber: 1, createdAt: -1 });
+applicationSchema.index({
+  'documentAssets.birthCertificate.verification.status': 1,
+  status: 1
+});
+applicationSchema.index({
+  applicant: 1,
+  applicationType: 1,
+  status: 1,
+  createdAt: -1
+});
+applicationSchema.index({ applicant: 1, applicationType: 1, createdAt: -1 });
+applicationSchema.index({ 'resubmissionInfo.isResubmission': 1 });
+applicationSchema.index({ 'jurisdiction.district': 1, status: 1, createdAt: -1 });
 
 module.exports =
   mongoose.models.Application ||

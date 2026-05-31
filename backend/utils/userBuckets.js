@@ -9,6 +9,12 @@ const mapAdminBucket = (user) => ({
   phone: user.phone,
   role: user.role,
   permissions: Array.isArray(user.permissions) ? user.permissions : [],
+  adminScope: user.adminScope || {
+    scopeType: 'national',
+    districts: [],
+    primaryDistrict: '',
+    scopeUpdatedAt: null
+  },
   status: user.status,
   isVerified: user.isVerified
 });
