@@ -62,6 +62,7 @@ const DOCUMENT_VERIFICATION_ERROR_CODES = {
   UNREADABLE: 'DOCUMENT_UNREADABLE',
   LOW_CONFIDENCE: 'DOCUMENT_LOW_CONFIDENCE',
   FAILED: 'DOCUMENT_VERIFICATION_FAILED',
+  TIMEOUT: 'DOCUMENT_VERIFICATION_TIMEOUT',
   UNAVAILABLE: 'DOCUMENT_VERIFICATION_UNAVAILABLE',
   VALIDATION_FAILED: 'DOCUMENT_VERIFICATION_VALIDATION_FAILED'
 };
@@ -536,6 +537,11 @@ const buildDocumentVerificationUnavailableMessage = (ocrResult = {}) =>
   ocrResult.unavailableReason === 'timeout'
     ? 'Document verification is taking longer than expected. Please try again.'
     : 'Document verification service is temporarily unavailable. Please try again later.';
+
+const getDocumentVerificationUnavailableCode = (ocrResult = {}) =>
+  ocrResult.unavailableReason === 'timeout'
+    ? DOCUMENT_VERIFICATION_ERROR_CODES.TIMEOUT
+    : DOCUMENT_VERIFICATION_ERROR_CODES.UNAVAILABLE;
 
 const getDocumentVerificationResponseCode = (status, failureReason = '') => {
   if (failureReason === 'REGISTRY_RECORD_NOT_FOUND' || status === 'not_found') {
@@ -1152,7 +1158,7 @@ const verifyBirthCertificateDocument = async (req, res) => {
     if (!ocrResult.available) {
       return res.status(503).json({
         success: false,
-        code: DOCUMENT_VERIFICATION_ERROR_CODES.UNAVAILABLE,
+        code: getDocumentVerificationUnavailableCode(ocrResult),
         status: 'unavailable',
         canSubmit: false,
         failureReason: ocrResult.unavailableReason || 'service_unavailable',
@@ -1807,7 +1813,7 @@ const uploadApplicationDocument = async (req, res) => {
         if (!ocrResult.available) {
           return res.status(503).json({
             success: false,
-            code: DOCUMENT_VERIFICATION_ERROR_CODES.UNAVAILABLE,
+            code: getDocumentVerificationUnavailableCode(ocrResult),
             status: 'unavailable',
             canSubmit: false,
             failureReason: ocrResult.unavailableReason || 'service_unavailable',
