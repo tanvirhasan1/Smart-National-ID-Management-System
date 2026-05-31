@@ -13,13 +13,25 @@ const OCR_UNAVAILABLE_MESSAGE =
 const isEnabled = (value) => value === true || value === 'true';
 const shouldLogOcrDiagnostics = () => process.env.NODE_ENV !== 'production';
 
-const getDocumentOcrTimeoutMs = () => {
-  const timeoutMs = Number(process.env.DOCUMENT_OCR_TIMEOUT_MS);
-
-  return Number.isFinite(timeoutMs) && timeoutMs >= MIN_DOCUMENT_OCR_TIMEOUT_MS
-    ? timeoutMs
+const getDocumentOcrTimeoutConfig = () => {
+  const envValue = process.env.DOCUMENT_OCR_TIMEOUT_MS;
+  const parsedTimeoutMs = Number(envValue);
+  const hasValidTimeout =
+    Number.isFinite(parsedTimeoutMs) &&
+    parsedTimeoutMs >= MIN_DOCUMENT_OCR_TIMEOUT_MS;
+  const finalTimeoutMs = hasValidTimeout
+    ? parsedTimeoutMs
     : DEFAULT_DOCUMENT_OCR_TIMEOUT_MS;
+
+  return {
+    configuredTimeoutMs: envValue || '',
+    parsedTimeoutMs: Number.isFinite(parsedTimeoutMs) ? parsedTimeoutMs : null,
+    finalTimeoutMs,
+    usingDefaultTimeout: !hasValidTimeout
+  };
 };
+
+const getDocumentOcrTimeoutMs = () => getDocumentOcrTimeoutConfig().finalTimeoutMs;
 
 const logOcrDiagnostic = (event, details = {}) => {
   if (!shouldLogOcrDiagnostics()) {
@@ -115,16 +127,48 @@ const unavailableResult = (message, failureReason = 'service_unavailable') => ({
   })
 });
 
+const isBackendOcrTimeout = (error) => error?.name === 'AbortError';
+
+const getNetworkErrorCode = (error) => {
+  if (isBackendOcrTimeout(error)) {
+    return '';
+  }
+
+  const nestedErrors = Array.isArray(error?.cause?.errors)
+    ? error.cause.errors
+    : [];
+  const candidates = [
+    error?.cause?.code,
+    error?.code,
+    error?.errno,
+    ...nestedErrors.flatMap((nestedError) => [
+      nestedError?.code,
+      nestedError?.errno
+    ])
+  ];
+
+  return candidates.find((code) => typeof code === 'string' && code) || '';
+};
+
+const getTimeoutDiagnosticFields = (timeoutConfig) => ({
+  timeoutEnvValue: timeoutConfig.configuredTimeoutMs,
+  parsedTimeoutMs: timeoutConfig.parsedTimeoutMs,
+  finalTimeoutMs: timeoutConfig.finalTimeoutMs,
+  usingDefaultTimeout: timeoutConfig.usingDefaultTimeout
+});
+
 const verifyBirthCertificate = async ({ birthCertificateFile, claimedFields }) => {
   const serviceEnabled = isEnabled(process.env.DOCUMENT_OCR_ENABLED);
   const serviceUrl = (process.env.DOCUMENT_OCR_SERVICE_URL || '').replace(/\/$/, '');
   const serviceSecret = process.env.DOCUMENT_OCR_SERVICE_SECRET;
-  const timeoutMs = getDocumentOcrTimeoutMs();
+  const timeoutConfig = getDocumentOcrTimeoutConfig();
+  const timeoutMs = timeoutConfig.finalTimeoutMs;
+  const timeoutDiagnostics = getTimeoutDiagnosticFields(timeoutConfig);
 
   if (!serviceEnabled) {
     logOcrDiagnostic('service_disabled', {
       serviceUrlConfigured: Boolean(serviceUrl),
-      timeoutMs
+      ...timeoutDiagnostics
     });
     return unavailableResult(OCR_UNAVAILABLE_MESSAGE, 'service_unavailable');
   }
@@ -133,7 +177,7 @@ const verifyBirthCertificate = async ({ birthCertificateFile, claimedFields }) =
     logOcrDiagnostic('service_not_configured', {
       serviceUrlConfigured: Boolean(serviceUrl),
       serviceSecretConfigured: Boolean(serviceSecret),
-      timeoutMs
+      ...timeoutDiagnostics
     });
     return unavailableResult(OCR_UNAVAILABLE_MESSAGE, 'service_unavailable');
   }
@@ -146,7 +190,7 @@ const verifyBirthCertificate = async ({ birthCertificateFile, claimedFields }) =
   try {
     logOcrDiagnostic('request_started', {
       serviceUrlConfigured: Boolean(serviceUrl),
-      timeoutMs,
+      ...timeoutDiagnostics,
       startedAt
     });
 
@@ -193,16 +237,18 @@ const verifyBirthCertificate = async ({ birthCertificateFile, claimedFields }) =
       verification
     };
   } catch (error) {
-    const failureReason =
-      error.name === 'AbortError' ? 'timeout' : 'service_unavailable';
+    const failureReason = isBackendOcrTimeout(error)
+      ? 'timeout'
+      : 'service_unavailable';
 
     logOcrDiagnostic('request_failed', {
       durationMs: Date.now() - startedAtMs,
       failureReason,
-      errorName: error.name || 'Error'
+      errorName: error.name || 'Error',
+      networkErrorCode: getNetworkErrorCode(error)
     });
 
-    return error.name === 'AbortError'
+    return isBackendOcrTimeout(error)
       ? unavailableResult(OCR_TIMEOUT_MESSAGE, 'timeout')
       : unavailableResult(OCR_UNAVAILABLE_MESSAGE, 'service_unavailable');
   } finally {
