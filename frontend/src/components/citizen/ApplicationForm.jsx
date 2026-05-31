@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { QRCodeSVG } from 'qrcode.react';
@@ -20,7 +20,8 @@ import {
   FaQrcode,
   FaMobileAlt,
   FaTimes,
-  FaLaptop
+  FaLaptop,
+  FaFileAlt
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { bangladeshLocations } from '../utils/helpers';
@@ -28,6 +29,7 @@ import api from '../api/axios';
 import LivenessVerificationModal from './LivenessVerificationModal';
 import {
   uploadCitizenApplicationDocument,
+  verifyBirthCertificateDocument,
   getCitizenDocumentLabel
 } from '../../services/applicationDocumentService';
 import '../styles/ApplicationForm.css';
@@ -71,11 +73,114 @@ const APPLICATION_ERROR_MESSAGES = {
   APPLICATION_BIOMETRIC_OWNER_MISMATCH:
     'Face verification session does not belong to this citizen.',
   APPLICATION_VALIDATION_FAILED:
-    'Application validation failed. Please review the form and try again.'
+    'Application validation failed. Please review the form and try again.',
+  BIRTH_CERTIFICATE_VERIFICATION_REQUIRED:
+    'Birth certificate verification is required before New NID submission.',
+  BIRTH_CERTIFICATE_VERIFICATION_EXPIRED:
+    'Birth certificate verification expired. Please verify the birth certificate again.',
+  BIRTH_CERTIFICATE_VERIFICATION_FIELD_CHANGED:
+    'Application information changed after document verification. Please verify the birth certificate again.',
+  BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED:
+    'Birth certificate verification was already used. Please verify the document again.',
+  NEW_NID_APPLICATION_EXISTS:
+    'You already have an active or completed New NID application. You cannot submit another New NID application.',
+  NEW_NID_ACTIVE_APPLICATION_EXISTS:
+    'You already have an active New NID application. You cannot submit another New NID application.',
+  NEW_NID_ALREADY_APPROVED:
+    'You already have a New NID record. Please use Correction or Reissue if you need changes.',
+  FIELD_MISMATCH:
+    'Birth certificate information does not match your provided information.',
+  REGISTRY_MISMATCH:
+    'Birth certificate information does not match your provided information.',
+  REGISTRY_RECORD_NOT_FOUND:
+    'Birth registration record could not be found.',
+  OCR_UNREADABLE:
+    'Birth registration number could not be read. Please upload a clearer image.',
+  DOCUMENT_VERIFICATION_MISMATCH:
+    'Birth certificate information does not match your provided information.',
+  DOCUMENT_UNREADABLE:
+    'The document could not be read clearly. Please upload a clearer image.',
+  DOCUMENT_LOW_CONFIDENCE:
+    'The document text could not be verified confidently. Please upload a clearer image.',
+  DOCUMENT_VERIFICATION_UNAVAILABLE:
+    'Document verification service is temporarily unavailable. Please try again later.'
 };
 
-const getBiometricErrorMessage = (error) => {
+const SUBMIT_STAGES = {
+  verifying_birth_certificate: {
+    label: 'Verifying birth certificate...',
+    subtext: 'We are checking your uploaded certificate.',
+    buttonText: 'Verifying document...'
+  },
+  reading_document_text: {
+    label: 'Reading document text...',
+    subtext: 'We are reading your birth certificate. Please wait a moment.',
+    buttonText: 'Verifying document...'
+  },
+  matching_certificate_information: {
+    label: 'Matching certificate information...',
+    subtext: 'We are matching the certificate with your form details.',
+    buttonText: 'Verifying document...'
+  },
+  preparing_face_verification: {
+    label: 'Preparing face verification...',
+    subtext: 'Document verification is complete. Face verification is being prepared.',
+    buttonText: 'Preparing face verification...'
+  },
+  starting_face_verification: {
+    label: 'Starting face verification...',
+    subtext: 'Please follow the next instructions to continue.',
+    buttonText: 'Starting face verification...'
+  },
+  creating_application: {
+    label: 'Creating application...',
+    subtext: 'Your application record is being created.',
+    buttonText: 'Submitting...'
+  },
+  uploading_documents: {
+    label: 'Uploading documents...',
+    subtext: 'Your files are being uploaded securely.',
+    buttonText: 'Submitting...'
+  }
+};
+
+const DEFAULT_SUBMIT_BUTTON_TEXT = 'Submit Application';
+
+const formatEligibilityDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const getDocumentVerificationUnavailableMessage = (error) => {
+  const responseData = error?.response?.data || {};
+  const reason = String(
+    responseData.failureReason ||
+      responseData.verification?.failureReason ||
+      responseData.message ||
+      error?.message ||
+      ''
+  ).toLowerCase();
+
+  if (reason.includes('timeout') || reason.includes('timed out')) {
+    return 'Document verification is taking longer than expected. Please try again.';
+  }
+
+  return 'Document verification service is temporarily unavailable. Please try again later.';
+};
+
+const getApplicationSubmitErrorMessage = (error) => {
   const code = error?.response?.data?.code;
+
+  if (code === 'DOCUMENT_VERIFICATION_UNAVAILABLE') {
+    return getDocumentVerificationUnavailableMessage(error);
+  }
 
   return (
     BIOMETRIC_ERROR_MESSAGES[code] ||
@@ -93,19 +198,23 @@ const ApplicationForm = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState('');
   const [photoPreview, setPhotoPreview] = useState(null);
   const [signaturePreview, setSignaturePreview] = useState(null);
   const [birthCertPreview, setBirthCertPreview] = useState(null);
+  const [correctionProofPreview, setCorrectionProofPreview] = useState(null);
   const [sameAddress, setSameAddress] = useState(false);
   const [selectedPresentDivision, setSelectedPresentDivision] = useState('');
   const [selectedPermanentDivision, setSelectedPermanentDivision] = useState('');
   const [selectedFiles, setSelectedFiles] = useState({
     photograph: null,
     signature: null,
-    birthCertificate: null
+    birthCertificate: null,
+    correctionProof: null
   });
 
   const [hasIssuedNid, setHasIssuedNid] = useState(false);
+  const [eligibility, setEligibility] = useState(null);
   const [isNidEligibilityLoading, setIsNidEligibilityLoading] = useState(true);
 
   const [livenessSession, setLivenessSession] = useState(null);
@@ -118,12 +227,14 @@ const ApplicationForm = () => {
   const photoInputRef = useRef(null);
   const signatureInputRef = useRef(null);
   const birthCertInputRef = useRef(null);
+  const correctionProofInputRef = useRef(null);
 
   const livenessResolverRef = useRef(null);
   const qrResolverRef = useRef(null);
   const verificationMethodResolverRef = useRef(null);
   const qrPollTimeoutRef = useRef(null);
   const submitInProgressRef = useRef(false);
+  const submitStageTimersRef = useRef([]);
 
   const {
     register,
@@ -149,6 +260,7 @@ const ApplicationForm = () => {
       phone: '',
       email: '',
       occupation: '',
+      correctionReason: '',
       fatherNID: '',
       motherNID: '',
       presentAddress: {
@@ -173,9 +285,38 @@ const ApplicationForm = () => {
   });
 
   const applicationType = watch('applicationType');
-  const canUseCorrectionServices = hasIssuedNid;
+  const canUseCorrectionServices =
+    Boolean(eligibility?.canRequestCorrection) || hasIssuedNid;
   const isCorrectionServiceLocked = !canUseCorrectionServices;
+  const newNidBlocked =
+    applicationType === 'new' && eligibility?.canApplyNewNid === false;
+  const newNidBlockedMessage =
+    eligibility?.blockedReasonMessage ||
+    APPLICATION_ERROR_MESSAGES[eligibility?.blockedReasonCode] ||
+    APPLICATION_ERROR_MESSAGES.NEW_NID_APPLICATION_EXISTS;
+  const showNewNidResubmissionNotice =
+    applicationType === 'new' &&
+    !newNidBlocked &&
+    Boolean(eligibility?.hasPreviousRejection && eligibility?.resubmissionAllowed);
+  const latestRejectionNotice =
+    eligibility?.rejectionNotice || eligibility?.latestRejectedNewApplication || {};
+  const isSubmitBlockedByNewNidEligibility =
+    applicationType === 'new' && (isNidEligibilityLoading || newNidBlocked);
+  const submitBlockedReason = isNidEligibilityLoading
+    ? 'Checking New NID eligibility...'
+    : newNidBlockedMessage;
+  const idleSubmitButtonText = isSubmitBlockedByNewNidEligibility
+    ? isNidEligibilityLoading
+      ? 'Checking eligibility...'
+      : 'New NID unavailable'
+    : DEFAULT_SUBMIT_BUTTON_TEXT;
   const isIdentityLocked = ['new', 'correction', 'reissue'].includes(applicationType);
+  const activeSubmitStage = submitStage ? SUBMIT_STAGES[submitStage] : null;
+  const submitButtonText =
+    activeSubmitStage?.buttonText || DEFAULT_SUBMIT_BUTTON_TEXT;
+  const submitLockReason =
+    activeSubmitStage?.label ||
+    'Submission is in progress. Please wait before changing steps.';
 
   const blockLockedSelect = (event) => {
     if (!isIdentityLocked) return;
@@ -190,49 +331,69 @@ const ApplicationForm = () => {
     toast.info('Correction/Reissue will unlock after your New NID is approved or issued.');
   };
 
-  useEffect(() => {
-    const loadNidEligibility = async () => {
+  const clearSubmitStageTimers = () => {
+    submitStageTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+    submitStageTimersRef.current = [];
+  };
+
+  const queueSubmitStage = (stage, delayMs) => {
+    const timerId = setTimeout(() => {
+      if (submitInProgressRef.current) {
+        setSubmitStage(stage);
+      }
+    }, delayMs);
+
+    submitStageTimersRef.current.push(timerId);
+  };
+
+  const resetSubmitProgress = () => {
+    clearSubmitStageTimers();
+    setSubmitStage('');
+    setIsSubmitting(false);
+  };
+
+  const loadNidEligibility = useCallback(async ({ intent = '' } = {}) => {
+    if (user) {
       setIsNidEligibilityLoading(true);
 
       try {
-        const response = await api.get('/applications/my');
-        const applications = Array.isArray(response?.data?.applications)
-          ? response.data.applications
-          : [];
-
-        const issuedStatuses = ['approved', 'printed', 'dispatched', 'delivered'];
-
-        const hasEligibleNid = applications.some((application) => {
-          const applicationTypeValue = String(application?.applicationType || '').toLowerCase();
-          const applicationStatus = String(application?.status || '').toLowerCase();
-
-          return (
-            applicationTypeValue === 'new' &&
-            issuedStatuses.includes(applicationStatus)
-          );
+        const response = await api.get('/applications/eligibility', {
+          params: intent ? { intent } : undefined
         });
+        const nextEligibility = response?.data?.data || null;
+        const hasEligibleNid = Boolean(
+          nextEligibility?.canRequestCorrection ||
+            nextEligibility?.issuedNewApplication
+        );
 
+        setEligibility(nextEligibility);
         setHasIssuedNid(hasEligibleNid);
 
         if (!hasEligibleNid) {
           setValue('applicationType', 'new', { shouldValidate: true });
         }
+
+        return nextEligibility;
       } catch (error) {
-        console.error('Failed to check NID correction eligibility:', error);
+        console.error('Failed to check NID eligibility:', error);
+        setEligibility(null);
         setHasIssuedNid(false);
         setValue('applicationType', 'new', { shouldValidate: true });
+        return null;
       } finally {
         setIsNidEligibilityLoading(false);
       }
-    };
-
-    if (user) {
-      loadNidEligibility();
-    } else {
-      setHasIssuedNid(false);
-      setIsNidEligibilityLoading(false);
     }
+
+    setEligibility(null);
+    setHasIssuedNid(false);
+    setIsNidEligibilityLoading(false);
+    return null;
   }, [user, setValue]);
+
+  useEffect(() => {
+    loadNidEligibility();
+  }, [loadNidEligibility]);
 
   useEffect(() => {
     if (isCorrectionServiceLocked && ['correction', 'reissue'].includes(applicationType)) {
@@ -288,6 +449,8 @@ const ApplicationForm = () => {
 
   useEffect(() => {
     return () => {
+      clearSubmitStageTimers();
+
       if (qrPollTimeoutRef.current) {
         clearTimeout(qrPollTimeoutRef.current);
       }
@@ -375,6 +538,23 @@ const ApplicationForm = () => {
     setBirthCertPreview(file.name);
   };
 
+  const handleCorrectionProofChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Correction proof size must be less than 5MB');
+      return;
+    }
+
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      correctionProof: file
+    }));
+    setValue('correctionProof', file);
+    setCorrectionProofPreview(file.name);
+  };
+
   const handleSameAddress = (event) => {
     const isChecked = event.target.checked;
     setSameAddress(isChecked);
@@ -430,6 +610,19 @@ const ApplicationForm = () => {
 
     if (birthCertInputRef.current) {
       birthCertInputRef.current.value = '';
+    }
+  };
+
+  const resetCorrectionProofSelection = () => {
+    setCorrectionProofPreview(null);
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      correctionProof: null
+    }));
+    setValue('correctionProof', null);
+
+    if (correctionProofInputRef.current) {
+      correctionProofInputRef.current.value = '';
     }
   };
 
@@ -616,7 +809,14 @@ const ApplicationForm = () => {
       },
       {
         documentType: 'birthCertificate',
-        file: selectedFiles.birthCertificate
+        file: applicationType === 'new' ? selectedFiles.birthCertificate : null
+      },
+      {
+        documentType: 'correctionProof',
+        file:
+          applicationType === 'correction'
+            ? selectedFiles.correctionProof
+            : null
       }
     ].filter((item) => item.file);
 
@@ -656,6 +856,26 @@ const ApplicationForm = () => {
       return;
     }
 
+    if (data.applicationType === 'new') {
+      const latestEligibility = await loadNidEligibility({ intent: 'submit' });
+
+      if (!latestEligibility) {
+        toast.error('Could not check New NID eligibility. Please try again.');
+        setCurrentStep(1);
+        return;
+      }
+
+      if (latestEligibility.canApplyNewNid === false) {
+        toast.error(
+          latestEligibility.blockedReasonMessage ||
+            APPLICATION_ERROR_MESSAGES[latestEligibility.blockedReasonCode] ||
+            APPLICATION_ERROR_MESSAGES.NEW_NID_APPLICATION_EXISTS
+        );
+        setCurrentStep(1);
+        return;
+      }
+    }
+
     if (!selectedFiles.photograph || !photoPreview) {
       toast.error('Please upload your passport-size photo');
       setCurrentStep(3);
@@ -665,6 +885,24 @@ const ApplicationForm = () => {
     if (!selectedFiles.signature || !signaturePreview) {
       toast.error('Please upload your signature');
       setCurrentStep(3);
+      return;
+    }
+
+    if (data.applicationType === 'new' && !selectedFiles.birthCertificate) {
+      toast.error('Please upload your birth certificate');
+      setCurrentStep(3);
+      return;
+    }
+
+    if (data.applicationType === 'correction' && !selectedFiles.correctionProof) {
+      toast.error('Please upload correction proof');
+      setCurrentStep(3);
+      return;
+    }
+
+    if (data.applicationType === 'correction' && !data.correctionReason?.trim()) {
+      toast.error('Please enter the reason for correction');
+      setCurrentStep(1);
       return;
     }
 
@@ -719,17 +957,63 @@ const ApplicationForm = () => {
         presentAddress: presentAddressPayload,
         permanentAddress: permanentAddressPayload,
         documents: {
-          birthCertificate: selectedFiles.birthCertificate?.name || '',
+          birthCertificate:
+            data.applicationType === 'new'
+              ? selectedFiles.birthCertificate?.name || ''
+              : '',
           fatherNid: data.fatherNID || '',
           motherNid: data.motherNID || '',
+          correctionProof:
+            data.applicationType === 'correction'
+              ? selectedFiles.correctionProof?.name || ''
+              : '',
           photo: selectedFiles.photograph?.name || '',
           signature: selectedFiles.signature?.name || ''
         }
       };
 
+      if (payload.applicationType === 'correction') {
+        payload.correctionInfo = {
+          reason: data.correctionReason?.trim() || ''
+        };
+      }
+
+      if (payload.applicationType === 'new') {
+        clearSubmitStageTimers();
+        setSubmitStage('verifying_birth_certificate');
+        queueSubmitStage('reading_document_text', 900);
+        queueSubmitStage('matching_certificate_information', 3200);
+
+        const documentVerificationResponse = await verifyBirthCertificateDocument({
+          file: selectedFiles.birthCertificate,
+          claimedFields: {
+            birthRegistrationNumber: payload.birthRegistrationNumber,
+            fullNameEnglish: payload.fullNameEnglish,
+            fullNameBangla: payload.fullNameBangla,
+            fatherName: payload.fatherName,
+            motherName: payload.motherName,
+            dateOfBirth: payload.dateOfBirth,
+            gender: payload.gender
+          }
+        });
+
+        clearSubmitStageTimers();
+
+        if (!documentVerificationResponse?.verificationToken) {
+          throw new Error('Birth certificate verification could not be completed');
+        }
+
+        payload.birthCertificateVerificationToken =
+          documentVerificationResponse.verificationToken;
+      }
+
+      setSubmitStage('preparing_face_verification');
+
       const deviceType = isMobileDevice() ? 'mobile' : 'desktop';
       const verificationMethod =
         deviceType === 'mobile' ? 'camera' : await waitForVerificationMethodChoice();
+
+      setSubmitStage('starting_face_verification');
 
       let biometricSession = await createBiometricSession(
         deviceType,
@@ -748,6 +1032,7 @@ const ApplicationForm = () => {
         });
 
         if (cameraResult === 'switch_to_qr') {
+          setSubmitStage('starting_face_verification');
           biometricSession = await createBiometricSession(deviceType, true);
 
           if (!biometricSession?.sessionId) {
@@ -764,6 +1049,7 @@ const ApplicationForm = () => {
       finalBiometricSessionId = biometricSession.sessionId;
 
       finalApplicationSubmitCalled = true;
+      setSubmitStage('creating_application');
 
       if (import.meta.env.DEV) {
         console.info('Final application submit started:', {
@@ -779,6 +1065,7 @@ const ApplicationForm = () => {
         throw new Error('Application created but no application id was returned');
       }
 
+      setSubmitStage('uploading_documents');
       const failedUploads = await uploadSelectedDocuments(createdApplicationId);
 
       if (failedUploads.length > 0) {
@@ -803,10 +1090,10 @@ const ApplicationForm = () => {
         });
       }
 
-      toast.error(getBiometricErrorMessage(error));
+      toast.error(getApplicationSubmitErrorMessage(error));
     } finally {
       submitInProgressRef.current = false;
-      setIsSubmitting(false);
+      resetSubmitProgress();
     }
   };
 
@@ -859,6 +1146,7 @@ const ApplicationForm = () => {
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="application-form rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-8"
+          aria-busy={isSubmitting}
         >
           {currentStep === 1 && (
             <div className="form-step application-step-panel">
@@ -944,6 +1232,50 @@ const ApplicationForm = () => {
                   after your New NID application is approved or issued.
                 </div>
               )}
+
+              {newNidBlocked ? (
+                <div className="application-eligibility-note blocked" role="alert">
+                  <strong>New NID submission is not available.</strong>
+                  <span>{newNidBlockedMessage}</span>
+                </div>
+              ) : null}
+
+              {showNewNidResubmissionNotice ? (
+                <div className="application-eligibility-note resubmission" role="note">
+                  <strong>Your previous New NID application was rejected.</strong>
+                  <span>
+                    You can apply again after correcting the issues.
+                  </span>
+                  <div className="application-eligibility-meta">
+                    {(latestRejectionNotice.applicationId ||
+                      eligibility?.latestRejectedApplicationId) && (
+                      <span>
+                        Previous:{' '}
+                        {latestRejectionNotice.applicationId ||
+                          eligibility.latestRejectedApplicationId}
+                      </span>
+                    )}
+                    {(latestRejectionNotice.rejectedAt ||
+                      eligibility?.latestRejectedAt) && (
+                      <span>
+                        Rejected:{' '}
+                        {formatEligibilityDate(
+                          latestRejectionNotice.rejectedAt ||
+                            eligibility.latestRejectedAt
+                        )}
+                      </span>
+                    )}
+                    {(latestRejectionNotice.rejectionReason ||
+                      eligibility?.latestRejectionReason) && (
+                      <span>
+                        Reason:{' '}
+                        {latestRejectionNotice.rejectionReason ||
+                          eligibility.latestRejectionReason}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="info-section">
                 <h3>Applicant Information</h3>
@@ -1174,6 +1506,28 @@ const ApplicationForm = () => {
                     {errors.existingNidNumber && (
                       <span className="form-error">
                         {errors.existingNidNumber.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {applicationType === 'correction' && (
+                  <div className="form-group">
+                    <label className="form-label">Correction Reason *</label>
+                    <textarea
+                      rows={3}
+                      className={getInputClass(!!errors.correctionReason)}
+                      placeholder="Explain what information needs correction"
+                      {...register('correctionReason', {
+                        required:
+                          applicationType === 'correction'
+                            ? 'Correction reason is required'
+                            : false
+                      })}
+                    />
+                    {errors.correctionReason && (
+                      <span className="form-error">
+                        {errors.correctionReason.message}
                       </span>
                     )}
                   </div>
@@ -1660,51 +2014,101 @@ const ApplicationForm = () => {
                   />
                 </div>
 
-                <div className="upload-card">
-                  <div className="upload-header">
-                    <FaIdCard className="upload-icon" />
-                    <div>
-                      <h4>Birth Certificate (Optional)</h4>
-                      <p>Scan copy of birth certificate</p>
+                {applicationType === 'new' && (
+                  <div className="upload-card">
+                    <div className="upload-header">
+                      <FaIdCard className="upload-icon" />
+                      <div>
+                        <h4>Birth Certificate *</h4>
+                        <p>Scan copy of birth certificate</p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div
-                    className="upload-area"
-                    onClick={() => birthCertInputRef.current?.click()}
-                  >
-                    {birthCertPreview ? (
-                      <div className="file-uploaded">
-                        <FaCheck className="success-icon" />
-                        <span>{birthCertPreview}</span>
-                        <button
-                          type="button"
-                          className="remove-btn"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            resetBirthCertificateSelection();
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="upload-placeholder">
-                        <FaUpload />
-                        <span>Click to upload document</span>
-                        <small>JPG, PNG, PDF (Max 5MB)</small>
-                      </div>
-                    )}
-                  </div>
+                    <div
+                      className="upload-area"
+                      onClick={() => birthCertInputRef.current?.click()}
+                    >
+                      {birthCertPreview ? (
+                        <div className="file-uploaded">
+                          <FaCheck className="success-icon" />
+                          <span>{birthCertPreview}</span>
+                          <button
+                            type="button"
+                            className="remove-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              resetBirthCertificateSelection();
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="upload-placeholder">
+                          <FaUpload />
+                          <span>Click to upload document</span>
+                          <small>JPG, PNG, PDF (Max 5MB)</small>
+                        </div>
+                      )}
+                    </div>
 
-                  <input
-                    type="file"
-                    ref={birthCertInputRef}
-                    accept="image/jpeg,image/png,application/pdf"
-                    onChange={handleBirthCertChange}
-                    style={{ display: 'none' }}
-                  />
-                </div>
+                    <input
+                      type="file"
+                      ref={birthCertInputRef}
+                      accept="image/jpeg,image/png,application/pdf"
+                      onChange={handleBirthCertChange}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                )}
+
+                {applicationType === 'correction' && (
+                  <div className="upload-card">
+                    <div className="upload-header">
+                      <FaFileAlt className="upload-icon" />
+                      <div>
+                        <h4>Correction Proof *</h4>
+                        <p>Supporting document for requested correction</p>
+                      </div>
+                    </div>
+
+                    <div
+                      className="upload-area"
+                      onClick={() => correctionProofInputRef.current?.click()}
+                    >
+                      {correctionProofPreview ? (
+                        <div className="file-uploaded">
+                          <FaCheck className="success-icon" />
+                          <span>{correctionProofPreview}</span>
+                          <button
+                            type="button"
+                            className="remove-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              resetCorrectionProofSelection();
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="upload-placeholder">
+                          <FaUpload />
+                          <span>Click to upload correction proof</span>
+                          <small>JPG, PNG, PDF (Max 5MB)</small>
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      type="file"
+                      ref={correctionProofInputRef}
+                      accept="image/jpeg,image/png,application/pdf"
+                      onChange={handleCorrectionProofChange}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="upload-guidelines">
@@ -1844,16 +2248,31 @@ const ApplicationForm = () => {
                       )}
                     </div>
 
-                    <div className="doc-item">
-                      <span>Birth Certificate</span>
-                      {birthCertPreview ? (
-                        <span className="doc-uploaded">
-                          <FaCheck /> {birthCertPreview}
-                        </span>
-                      ) : (
-                        <span className="doc-optional">Not provided</span>
-                      )}
-                    </div>
+                    {applicationType === 'new' && (
+                      <div className="doc-item">
+                        <span>Birth Certificate</span>
+                        {birthCertPreview ? (
+                          <span className="doc-uploaded">
+                            <FaCheck /> {birthCertPreview}
+                          </span>
+                        ) : (
+                          <span className="doc-missing">Not uploaded</span>
+                        )}
+                      </div>
+                    )}
+
+                    {applicationType === 'correction' && (
+                      <div className="doc-item">
+                        <span>Correction Proof</span>
+                        {correctionProofPreview ? (
+                          <span className="doc-uploaded">
+                            <FaCheck /> {correctionProofPreview}
+                          </span>
+                        ) : (
+                          <span className="doc-missing">Not uploaded</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1876,21 +2295,78 @@ const ApplicationForm = () => {
                 )}
               </div>
 
+              {newNidBlocked ? (
+                <div className="application-eligibility-note blocked" role="alert">
+                  <strong>New NID submission is blocked.</strong>
+                  <span>{newNidBlockedMessage}</span>
+                </div>
+              ) : null}
+
+              {isSubmitting && activeSubmitStage && (
+                <div
+                  id="application-submit-progress"
+                  className="submit-progress-panel"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <div className="submit-progress-main">
+                    <span className="submit-thinking-indicator" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                    <div className="submit-progress-copy">
+                      <p className="submit-progress-label">
+                        {activeSubmitStage.label}
+                      </p>
+                      <p className="submit-progress-subtext">
+                        {activeSubmitStage.subtext}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="form-actions">
-                <button type="button" className="btn btn-outline" onClick={prevStep}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={prevStep}
+                  disabled={isSubmitting}
+                  title={isSubmitting ? submitLockReason : undefined}
+                  aria-describedby={
+                    isSubmitting ? 'application-submit-progress' : undefined
+                  }
+                >
                   ← Previous
                 </button>
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isSubmitBlockedByNewNidEligibility}
+                  title={
+                    isSubmitting
+                      ? submitLockReason
+                      : isSubmitBlockedByNewNidEligibility
+                        ? submitBlockedReason
+                        : undefined
+                  }
+                  aria-describedby={
+                    isSubmitting ? 'application-submit-progress' : undefined
+                  }
                 >
                   {isSubmitting ? (
                     <>
-                      <FaSpinner className="spinner" /> Submitting...
+                      <span className="submit-button-thinking" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                      {submitButtonText}
                     </>
                   ) : (
-                    'Submit Application'
+                    idleSubmitButtonText
                   )}
                 </button>
               </div>

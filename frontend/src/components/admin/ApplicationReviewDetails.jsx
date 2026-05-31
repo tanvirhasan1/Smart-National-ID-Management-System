@@ -14,6 +14,7 @@ import {
   FaUndo,
   FaUser,
   FaUsers,
+  FaCheckCircle,
   FaHistory,
   FaListUl
 } from 'react-icons/fa';
@@ -28,10 +29,27 @@ const DOCUMENTS = [
   { key: 'birthCertificate', label: 'Birth Certificate', icon: FaIdCard }
 ];
 
+const getReviewDocumentTypes = (application) => {
+  const hasCorrectionProof =
+    application?.applicationType === 'correction' ||
+    application?.documentAssets?.correctionProof?.cloudinary?.secureUrl ||
+    application?.documents?.correctionProof;
+
+  if (!hasCorrectionProof) {
+    return DOCUMENTS;
+  }
+
+  return [
+    ...DOCUMENTS,
+    { key: 'correctionProof', label: 'Correction Proof', icon: FaFileAlt }
+  ];
+};
+
 const BASE_SECTIONS = [
   { key: 'applicant', label: 'Applicant Details', icon: FaUser },
   { key: 'family', label: 'Family Details', icon: FaUsers },
   { key: 'address', label: 'Address Details', icon: FaMapMarkerAlt },
+  { key: 'verification', label: 'Document Verification', icon: FaCheckCircle },
   { key: 'references', label: 'Supporting Records', icon: FaListUl }
 ];
 
@@ -174,6 +192,7 @@ const getReviewAsset = (application, key) => {
   if (key === 'photograph') return getLegacyAsset(application?.documents?.photo || '');
   if (key === 'signature') return getLegacyAsset(application?.documents?.signature || '');
   if (key === 'birthCertificate') return getLegacyAsset(application?.documents?.birthCertificate || '');
+  if (key === 'correctionProof') return getLegacyAsset(application?.documents?.correctionProof || '');
 
   return getLegacyAsset('');
 };
@@ -187,7 +206,9 @@ const getPreviewType = (asset = {}) => {
 };
 
 const getDocumentCount = (application) =>
-  DOCUMENTS.filter((item) => Boolean(getReviewAsset(application, item.key)?.secureUrl)).length;
+  getReviewDocumentTypes(application).filter((item) =>
+    Boolean(getReviewAsset(application, item.key)?.secureUrl)
+  ).length;
 
 const getLegacyReferences = (application) =>
   Object.entries(LEGACY_REFERENCE_LABELS)
@@ -197,6 +218,36 @@ const getLegacyReferences = (application) =>
       value: application?.documents?.[key] || ''
     }))
     .filter((item) => item.value);
+
+const getBirthCertificateVerification = (application) => {
+  const summary = application?.documentVerification;
+
+  if (summary?.status) {
+    return summary;
+  }
+
+  const verification = application?.documentAssets?.birthCertificate?.verification;
+
+  return {
+    status: verification?.status || 'not_started',
+    isVerified: verification?.status === 'passed',
+    provider: verification?.provider || '',
+    confidence: verification?.confidence ?? null,
+    checkedAt: verification?.checkedAt || null,
+    message: verification?.message || '',
+    extractedFields: verification?.extractedFields || {},
+    fieldComparisons: Array.isArray(verification?.fieldComparisons)
+      ? verification.fieldComparisons
+      : []
+  };
+};
+
+const getVerificationTone = (status = '') => {
+  if (status === 'passed') return 'success';
+  if (['mismatch', 'not_found', 'unreadable', 'failed'].includes(status)) return 'danger';
+  if (status === 'low_confidence') return 'warning';
+  return 'neutral';
+};
 
 function DocumentPreview({
   asset,
@@ -271,6 +322,7 @@ export default function ApplicationReviewDetails() {
   const [imageOrigin, setImageOrigin] = useState({ x: 50, y: 50 });
 
   const [showModal, setShowModal] = useState(false);
+  const [showPreviousRejection, setShowPreviousRejection] = useState(false);
   const [pendingAction, setPendingAction] = useState('');
   const [decisionNote, setDecisionNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -300,7 +352,7 @@ export default function ApplicationReviewDetails() {
       return;
     }
 
-    const firstAvailable = DOCUMENTS.find((item) => {
+    const firstAvailable = getReviewDocumentTypes(application).find((item) => {
       const asset = getReviewAsset(application, item.key);
       return Boolean(asset?.secureUrl);
     });
@@ -315,7 +367,7 @@ export default function ApplicationReviewDetails() {
 
   const documents = useMemo(
     () =>
-      DOCUMENTS.map((item) => ({
+      getReviewDocumentTypes(application).map((item) => ({
         ...item,
         asset: getReviewAsset(application, item.key)
       })),
@@ -326,6 +378,28 @@ export default function ApplicationReviewDetails() {
     documents.find((item) => item.key === activeDocumentKey) || documents[0];
 
   const supportingRefs = getLegacyReferences(application);
+  const birthCertificateVerification =
+    getBirthCertificateVerification(application);
+  const correctionSummary =
+    application?.correctionSummary ||
+    (application?.applicationType === 'correction'
+      ? application?.correctionInfo || {}
+      : null);
+  const resubmissionInfo = application?.resubmissionInfo || null;
+  const isResubmissionApplication = Boolean(
+    resubmissionInfo?.isResubmission || resubmissionInfo?.previousApplicationId
+  );
+  const previousRejectionHistory = {
+    previousApplicationId: resubmissionInfo?.previousApplicationId || '',
+    previousRejectedAt:
+      resubmissionInfo?.previousRejectedAt || resubmissionInfo?.rejectedAt || null,
+    previousRejectionReason:
+      resubmissionInfo?.previousRejectionReason ||
+      resubmissionInfo?.rejectionReason ||
+      '',
+    previousRejectionNotes: resubmissionInfo?.previousRejectionNotes || '',
+    resubmissionCount: resubmissionInfo?.resubmissionCount || 0
+  };
   const history = Array.isArray(application?.statusHistory)
     ? [...application.statusHistory].reverse()
     : [];
@@ -370,7 +444,7 @@ export default function ApplicationReviewDetails() {
     },
     {
       label: 'Evidence Files',
-      value: `${getDocumentCount(application)}/3`,
+      value: `${getDocumentCount(application)}/${getReviewDocumentTypes(application).length}`,
       sub: 'Available for review'
     },
     {
@@ -562,6 +636,63 @@ export default function ApplicationReviewDetails() {
       );
     }
 
+    if (activeSectionKey === 'verification') {
+      const comparisons = birthCertificateVerification.fieldComparisons || [];
+      const extractedFields = birthCertificateVerification.extractedFields || {};
+
+      if (!birthCertificateVerification.status || birthCertificateVerification.status === 'not_started') {
+        return (
+          <div className="nid-review-empty-side">
+            Birth certificate OCR verification is not available for this application.
+          </div>
+        );
+      }
+
+      return (
+        <div className="nid-review-info-grid nid-review-single-col">
+          <div>
+            <p>Status</p>
+            <h4>
+              <span className={`nid-review-status ${getVerificationTone(birthCertificateVerification.status)}`}>
+                {birthCertificateVerification.isVerified ? 'Document information matched' : formatStatus(birthCertificateVerification.status)}
+              </span>
+            </h4>
+          </div>
+          <div>
+            <p>Provider</p>
+            <h4>{birthCertificateVerification.provider || 'N/A'}</h4>
+          </div>
+          <div>
+            <p>Checked At</p>
+            <h4>{formatDateTime(birthCertificateVerification.checkedAt)}</h4>
+          </div>
+          <div>
+            <p>Confidence</p>
+            <h4>
+              {birthCertificateVerification.confidence === null ||
+              birthCertificateVerification.confidence === undefined
+                ? 'N/A'
+                : `${Math.round(Number(birthCertificateVerification.confidence) * 100)}%`}
+            </h4>
+          </div>
+          {Object.entries(extractedFields)
+            .filter(([, value]) => value)
+            .map(([field, value]) => (
+              <div key={field}>
+                <p>Extracted {formatStatus(field)}</p>
+                <h4>{value}</h4>
+              </div>
+            ))}
+          {comparisons.map((item) => (
+            <div key={item.field}>
+              <p>{formatStatus(item.field)} Match</p>
+              <h4>{item.matched ? 'Matched' : item.note || 'Not matched'}</h4>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     if (activeSectionKey === 'references') {
       if (supportingRefs.length === 0) {
         return <div className="nid-review-empty-side">No supporting records found.</div>;
@@ -652,6 +783,11 @@ export default function ApplicationReviewDetails() {
                       <span className="nid-review-pill neutral">
                         {formatStatus(application.applicationType || 'new')}
                       </span>
+                      {isResubmissionApplication ? (
+                        <span className="nid-review-resubmission-chip">
+                          Resubmission
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -716,6 +852,79 @@ export default function ApplicationReviewDetails() {
             {application.rejectionReason ? (
               <div className="nid-review-alert">
                 <strong>Current rejection reason:</strong> {application.rejectionReason}
+              </div>
+            ) : null}
+
+            {isResubmissionApplication ? (
+              <div className="nid-review-alert nid-review-resubmission-alert">
+                <div>
+                  <strong>Resubmission:</strong> This application follows a previous
+                  New NID rejection.
+                </div>
+                <button
+                  type="button"
+                  className="nid-review-text-button"
+                  onClick={() => setShowPreviousRejection((current) => !current)}
+                >
+                  {showPreviousRejection ? 'Hide previous rejection' : 'View previous rejection'}
+                </button>
+              </div>
+            ) : null}
+
+            {isResubmissionApplication && showPreviousRejection ? (
+              <div className="nid-review-card nid-review-previous-rejection">
+                <div className="nid-review-card-title">
+                  <FaHistory />
+                  <h3>Previous Rejection History</h3>
+                </div>
+
+                <div className="nid-review-info-grid">
+                  <div>
+                    <p>Previous Application ID</p>
+                    <h4>{previousRejectionHistory.previousApplicationId || 'N/A'}</h4>
+                  </div>
+                  <div>
+                    <p>Previous Rejected Date</p>
+                    <h4>
+                      {formatDateTime(previousRejectionHistory.previousRejectedAt)}
+                    </h4>
+                  </div>
+                  <div>
+                    <p>Previous Rejection Reason</p>
+                    <h4>
+                      {previousRejectionHistory.previousRejectionReason ||
+                        'Not recorded'}
+                    </h4>
+                  </div>
+                  <div>
+                    <p>Previous Admin Notes</p>
+                    <h4>
+                      {previousRejectionHistory.previousRejectionNotes ||
+                        'Not recorded'}
+                    </h4>
+                  </div>
+                  <div>
+                    <p>Resubmission Count</p>
+                    <h4>{previousRejectionHistory.resubmissionCount || 1}</h4>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {correctionSummary ? (
+              <div className="nid-review-alert">
+                <strong>Correction request:</strong>{' '}
+                {correctionSummary.baseApplicationId
+                  ? `Against ${correctionSummary.baseApplicationId}. `
+                  : ''}
+                {correctionSummary.reason || 'No reason recorded.'}{' '}
+                Proof status: {formatStatus(correctionSummary.proofStatus || 'not_uploaded')}.
+                {Array.isArray(correctionSummary.requestedChanges) &&
+                correctionSummary.requestedChanges.length > 0
+                  ? ` Fields: ${correctionSummary.requestedChanges
+                      .map((item) => formatStatus(item.field))
+                      .join(', ')}.`
+                  : ''}
               </div>
             ) : null}
 

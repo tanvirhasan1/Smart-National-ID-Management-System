@@ -116,8 +116,30 @@ const getQueueAge = (submittedAt, createdAt) => {
 
 const getEvidenceCount = (item) => {
   const summary = item?.documentSummary || {};
-  return Object.values(summary).filter(Boolean).length;
+  const keys = ['photograph', 'signature', 'birthCertificate'];
+
+  if (item?.applicationType === 'correction' || summary.correctionProof) {
+    keys.push('correctionProof');
+  }
+
+  return keys.filter((key) => summary[key]).length;
 };
+
+const getEvidenceTotal = (item) =>
+  item?.applicationType === 'correction' || item?.documentSummary?.correctionProof
+    ? 4
+    : 3;
+
+const getDocumentVerification = (item) =>
+  item?.documentVerification ||
+  item?.documentSummary?.birthCertificateVerification ||
+  {};
+
+const isResubmission = (item) =>
+  Boolean(
+    item?.resubmissionInfo?.isResubmission ||
+      item?.resubmissionInfo?.previousApplicationId
+  );
 
 
 function QueueDropdown({ icon: Icon = FaFilter, label, value, options, onChange }) {
@@ -501,9 +523,16 @@ export default function ApplicationReview() {
                           </td>
 
                           <td>
-                            <span className="gov-pill neutral">
-                              {formatStatus(item.applicationType || 'new')}
-                            </span>
+                            <div className="gov-queue-pill-stack">
+                              <span className="gov-pill neutral">
+                                {formatStatus(item.applicationType || 'new')}
+                              </span>
+                              {isResubmission(item) ? (
+                                <span className="gov-resubmission-flag">
+                                  Resubmission
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
 
                           <td>
@@ -514,8 +543,12 @@ export default function ApplicationReview() {
 
                           <td>
                             <div className="gov-queue-cell">
-                              <strong>{evidenceCount}/3</strong>
-                              <small>files uploaded</small>
+                              <strong>{evidenceCount}/{getEvidenceTotal(item)}</strong>
+                              {getDocumentVerification(item)?.isVerified ? (
+                                <small className="gov-queue-ocr-tag">Document information matched</small>
+                              ) : (
+                                <small>files uploaded</small>
+                              )}
                             </div>
                           </td>
 
@@ -560,6 +593,11 @@ export default function ApplicationReview() {
                           <span className="gov-queue-mobile-label">Application</span>
                           <h4>#{item.applicationId || item._id?.slice(-6)}</h4>
                           <p>{item.birthRegistrationNumber || 'No BRN'}</p>
+                          {isResubmission(item) ? (
+                            <span className="gov-resubmission-flag mobile">
+                              Previously rejected
+                            </span>
+                          ) : null}
                         </div>
                         <span className={`gov-status ${statusTone}`}>{formatStatus(item.status)}</span>
                       </div>
@@ -572,8 +610,12 @@ export default function ApplicationReview() {
                         </div>
                         <div>
                           <span><FaFileAlt /> Evidence</span>
-                          <strong>{evidenceCount}/3 files</strong>
-                          <small>{formatStatus(item.applicationType || 'new')}</small>
+                          <strong>{evidenceCount}/{getEvidenceTotal(item)} files</strong>
+                          <small>
+                            {getDocumentVerification(item)?.isVerified
+                              ? 'Document information matched'
+                              : formatStatus(item.applicationType || 'new')}
+                          </small>
                         </div>
                         <div>
                           <span><FaClock /> Submitted</span>

@@ -288,6 +288,37 @@
   font-weight: 600;
 }
 
+.nid-review-resubmission-alert {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.nid-review-text-button {
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1d4ed8;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nid-review-text-button:hover {
+  background: #dbeafe;
+}
+
+.nid-review-previous-rejection {
+  margin-bottom: 20px;
+}
+
 .nid-review-main {
   display: grid;
   grid-template-columns: 250px minmax(0, 1.55fr) 320px;
@@ -737,6 +768,22 @@
   color: #334155;
 }
 
+.nid-review-resubmission-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 7px 11px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .nid-review-status.neutral {
   background: #f1f5f9;
   color: #334155;
@@ -845,6 +892,15 @@
 
   .nid-review-shell-mainrow {
     padding-bottom: 14px;
+  }
+
+  .nid-review-resubmission-alert {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nid-review-text-button {
+    width: 100%;
   }
 
   .nid-review-summary-row,

@@ -3,7 +3,8 @@ import api from '../components/api/axios';
 const allowedCitizenDocumentTypes = [
   'photograph',
   'signature',
-  'birthCertificate'
+  'birthCertificate',
+  'correctionProof'
 ];
 
 const allowedMimeTypes = [
@@ -72,6 +73,26 @@ export const uploadCitizenApplicationDocument = async ({
   return response?.data;
 };
 
+export const verifyBirthCertificateDocument = async ({ file, claimedFields }) => {
+  validateCitizenDocumentFile(file, 'birthCertificate');
+
+  const formData = new FormData();
+  formData.append('birthCertificate', file);
+  formData.append('claimedFields', JSON.stringify(claimedFields || {}));
+
+  const response = await api.post(
+    '/applications/document-verification/birth-certificate',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  );
+
+  return response?.data;
+};
+
 export const getCitizenDocumentPreview = (documentRecord) => {
   const secureUrl = documentRecord?.cloudinary?.secureUrl || '';
   const format = (documentRecord?.cloudinary?.format || '').toLowerCase();
@@ -91,6 +112,8 @@ export const getCitizenDocumentLabel = (documentType) => {
       return 'Signature';
     case 'birthCertificate':
       return 'Birth Certificate';
+    case 'correctionProof':
+      return 'Correction Proof';
     default:
       return 'Document';
   }

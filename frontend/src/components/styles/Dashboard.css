@@ -418,7 +418,7 @@
   border-radius: 999px;
   padding: 7px 13px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -1105,7 +1105,7 @@
   min-height: 42px;
   border-radius: 999px !important;
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .dashboard-application-actions .btn-outline {

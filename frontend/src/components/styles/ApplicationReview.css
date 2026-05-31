@@ -450,6 +450,22 @@
   color: var(--queue-muted);
 }
 
+.gov-queue-cell .gov-queue-ocr-tag {
+  width: fit-content;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+
+.gov-queue-pill-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .gov-pill,
 .gov-status {
   display: inline-flex;
@@ -461,6 +477,25 @@
   line-height: 1;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.gov-resubmission-flag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid #BFDBFE;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gov-resubmission-flag.mobile {
+  margin-top: 8px;
 }
 
 .gov-pill.neutral,

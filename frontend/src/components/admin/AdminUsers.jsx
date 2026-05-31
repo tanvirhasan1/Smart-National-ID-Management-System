@@ -21,7 +21,7 @@ import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
 import { useAuth } from '../context/AuthContext';
 import { formatDateTime, formatStatus } from '../utils/helpers';
-import { getRoleLabel, getRoleScopeText, inferMainAdmin } from '../utils/roles';
+import { getRoleLabel, getRoleScopeText } from '../utils/roles';
 import '../styles/AdminUsers.css';
 
 
@@ -261,6 +261,42 @@ const getWorkspaceLabel = (user) =>
   user?.liveStatus?.isLive ? 'Current Workspace' : 'Last Workspace';
 
 
+const getAdminScope = (user) => {
+  const scope = user?.adminScope || {};
+  const scopeType = scope.scopeType === 'district' ? 'district' : 'national';
+  const districts = Array.isArray(scope.districts) ? scope.districts : [];
+
+  return {
+    scopeType,
+    districts,
+    primaryDistrict: scope.primaryDistrict || ''
+  };
+};
+
+const formatAdminScope = (user) => {
+  const scope = getAdminScope(user);
+
+  if (scope.scopeType === 'national') {
+    return 'National scope';
+  }
+
+  return scope.districts.length > 0
+    ? `District scope: ${scope.districts.join(', ')}`
+    : 'District scope';
+};
+
+const parseDistrictInput = (value) =>
+  String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const buildAdminScopePayload = ({ scopeType, districts, primaryDistrict }) => ({
+  scopeType: scopeType === 'district' ? 'district' : 'national',
+  districts: scopeType === 'district' ? parseDistrictInput(districts) : [],
+  primaryDistrict: scopeType === 'district' ? primaryDistrict.trim() : ''
+});
+
 
 const getRoleScope = (user) => getRoleScopeText(user);
 
@@ -302,7 +338,8 @@ const buildUserSearchText = (user) =>
       user?.createdBy?.fullName,
       user?.createdBy?.email,
       getFriendlyWorkspace(user),
-      getRoleScope(user)
+      getRoleScope(user),
+      formatAdminScope(user)
     ]
       .filter(Boolean)
       .join(' ')
@@ -336,7 +373,10 @@ const AdminUsers = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'support_staff'
+    role: 'support_staff',
+    scopeType: 'national',
+    districts: '',
+    primaryDistrict: ''
   });
 
   const [editForm, setEditForm] = useState({
@@ -345,6 +385,9 @@ const AdminUsers = () => {
     phone: '',
     role: 'support_staff',
     status: 'active',
+    scopeType: 'national',
+    districts: '',
+    primaryDistrict: '',
     updateReason: ''
   });
 
@@ -352,7 +395,11 @@ const AdminUsers = () => {
     archiveReason: ''
   });
 
-  const isMainAdmin = inferMainAdmin(user);
+  const canManageInternalUsers =
+    ['admin', 'system_supervisor'].includes(user?.role) &&
+    getAdminScope(user).scopeType === 'national';
+  const canDeactivateInternalUsers =
+    user?.role === 'admin' && canManageInternalUsers;
 
   // Load the internal user control list from backend.
   const fetchUsers = async () => {
@@ -518,7 +565,10 @@ const AdminUsers = () => {
       phone: '',
       password: '',
       confirmPassword: '',
-      role: 'support_staff'
+      role: 'support_staff',
+      scopeType: 'national',
+      districts: '',
+      primaryDistrict: ''
     });
 
     setCreateModalOpen(true);
@@ -534,7 +584,10 @@ const AdminUsers = () => {
       phone: '',
       password: '',
       confirmPassword: '',
-      role: 'support_staff'
+      role: 'support_staff',
+      scopeType: 'national',
+      districts: '',
+      primaryDistrict: ''
     });
   };
 
@@ -546,12 +599,17 @@ const AdminUsers = () => {
       return;
     }
 
+    const scope = getAdminScope(selectedUser);
+
     setEditForm({
       fullName: selectedUser.fullName || '',
       email: selectedUser.email || '',
       phone: selectedUser.phone || '',
       role: selectedUser.role || 'support_staff',
       status: selectedUser.accountStatus || selectedUser.status || 'active',
+      scopeType: scope.scopeType,
+      districts: scope.districts.join(', '),
+      primaryDistrict: scope.primaryDistrict || '',
       updateReason: ''
     });
 
@@ -568,6 +626,9 @@ const AdminUsers = () => {
       phone: '',
       role: 'support_staff',
       status: 'active',
+      scopeType: 'national',
+      districts: '',
+      primaryDistrict: '',
       updateReason: ''
     });
   };
@@ -632,6 +693,13 @@ const AdminUsers = () => {
       return;
     }
 
+    const adminScope = buildAdminScopePayload(createForm);
+
+    if (adminScope.scopeType === 'district' && adminScope.districts.length === 0) {
+      toast.error('Enter at least one district for district scope');
+      return;
+    }
+
     try {
       setCreateLoading(true);
 
@@ -640,7 +708,8 @@ const AdminUsers = () => {
         email: createForm.email.trim(),
         phone: createForm.phone.trim(),
         password: createForm.password,
-        role: createForm.role
+        role: createForm.role,
+        adminScope
       });
 
       toast.success('Internal user created successfully');
@@ -679,6 +748,13 @@ const AdminUsers = () => {
       return;
     }
 
+    const adminScope = buildAdminScopePayload(editForm);
+
+    if (adminScope.scopeType === 'district' && adminScope.districts.length === 0) {
+      toast.error('Enter at least one district for district scope');
+      return;
+    }
+
     try {
       setEditLoading(true);
 
@@ -688,6 +764,7 @@ const AdminUsers = () => {
         phone: editForm.phone.trim(),
         role: editForm.role,
         status: editForm.status,
+        adminScope,
         updateReason: editForm.updateReason.trim()
       });
 
@@ -770,7 +847,7 @@ const AdminUsers = () => {
               </p>
             </div>
 
-            {isMainAdmin ? (
+            {canManageInternalUsers ? (
               <button
                 type="button"
                 className="admin-users-primary-button"
@@ -955,6 +1032,7 @@ const AdminUsers = () => {
 
                     <div className="admin-users-list-footer">
                       <span>Last active: {getLastSeenText(item)}</span>
+                      <span>{formatAdminScope(item)}</span>
                     </div>
                   </button>
                 ))}
@@ -1163,7 +1241,7 @@ const AdminUsers = () => {
 
                     <div>
                       <p>Scope</p>
-                      <h4>{getRoleScope(selectedUser)}</h4>
+                      <h4>{formatAdminScope(selectedUser)}</h4>
                     </div>
 
                     <div>
@@ -1208,7 +1286,11 @@ const AdminUsers = () => {
                     <h3>Access Management</h3>
                   </div>
 
-                  {selectedIsRootMainAdmin ? (
+                  {!canManageInternalUsers ? (
+                    <div className="admin-users-inline-note compact">
+                      National-scope access is required to manage internal users.
+                    </div>
+                  ) : selectedIsRootMainAdmin ? (
                     <div className="admin-users-protected-root">
                       <div className="admin-users-protected-icon">
                         <FaShieldAlt />
@@ -1237,7 +1319,7 @@ const AdminUsers = () => {
                           type="button"
                           className="admin-users-action-button remove"
                           onClick={openRemoveModal}
-                          disabled={selectedIsSelf}
+                          disabled={selectedIsSelf || !canDeactivateInternalUsers}
                         >
                           <FaUserClock />
                           <span>Deactivate User</span>
@@ -1340,6 +1422,52 @@ const AdminUsers = () => {
                       <option value="system_supervisor">System Supervisor</option>
                       <option value="admin">Admin Officer</option>
                     </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Scope Type *</label>
+                    <select
+                      value={createForm.scopeType}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          scopeType: event.target.value
+                        }))
+                      }
+                    >
+                      <option value="national">National</option>
+                      <option value="district">District</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Districts</label>
+                    <input
+                      type="text"
+                      value={createForm.districts}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          districts: event.target.value
+                        }))
+                      }
+                      placeholder="Dhaka, Chattogram"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Primary District</label>
+                    <input
+                      type="text"
+                      value={createForm.primaryDistrict}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          primaryDistrict: event.target.value
+                        }))
+                      }
+                      placeholder="Primary district"
+                    />
                   </div>
 
                   <div className="admin-users-modal-field">
@@ -1491,6 +1619,52 @@ const AdminUsers = () => {
                       <option value="pending">Pending</option>
                       <option value="blocked">Blocked</option>
                     </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Scope Type *</label>
+                    <select
+                      value={editForm.scopeType}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          scopeType: event.target.value
+                        }))
+                      }
+                    >
+                      <option value="national">National</option>
+                      <option value="district">District</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Districts</label>
+                    <input
+                      type="text"
+                      value={editForm.districts}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          districts: event.target.value
+                        }))
+                      }
+                      placeholder="Dhaka, Chattogram"
+                    />
+                  </div>
+
+                  <div className="admin-users-modal-field">
+                    <label>Primary District</label>
+                    <input
+                      type="text"
+                      value={editForm.primaryDistrict}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          primaryDistrict: event.target.value
+                        }))
+                      }
+                      placeholder="Primary district"
+                    />
                   </div>
 
                   <div className="admin-users-modal-field full">
