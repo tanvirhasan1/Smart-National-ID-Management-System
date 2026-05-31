@@ -24,6 +24,7 @@ import {
   FaFileAlt
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { bangladeshLocations } from '../utils/helpers';
 import api from '../api/axios';
 import LivenessVerificationModal from './LivenessVerificationModal';
@@ -102,8 +103,6 @@ const APPLICATION_ERROR_MESSAGES = {
     'The document could not be read clearly. Please upload a clearer image.',
   DOCUMENT_LOW_CONFIDENCE:
     'The document text could not be verified confidently. Please upload a clearer image.',
-  DOCUMENT_VERIFICATION_TIMEOUT:
-    'Document verification is taking longer than expected. Please try again.',
   DOCUMENT_VERIFICATION_UNAVAILABLE:
     'Document verification service is temporarily unavailable. Please try again later.'
 };
@@ -162,12 +161,6 @@ const formatEligibilityDate = (value) => {
 
 const getDocumentVerificationUnavailableMessage = (error) => {
   const responseData = error?.response?.data || {};
-  const code = responseData.code || '';
-
-  if (code === 'DOCUMENT_VERIFICATION_TIMEOUT') {
-    return 'Document verification is taking longer than expected. Please try again.';
-  }
-
   const reason = String(
     responseData.failureReason ||
       responseData.verification?.failureReason ||
@@ -186,19 +179,8 @@ const getDocumentVerificationUnavailableMessage = (error) => {
 const getApplicationSubmitErrorMessage = (error) => {
   const code = error?.response?.data?.code;
 
-  if (
-    code === 'DOCUMENT_VERIFICATION_UNAVAILABLE' ||
-    code === 'DOCUMENT_VERIFICATION_TIMEOUT'
-  ) {
+  if (code === 'DOCUMENT_VERIFICATION_UNAVAILABLE') {
     return getDocumentVerificationUnavailableMessage(error);
-  }
-
-  if (
-    error?.safeMessage ||
-    error?.code === 'ECONNABORTED' ||
-    error?.code === 'ETIMEDOUT'
-  ) {
-    return error.safeMessage || 'Request is taking longer than expected. Please try again.';
   }
 
   return (
@@ -213,6 +195,7 @@ const getApplicationSubmitErrorMessage = (error) => {
 
 const ApplicationForm = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -360,11 +343,11 @@ const ApplicationForm = () => {
     ? isNidEligibilityLoading
       ? 'Checking eligibility...'
       : 'New NID unavailable'
-    : DEFAULT_SUBMIT_BUTTON_TEXT;
+    : t('apply.submitApplication');
   const isIdentityLocked = ['new', 'correction', 'reissue'].includes(applicationType);
   const activeSubmitStage = submitStage ? SUBMIT_STAGES[submitStage] : null;
   const submitButtonText =
-    activeSubmitStage?.buttonText || DEFAULT_SUBMIT_BUTTON_TEXT;
+    activeSubmitStage?.buttonText || t('apply.submitApplication');
   const submitLockReason =
     activeSubmitStage?.label ||
     'Submission is in progress. Please wait before changing steps.';
@@ -960,22 +943,22 @@ const ApplicationForm = () => {
   const validateDocumentStep = () => {
     // File inputs are handled by React state, so we validate them manually here.
     if (!selectedFiles.photograph || !photoPreview) {
-      toast.error('Please upload your passport-size photo');
+      toast.error(t('apply.uploadPhoto'));
       return false;
     }
 
     if (!selectedFiles.signature || !signaturePreview) {
-      toast.error('Please upload your signature');
+      toast.error(t('apply.uploadSignature'));
       return false;
     }
 
     if (applicationType === 'new' && !selectedFiles.birthCertificate) {
-      toast.error('Please upload your birth certificate');
+      toast.error(t('apply.uploadBirthCertificate'));
       return false;
     }
 
     if (applicationType === 'correction' && !selectedFiles.correctionProof) {
-      toast.error('Please upload correction proof');
+      toast.error(t('apply.uploadCorrectionProof'));
       return false;
     }
 
@@ -988,7 +971,7 @@ const ApplicationForm = () => {
       const isStepValid = await trigger(fieldsToValidate, { shouldFocus: true });
 
       if (!isStepValid) {
-        toast.error('Please fill all required fields before continuing.');
+        toast.error(t('apply.fillRequired'));
         return;
       }
     }
@@ -1037,25 +1020,25 @@ const ApplicationForm = () => {
     }
 
     if (!selectedFiles.photograph || !photoPreview) {
-      toast.error('Please upload your passport-size photo');
+      toast.error(t('apply.uploadPhoto'));
       setCurrentStep(3);
       return;
     }
 
     if (!selectedFiles.signature || !signaturePreview) {
-      toast.error('Please upload your signature');
+      toast.error(t('apply.uploadSignature'));
       setCurrentStep(3);
       return;
     }
 
     if (data.applicationType === 'new' && !selectedFiles.birthCertificate) {
-      toast.error('Please upload your birth certificate');
+      toast.error(t('apply.uploadBirthCertificate'));
       setCurrentStep(3);
       return;
     }
 
     if (data.applicationType === 'correction' && !selectedFiles.correctionProof) {
-      toast.error('Please upload correction proof');
+      toast.error(t('apply.uploadCorrectionProof'));
       setCurrentStep(3);
       return;
     }
@@ -1262,10 +1245,10 @@ const ApplicationForm = () => {
       <div className="form-container application-form-container mx-auto w-full max-w-[980px]">
         <div className="form-header application-form-header text-center">
           <h1 className="application-form-title text-[2rem] font-bold text-[#1F2937]">
-            Smart NID Application
+            {t('apply.title')}
           </h1>
           <p className="application-form-subtitle text-[#6B7280]">
-            Complete all steps to submit your application
+            {t('apply.subtitle')}
           </p>
         </div>
 
@@ -1276,7 +1259,7 @@ const ApplicationForm = () => {
             }`}
           >
             <div className="step-circle">{currentStep > 1 ? <FaCheck /> : '1'}</div>
-            <span>Personal Info</span>
+            <span>{t('apply.progressPersonal')}</span>
           </div>
           <div className="step-line" />
           <div
@@ -1285,7 +1268,7 @@ const ApplicationForm = () => {
             }`}
           >
             <div className="step-circle">{currentStep > 2 ? <FaCheck /> : '2'}</div>
-            <span>Address & Family</span>
+            <span>{t('apply.progressAddress')}</span>
           </div>
           <div className="step-line" />
           <div
@@ -1294,12 +1277,12 @@ const ApplicationForm = () => {
             }`}
           >
             <div className="step-circle">{currentStep > 3 ? <FaCheck /> : '3'}</div>
-            <span>Documents</span>
+            <span>{t('apply.progressDocuments')}</span>
           </div>
           <div className="step-line" />
           <div className={`progress-step ${currentStep >= 4 ? 'active' : ''}`}>
             <div className="step-circle">4</div>
-            <span>Review</span>
+            <span>{t('apply.progressReview')}</span>
           </div>
         </div>
 
@@ -1311,10 +1294,10 @@ const ApplicationForm = () => {
           {currentStep === 1 && (
             <div className="form-step application-step-panel">
               <h2 className="step-title">
-                <FaIdCard /> Application & Personal Information
+                <FaIdCard /> {t('apply.step1Title')}
               </h2>
               <p className="step-description">
-                Select application type and provide your core information.
+                {t('apply.step1Description')}
               </p>
 
               {/* 
@@ -1333,8 +1316,8 @@ const ApplicationForm = () => {
                     <div className="type-icon new-icon">
                       <FaIdCard />
                     </div>
-                    <h4>New NID</h4>
-                    <p>First-time NID application</p>
+                    <h4>{t('apply.newNidTitle')}</h4>
+                    <p>{t('apply.newNidDescription')}</p>
                   </div>
                 </label>
 
@@ -1356,8 +1339,8 @@ const ApplicationForm = () => {
                     <div className="type-icon correction-icon">
                       <FaIdCard />
                     </div>
-                    <h4>Correction</h4>
-                    <p>Correct existing NID information</p>
+                    <h4>{t('apply.correctionTitle')}</h4>
+                    <p>{t('apply.correctionDescription')}</p>
                   </div>
                 </label>
 
@@ -1379,8 +1362,8 @@ const ApplicationForm = () => {
                     <div className="type-icon renewal-icon">
                       <FaIdCard />
                     </div>
-                    <h4>Reissue</h4>
-                    <p>Reissue lost or damaged NID</p>
+                    <h4>{t('apply.reissueTitle')}</h4>
+                    <p>{t('apply.reissueDescription')}</p>
                   </div>
                 </label>
               </div>
@@ -1394,7 +1377,7 @@ const ApplicationForm = () => {
 
               {showNewNidResubmissionNotice ? (
                 <div className="application-eligibility-note resubmission" role="note">
-                  <strong>Your previous New NID application was rejected.</strong>
+                  <strong>{t('apply.rejectedNoticeTitle')}</strong>
                   <span>
                     You can apply again after correcting the issues.
                   </span>
@@ -1402,7 +1385,7 @@ const ApplicationForm = () => {
                     {(latestRejectionNotice.applicationId ||
                       eligibility?.latestRejectedApplicationId) && (
                       <span>
-                        Previous:{' '}
+                        {t('apply.previous')}:{' '}
                         {latestRejectionNotice.applicationId ||
                           eligibility.latestRejectedApplicationId}
                       </span>
@@ -1410,7 +1393,7 @@ const ApplicationForm = () => {
                     {(latestRejectionNotice.rejectedAt ||
                       eligibility?.latestRejectedAt) && (
                       <span>
-                        Rejected:{' '}
+                        {t('apply.rejected')}:{' '}
                         {formatEligibilityDate(
                           latestRejectionNotice.rejectedAt ||
                             eligibility.latestRejectedAt
@@ -1420,7 +1403,7 @@ const ApplicationForm = () => {
                     {(latestRejectionNotice.rejectionReason ||
                       eligibility?.latestRejectionReason) && (
                       <span>
-                        Reason:{' '}
+                        {t('apply.reason')}:{' '}
                         {latestRejectionNotice.rejectionReason ||
                           eligibility.latestRejectionReason}
                       </span>
@@ -1430,11 +1413,11 @@ const ApplicationForm = () => {
               ) : null}
 
               <div className="info-section applicant-info-section">
-                <h3>Applicant Information</h3>
+                <h3>{t('apply.applicantInfo')}</h3>
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Full Name (English) *</label>
+                    <label className="form-label">{t('apply.fullNameEnglish')}</label>
                     <input
                       type="text"
                       readOnly={isIdentityLocked}
@@ -1442,7 +1425,7 @@ const ApplicationForm = () => {
                       className={`input-field ${
                         isIdentityLocked ? 'locked-input' : ''
                       }`}
-                      placeholder="Enter full name in English"
+                      placeholder={t('apply.enterFullNameEnglish')}
                       {...register('fullNameEnglish', {
                         required: 'Full name in English is required'
                       })}
@@ -1453,7 +1436,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Full Name (বাংলা)</label>
+                    <label className="form-label">{t('apply.fullNameBangla')}</label>
                     <input
                       type="text"
                       readOnly={isIdentityLocked}
@@ -1461,7 +1444,7 @@ const ApplicationForm = () => {
                       className={`input-field ${
                         isIdentityLocked ? 'locked-input' : ''
                       }`}
-                      placeholder="পূর্ণ নাম লিখুন"
+                      placeholder={t('apply.enterFullNameBangla')}
                       {...register('fullNameBangla')}
                     />
                   </div>
@@ -1472,7 +1455,7 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaCalendar className="text-[#16A34A]" />
-                        Date of Birth *
+                        {t('apply.dateOfBirth')}
                       </span>
                     </label>
                     <input
@@ -1495,7 +1478,7 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaVenusMars className="text-[#16A34A]" />
-                        Gender *
+                        {t('apply.gender')}
                       </span>
                     </label>
                     <select
@@ -1511,10 +1494,10 @@ const ApplicationForm = () => {
                         required: 'Gender is required'
                       })}
                     >
-                      <option value="">Select gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
+                      <option value="">{t('apply.selectGender')}</option>
+                      <option value="male">{t('apply.male')}</option>
+                      <option value="female">{t('apply.female')}</option>
+                      <option value="other">{t('apply.other')}</option>
                     </select>
                     {errors.gender && (
                       <span className="form-error">{errors.gender.message}</span>
@@ -1524,7 +1507,7 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Birth Registration Number</label>
+                    <label className="form-label">{t('apply.birthRegistrationNumber')}</label>
                     <input
                       type="text"
                       readOnly={isIdentityLocked}
@@ -1532,7 +1515,7 @@ const ApplicationForm = () => {
                       className={`input-field ${
                         isIdentityLocked ? 'locked-input' : ''
                       }`}
-                      placeholder="17 digit birth registration number"
+                      placeholder={t('apply.birthRegistrationPlaceholder')}
                       {...register('birthRegistrationNumber', {
                         pattern: {
                           value: /^(\d{17})?$/,
@@ -1548,14 +1531,14 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Blood Group *</label>
+                    <label className="form-label">{t('apply.bloodGroup')}</label>
                     <select
                       className={getSelectClass(showBloodGroupError)}
                       {...register('bloodGroup', {
                         required: 'Blood group is required'
                       })}
                     >
-                      <option value="">Select blood group</option>
+                      <option value="">{t('apply.selectBloodGroup')}</option>
                       <option value="A+">A+</option>
                       <option value="A-">A-</option>
                       <option value="B+">B+</option>
@@ -1573,7 +1556,7 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaPhone className="text-[#16A34A]" />
-                        Phone Number *
+                        {t('apply.phoneNumber')}
                       </span>
                     </label>
                     <input
@@ -1597,13 +1580,13 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaEnvelope className="text-[#16A34A]" />
-                        Email
+                        {t('apply.email')}
                       </span>
                     </label>
                     <input
                       type="email"
                       className={getInputClass(!!errors.email)}
-                      placeholder="email@example.com"
+                      placeholder={t('apply.emailPlaceholder')}
                       {...register('email', {
                         pattern: {
                           value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -1619,12 +1602,12 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Marital Status</label>
+                    <label className="form-label">{t('apply.maritalStatus')}</label>
                     <select className={getSelectClass(false)} {...register('maritalStatus')}>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="divorced">Divorced</option>
-                      <option value="widowed">Widowed</option>
+                      <option value="single">{t('apply.single')}</option>
+                      <option value="married">{t('apply.married')}</option>
+                      <option value="divorced">{t('apply.divorced')}</option>
+                      <option value="widowed">{t('apply.widowed')}</option>
                     </select>
                   </div>
 
@@ -1632,13 +1615,13 @@ const ApplicationForm = () => {
                     <label className="form-label">
                       <span className="inline-flex items-center gap-2">
                         <FaBriefcase className="text-[#16A34A]" />
-                        Occupation *
+                        {t('apply.occupation')}
                       </span>
                     </label>
                     <input
                       type="text"
                       className={getInputClass(showOccupationError)}
-                      placeholder="Enter your occupation"
+                      placeholder={t('apply.occupationPlaceholder')}
                       {...register('occupation', {
                         required: 'Occupation is required',
                         validate: (value) =>
@@ -1651,11 +1634,11 @@ const ApplicationForm = () => {
                 {(applicationType === 'correction' ||
                   applicationType === 'reissue') && (
                   <div className="form-group">
-                    <label className="form-label">Existing NID Number *</label>
+                    <label className="form-label">{t('apply.existingNidNumber')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.existingNidNumber)}
-                      placeholder="Enter your current NID number"
+                      placeholder={t('apply.existingNidPlaceholder')}
                       {...register('existingNidNumber', {
                         required:
                           applicationType === 'correction' ||
@@ -1674,11 +1657,11 @@ const ApplicationForm = () => {
 
                 {applicationType === 'correction' && (
                   <div className="form-group">
-                    <label className="form-label">Correction Reason *</label>
+                    <label className="form-label">{t('apply.correctionReason')}</label>
                     <textarea
                       rows={3}
                       className={getInputClass(!!errors.correctionReason)}
-                      placeholder="Explain what information needs correction"
+                      placeholder={t('apply.correctionReasonPlaceholder')}
                       {...register('correctionReason', {
                         required:
                           applicationType === 'correction'
@@ -1697,7 +1680,7 @@ const ApplicationForm = () => {
 
               <div className="form-actions">
                 <button type="button" className="btn btn-primary" onClick={nextStep}>
-                  Continue →
+                  {t('apply.continue')}
                 </button>
               </div>
             </div>
@@ -1706,18 +1689,18 @@ const ApplicationForm = () => {
           {currentStep === 2 && (
             <div className="form-step application-step-panel">
               <h2 className="step-title">
-                <FaMapMarkerAlt /> Address & Family Information
+                <FaMapMarkerAlt /> {t('apply.step2Title')}
               </h2>
               <p className="step-description">
-                Provide your address and family information.
+                {t('apply.step2Description')}
               </p>
 
               <div className="info-section">
-                <h3>Present Address</h3>
+                <h3>{t('apply.presentAddress')}</h3>
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Division *</label>
+                    <label className="form-label">{t('apply.division')}</label>
                     <select
                       className={getSelectClass(!!errors.presentAddress?.division)}
                       {...register('presentAddress.division', {
@@ -1728,7 +1711,7 @@ const ApplicationForm = () => {
                         setValue('presentAddress.district', '');
                       }}
                     >
-                      <option value="">Select division</option>
+                      <option value="">{t('apply.selectDivision')}</option>
                       {bangladeshLocations.divisions.map((division) => (
                         <option key={division} value={division}>
                           {division}
@@ -1743,14 +1726,14 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">District *</label>
+                    <label className="form-label">{t('apply.district')}</label>
                     <select
                       className={getSelectClass(!!errors.presentAddress?.district)}
                       {...register('presentAddress.district', {
                         required: 'Present address district is required'
                       })}
                     >
-                      <option value="">Select district</option>
+                      <option value="">{t('apply.selectDistrict')}</option>
                       {selectedPresentDivision &&
                         bangladeshLocations.districts[selectedPresentDivision]?.map(
                           (district) => (
@@ -1770,11 +1753,11 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Upazila/Thana *</label>
+                    <label className="form-label">{t('apply.upazila')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.presentAddress?.upazila)}
-                      placeholder="Enter upazila or thana"
+                      placeholder={t('apply.enterUpazila')}
                       {...register('presentAddress.upazila', {
                         required: 'Present address upazila is required'
                       })}
@@ -1787,11 +1770,11 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Union/Ward</label>
+                    <label className="form-label">{t('apply.unionWard')}</label>
                     <input
                       type="text"
                       className={getInputClass(false)}
-                      placeholder="Enter union or ward"
+                      placeholder={t('apply.enterUnionWard')}
                       {...register('presentAddress.unionOrWard')}
                     />
                   </div>
@@ -1799,32 +1782,32 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Village/Area</label>
+                    <label className="form-label">{t('apply.villageArea')}</label>
                     <input
                       type="text"
                       className={getInputClass(false)}
-                      placeholder="Enter village or area"
+                      placeholder={t('apply.enterVillageArea')}
                       {...register('presentAddress.villageOrArea')}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Post Office</label>
+                    <label className="form-label">{t('apply.postOffice')}</label>
                     <input
                       type="text"
                       className={getInputClass(false)}
-                      placeholder="Enter post office"
+                      placeholder={t('apply.enterPostOffice')}
                       {...register('presentAddress.postOffice')}
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Postal Code</label>
+                  <label className="form-label">{t('apply.postalCode')}</label>
                   <input
                     type="text"
                     className={getInputClass(false)}
-                    placeholder="Enter postal code"
+                    placeholder={t('apply.enterPostalCode')}
                     {...register('presentAddress.postalCode')}
                   />
                 </div>
@@ -1838,17 +1821,17 @@ const ApplicationForm = () => {
                     onChange={handleSameAddress}
                     className="mt-1 h-4 w-4 rounded border-[#D1D5DB] text-[#16A34A] focus:ring-[#16A34A]"
                   />
-                  <span>Permanent address same as present address</span>
+                  <span>{t('apply.sameAddress')}</span>
                 </label>
               </div>
 
               {!sameAddress && (
                 <div className="info-section">
-                  <h3>Permanent Address</h3>
+                  <h3>{t('apply.permanentAddress')}</h3>
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">Division *</label>
+                      <label className="form-label">{t('apply.division')}</label>
                       <select
                         className={getSelectClass(!!errors.permanentAddress?.division)}
                         {...register('permanentAddress.division', {
@@ -1861,7 +1844,7 @@ const ApplicationForm = () => {
                           setValue('permanentAddress.district', '');
                         }}
                       >
-                        <option value="">Select division</option>
+                        <option value="">{t('apply.selectDivision')}</option>
                         {bangladeshLocations.divisions.map((division) => (
                           <option key={division} value={division}>
                             {division}
@@ -1876,7 +1859,7 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">District *</label>
+                      <label className="form-label">{t('apply.district')}</label>
                       <select
                         className={getSelectClass(!!errors.permanentAddress?.district)}
                         {...register('permanentAddress.district', {
@@ -1885,7 +1868,7 @@ const ApplicationForm = () => {
                             : false
                         })}
                       >
-                        <option value="">Select district</option>
+                        <option value="">{t('apply.selectDistrict')}</option>
                         {selectedPermanentDivision &&
                           bangladeshLocations.districts[selectedPermanentDivision]?.map(
                             (district) => (
@@ -1905,11 +1888,11 @@ const ApplicationForm = () => {
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">Upazila/Thana *</label>
+                      <label className="form-label">{t('apply.upazila')}</label>
                       <input
                         type="text"
                         className={getInputClass(!!errors.permanentAddress?.upazila)}
-                        placeholder="Enter upazila or thana"
+                        placeholder={t('apply.enterUpazila')}
                         {...register('permanentAddress.upazila', {
                           required: !sameAddress
                             ? 'Permanent address upazila is required'
@@ -1924,11 +1907,11 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">Union/Ward</label>
+                      <label className="form-label">{t('apply.unionWard')}</label>
                       <input
                         type="text"
                         className={getInputClass(false)}
-                        placeholder="Enter union or ward"
+                        placeholder={t('apply.enterUnionWard')}
                         {...register('permanentAddress.unionOrWard')}
                       />
                     </div>
@@ -1936,32 +1919,32 @@ const ApplicationForm = () => {
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">Village/Area</label>
+                      <label className="form-label">{t('apply.villageArea')}</label>
                       <input
                         type="text"
                         className={getInputClass(false)}
-                        placeholder="Enter village or area"
+                        placeholder={t('apply.enterVillageArea')}
                         {...register('permanentAddress.villageOrArea')}
                       />
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">Post Office</label>
+                      <label className="form-label">{t('apply.postOffice')}</label>
                       <input
                         type="text"
                         className={getInputClass(false)}
-                        placeholder="Enter post office"
+                        placeholder={t('apply.enterPostOffice')}
                         {...register('permanentAddress.postOffice')}
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Postal Code</label>
+                    <label className="form-label">{t('apply.postalCode')}</label>
                     <input
                       type="text"
                       className={getInputClass(false)}
-                      placeholder="Enter postal code"
+                      placeholder={t('apply.enterPostalCode')}
                       {...register('permanentAddress.postalCode')}
                     />
                   </div>
@@ -1969,15 +1952,15 @@ const ApplicationForm = () => {
               )}
 
               <div className="info-section">
-                <h3>Father&apos;s Information</h3>
+                <h3>{t('apply.fatherInfo')}</h3>
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Father&apos;s Name *</label>
+                    <label className="form-label">{t('apply.fatherName')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.fatherName)}
-                      placeholder="Enter father's name"
+                      placeholder={t('apply.enterFatherName')}
                       {...register('fatherName', {
                         required: "Father's name is required"
                       })}
@@ -1988,11 +1971,11 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Father&apos;s NID (Optional)</label>
+                    <label className="form-label">{t('apply.fatherNidOptional')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.fatherNID)}
-                      placeholder="10 or 17 digit NID"
+                      placeholder={t('apply.nidPlaceholder')}
                       {...register('fatherNID', {
                         pattern: {
                           value: /^(\d{10}|\d{17})?$/,
@@ -2008,15 +1991,15 @@ const ApplicationForm = () => {
               </div>
 
               <div className="info-section">
-                <h3>Mother&apos;s Information</h3>
+                <h3>{t('apply.motherInfo')}</h3>
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">Mother&apos;s Name *</label>
+                    <label className="form-label">{t('apply.motherName')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.motherName)}
-                      placeholder="Enter mother's name"
+                      placeholder={t('apply.enterMotherName')}
                       {...register('motherName', {
                         required: "Mother's name is required"
                       })}
@@ -2027,11 +2010,11 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Mother&apos;s NID (Optional)</label>
+                    <label className="form-label">{t('apply.motherNidOptional')}</label>
                     <input
                       type="text"
                       className={getInputClass(!!errors.motherNID)}
-                      placeholder="10 or 17 digit NID"
+                      placeholder={t('apply.nidPlaceholder')}
                       {...register('motherNID', {
                         pattern: {
                           value: /^(\d{10}|\d{17})?$/,
@@ -2047,14 +2030,14 @@ const ApplicationForm = () => {
               </div>
 
               <div className="info-section">
-                <h3>Spouse Information (Optional)</h3>
+                <h3>{t('apply.spouseInfo')}</h3>
 
                 <div className="form-group">
-                  <label className="form-label">Spouse Name</label>
+                  <label className="form-label">{t('apply.spouseName')}</label>
                   <input
                     type="text"
                     className={getInputClass(false)}
-                    placeholder="Enter spouse name"
+                    placeholder={t('apply.enterSpouseName')}
                     {...register('spouseName')}
                   />
                 </div>
@@ -2062,10 +2045,10 @@ const ApplicationForm = () => {
 
               <div className="form-actions">
                 <button type="button" className="btn btn-outline" onClick={prevStep}>
-                  ← Previous
+                  {t('apply.previousButton')}
                 </button>
                 <button type="button" className="btn btn-primary" onClick={nextStep}>
-                  Continue →
+                  {t('apply.continue')}
                 </button>
               </div>
             </div>
@@ -2074,10 +2057,10 @@ const ApplicationForm = () => {
           {currentStep === 3 && (
             <div className="form-step application-step-panel">
               <h2 className="step-title">
-                <FaUpload /> Upload Documents
+                <FaUpload /> {t('apply.step3Title')}
               </h2>
               <p className="step-description">
-                Upload your documents. This step keeps the current UI and preview.
+                {t('apply.step3Description')}
               </p>
 
               <div className="upload-section">
@@ -2085,8 +2068,8 @@ const ApplicationForm = () => {
                   <div className="upload-header">
                     <FaCamera className="upload-icon" />
                     <div>
-                      <h4>Passport-size photo *</h4>
-                      <p>Recent passport-size photo with white background</p>
+                      <h4>{t('apply.passportPhoto')}</h4>
+                      <p>{t('apply.passportPhotoHint')}</p>
                     </div>
                   </div>
 
@@ -2130,8 +2113,8 @@ const ApplicationForm = () => {
                   <div className="upload-header">
                     <FaSignature className="upload-icon" />
                     <div>
-                      <h4>Signature *</h4>
-                      <p>Clear signature on white paper</p>
+                      <h4>{t('apply.signature')}</h4>
+                      <p>{t('apply.signatureHint')}</p>
                     </div>
                   </div>
 
@@ -2180,8 +2163,8 @@ const ApplicationForm = () => {
                     <div className="upload-header">
                       <FaIdCard className="upload-icon" />
                       <div>
-                        <h4>Birth Certificate *</h4>
-                        <p>Scan copy of birth certificate</p>
+                        <h4>{t('apply.birthCertificate')}</h4>
+                        <p>{t('apply.birthCertificateHint')}</p>
                       </div>
                     </div>
 
@@ -2228,8 +2211,8 @@ const ApplicationForm = () => {
                     <div className="upload-header">
                       <FaFileAlt className="upload-icon" />
                       <div>
-                        <h4>Correction Proof *</h4>
-                        <p>Supporting document for requested correction</p>
+                        <h4>{t('apply.correctionProof')}</h4>
+                        <p>{t('apply.correctionProofHint')}</p>
                       </div>
                     </div>
 
@@ -2278,7 +2261,7 @@ const ApplicationForm = () => {
                 </h4>
                 <ul>
                   <li>Passport-size photo and signature preview will work normally</li>
-                  <li>Face verification will start when you submit the application</li>
+                  <li>{t('apply.faceVerificationNotePoint1')}</li>
                   <li>Required documents will be uploaded after the application is created</li>
                   <li>If any document upload fails after submission, the application will still be created and you can contact support</li>
                 </ul>
@@ -2286,10 +2269,10 @@ const ApplicationForm = () => {
 
               <div className="form-actions">
                 <button type="button" className="btn btn-outline" onClick={prevStep}>
-                  ← Previous
+                  {t('apply.previousButton')}
                 </button>
                 <button type="button" className="btn btn-primary" onClick={nextStep}>
-                  Review Application →
+                  {t('apply.reviewApplication')}
                 </button>
               </div>
             </div>
@@ -2298,7 +2281,7 @@ const ApplicationForm = () => {
           {currentStep === 4 && (
             <div className="form-step application-step-panel">
               <h2 className="step-title">
-                <FaCheck /> Review & Submit
+                <FaCheck /> {t('apply.step4Title')}
               </h2>
               <p className="step-description">
                 Please review your application before submitting.
@@ -2306,47 +2289,47 @@ const ApplicationForm = () => {
 
               <div className="review-section">
                 <div className="review-card">
-                  <h4>Application Type</h4>
+                  <h4>{t('apply.applicationType')}</h4>
                   <p className="review-value">
-                    {watch('applicationType')?.toUpperCase()} NID Application
+                    {watch('applicationType')?.toUpperCase()} {t('apply.nidApplication')}
                   </p>
                 </div>
 
                 <div className="review-card">
-                  <h4>Personal Information</h4>
+                  <h4>{t('apply.personalInformation')}</h4>
                   <div className="review-grid">
                     <div className="review-item">
-                      <label>Full Name (English)</label>
+                      <label>{t('apply.fullNameEnglish').replace(' *', '')}</label>
                       <p>{watch('fullNameEnglish')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Full Name (Bangla)</label>
-                      <p>{watch('fullNameBangla') || 'N/A'}</p>
+                      <label>{t('apply.fullNameBanglaReview')}</label>
+                      <p>{watch('fullNameBangla') || t('apply.na')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Date of Birth</label>
-                      <p>{watch('dateOfBirth') || 'N/A'}</p>
+                      <label>{t('apply.dobReview')}</label>
+                      <p>{watch('dateOfBirth') || t('apply.na')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Gender</label>
-                      <p>{watch('gender') || 'N/A'}</p>
+                      <label>{t('apply.gender').replace(' *', '')}</label>
+                      <p>{watch('gender') || t('apply.na')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Phone</label>
+                      <label>{t('apply.phone')}</label>
                       <p>{watch('phone')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Email</label>
-                      <p>{watch('email') || 'N/A'}</p>
+                      <label>{t('apply.email')}</label>
+                      <p>{watch('email') || t('apply.na')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="review-card">
-                  <h4>Address Information</h4>
+                  <h4>{t('apply.addressInformation')}</h4>
                   <div className="review-grid">
                     <div className="review-item">
-                      <label>Present Address</label>
+                      <label>{t('apply.presentAddress')}</label>
                       <p>
                         {watch('presentAddress.division')},{' '}
                         {watch('presentAddress.district')},{' '}
@@ -2354,7 +2337,7 @@ const ApplicationForm = () => {
                       </p>
                     </div>
                     <div className="review-item">
-                      <label>Permanent Address</label>
+                      <label>{t('apply.permanentAddress')}</label>
                       <p>
                         {sameAddress
                           ? 'Same as present address'
@@ -2367,25 +2350,25 @@ const ApplicationForm = () => {
                 </div>
 
                 <div className="review-card">
-                  <h4>Family Information</h4>
+                  <h4>{t('apply.familyInformation')}</h4>
                   <div className="review-grid">
                     <div className="review-item">
-                      <label>Father&apos;s Name</label>
+                      <label>{t('apply.fatherNameReview')}</label>
                       <p>{watch('fatherName')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Mother&apos;s Name</label>
+                      <label>{t('apply.motherNameReview')}</label>
                       <p>{watch('motherName')}</p>
                     </div>
                     <div className="review-item">
-                      <label>Spouse Name</label>
-                      <p>{watch('spouseName') || 'N/A'}</p>
+                      <label>{t('apply.spouseNameReview')}</label>
+                      <p>{watch('spouseName') || t('apply.na')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="review-card">
-                  <h4>Uploaded Documents</h4>
+                  <h4>{t('apply.uploadedDocuments')}</h4>
                   <div className="documents-preview">
                     <div className="doc-item">
                       <span>Passport-size photo</span>
@@ -2397,7 +2380,7 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="doc-item">
-                      <span>Signature</span>
+                      <span>{t('apply.signature').replace(' *', '')}</span>
                       {signaturePreview ? (
                         <img
                           src={signaturePreview}
@@ -2411,7 +2394,7 @@ const ApplicationForm = () => {
 
                     {applicationType === 'new' && (
                       <div className="doc-item">
-                        <span>Birth Certificate</span>
+                        <span>{t('apply.birthCertificate').replace(' *', '')}</span>
                         {birthCertPreview ? (
                           <span className="doc-uploaded">
                             <FaCheck /> {birthCertPreview}
@@ -2451,7 +2434,7 @@ const ApplicationForm = () => {
                 </label>
                 {errors.declaration && (
                   <span className="form-error">
-                    You must agree to the declaration
+                    {t('apply.mustAgree')}
                   </span>
                 )}
               </div>
@@ -2500,7 +2483,7 @@ const ApplicationForm = () => {
                     isSubmitting ? 'application-submit-progress' : undefined
                   }
                 >
-                  ← Previous
+                  {t('apply.previousButton')}
                 </button>
                 <button
                   type="submit"

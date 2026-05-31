@@ -319,3 +319,164 @@ ol {
     width: 100%;
   }
 }
+
+
+
+
+
+
+
+/* Bangla UI typography balance
+   Bengali characters look taller/heavier than English at the same size.
+   This keeps Bangla close to the English layout instead of making it oversized. */
+html[lang='bn'] body {
+  line-height: 1.5;
+}
+
+html[lang='bn'] .site-navbar-link,
+html[lang='bn'] .site-navbar-register,
+html[lang='bn'] .site-navbar-language-button,
+html[lang='bn'] .site-navbar-profile-button,
+html[lang='bn'] .site-navbar-dropdown-item {
+  font-size: 0.88rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+/* Landing page: controlled Bangla sizes */
+html[lang='bn'] .landing-page {
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+html[lang='bn'] .landing-page .hero-kicker,
+html[lang='bn'] .landing-page .section-tag,
+html[lang='bn'] .landing-page .section-tag-light {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+html[lang='bn'] .landing-page .hero-title {
+  font-size: clamp(2.45rem, 3.35vw, 3.35rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.045em;
+  max-width: 700px;
+}
+
+html[lang='bn'] .landing-page .hero-description {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  max-width: 620px;
+}
+
+html[lang='bn'] .landing-page .hero-primary-btn,
+html[lang='bn'] .landing-page .hero-secondary-btn,
+html[lang='bn'] .landing-page .cta-primary-btn,
+html[lang='bn'] .landing-page .cta-secondary-btn {
+  font-size: 0.86rem;
+  line-height: 1.25;
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+html[lang='bn'] .landing-page .hero-point-item,
+html[lang='bn'] .landing-page .trust-list-item,
+html[lang='bn'] .landing-page .mini-point {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+html[lang='bn'] .landing-page .hero-summary-card span:first-child {
+  font-size: 1.08rem;
+  line-height: 1.15;
+}
+
+html[lang='bn'] .landing-page .hero-summary-card span:last-child {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+html[lang='bn'] .landing-page h2 {
+  font-size: clamp(1.65rem, 2.25vw, 2.15rem) !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.035em;
+}
+
+html[lang='bn'] .landing-page h3 {
+  font-size: 0.98rem;
+  line-height: 1.28;
+}
+
+html[lang='bn'] .landing-page .action-card p,
+html[lang='bn'] .landing-page .trust-card p,
+html[lang='bn'] .landing-page .journey-card p,
+html[lang='bn'] .landing-page .section-heading p,
+html[lang='bn'] .landing-page .section-heading-center p,
+html[lang='bn'] .landing-page .requirements-copy p,
+html[lang='bn'] .landing-page .trust-copy p,
+html[lang='bn'] .landing-page .cta-box p {
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+html[lang='bn'] .landing-page .action-card h3,
+html[lang='bn'] .landing-page .trust-card h3,
+html[lang='bn'] .landing-page .journey-card h3,
+html[lang='bn'] .landing-page .requirement-item h3 {
+  font-size: 0.9rem;
+  line-height: 1.28;
+}
+
+html[lang='bn'] .landing-page .action-link,
+html[lang='bn'] .landing-page .journey-step-badge {
+  font-size: 0.78rem;
+}
+
+/* Keep hero overlay cards compact in Bangla */
+html[lang='bn'] .landing-page .hero-status-card h4 {
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+html[lang='bn'] .landing-page .hero-status-card p {
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 1024px) {
+  html[lang='bn'] .landing-page .hero-title {
+    font-size: clamp(2.15rem, 6vw, 3rem) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  html[lang='bn'] .landing-page .hero-title {
+    font-size: 2rem !important;
+    line-height: 1.12 !important;
+  }
+
+  html[lang='bn'] .landing-page h2 {
+    font-size: 1.45rem !important;
+  }
+}
+
+
+/* Hero summary cards: keep Bangla subtitle in one line on desktop */
+html[lang='bn'] .landing-page .hero-summary-card {
+  min-width: 0;
+}
+
+html[lang='bn'] .landing-page .hero-summary-card span:last-child {
+  display: block;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 640px) {
+  html[lang='bn'] .landing-page .hero-summary-card span:last-child {
+    white-space: normal;
+    font-size: 0.82rem;
+  }
+}
