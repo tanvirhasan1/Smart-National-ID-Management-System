@@ -6,9 +6,11 @@ import {
   FaPhoneAlt,
   FaMapMarkerAlt
 } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext';
 import '../styles/Footer.css';
 
 const Footer = () => {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const location = useLocation();
 
@@ -43,15 +45,15 @@ const Footer = () => {
               </div>
 
               <div className="footer-compact-brand-text">
-                <h3>Smart NID</h3>
-                <p>Digital identity service portal</p>
+                <h3>{t('footer.brandTitle')}</h3>
+                <p>{t('footer.brandSubtitle')}</p>
               </div>
             </div>
 
             <div className="footer-compact-links">
-              <Link to="/dashboard">Dashboard</Link>
-              <Link to="/track-application">Track Status</Link>
-              <Link to="/support">Support</Link>
+              <Link to="/dashboard">{t('footer.dashboard')}</Link>
+              <Link to="/track-application">{t('footer.trackStatus')}</Link>
+              <Link to="/support">{t('footer.support')}</Link>
             </div>
 
             <div className="footer-compact-contact">
@@ -68,11 +70,11 @@ const Footer = () => {
           </div>
 
           <div className="footer-compact-bottom">
-            <p>© {currentYear} Smart NID Management System. Academic prototype.</p>
+            <p>{t('footer.copyright', { year: currentYear })}</p>
 
             <div className="footer-compact-bottom-links">
-              <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
-              <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
+              <a href="#" aria-label="Privacy policy placeholder">{t('footer.privacyPolicy')}</a>
+              <a href="#" aria-label="Terms of service placeholder">{t('footer.termsOfService')}</a>
             </div>
           </div>
         </div>
@@ -99,28 +101,26 @@ const Footer = () => {
               </Link>
 
               <p className="footer-description">
-                Academic prototype for Smart National ID registration,
-                application tracking, biometric appointments, and citizen
-                support services.
+                {t('footer.description')}
               </p>
 
               <div className="footer-note">
-                Built for digital public service management.
+                {t('footer.note')}
               </div>
             </div>
 
             <div className="footer-column">
-              <h4 className="footer-title">Quick Links</h4>
+              <h4 className="footer-title">{t('footer.quickLinks')}</h4>
 
               <ul className="footer-links">
                 <li>
-                  <Link to="/">Home</Link>
+                  <Link to="/">{t('footer.home')}</Link>
                 </li>
                 <li>
-                  <Link to="/register">Register</Link>
+                  <Link to="/register">{t('footer.register')}</Link>
                 </li>
                 <li>
-                  <Link to="/login">Login</Link>
+                  <Link to="/login">{t('footer.login')}</Link>
                 </li>
                 <li>
                   <Link to="/track-application">Track Application</Link>
@@ -136,7 +136,7 @@ const Footer = () => {
                   <Link to="/login">Apply for NID</Link>
                 </li>
                 <li>
-                  <Link to="/support">Support</Link>
+                  <Link to="/support">{t('footer.support')}</Link>
                 </li>
                 <li>
                   <Link to="/forgot-password">Forgot Password</Link>
@@ -182,8 +182,8 @@ const Footer = () => {
           <p>© {currentYear} Smart NID Management System.</p>
 
           <div className="footer-bottom-links">
-            <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
-            <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
+            <a href="#" aria-label="Privacy policy placeholder">{t('footer.privacyPolicy')}</a>
+            <a href="#" aria-label="Terms of service placeholder">{t('footer.termsOfService')}</a>
           </div>
         </div>
       </div>

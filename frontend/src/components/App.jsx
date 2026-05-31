@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Auth context
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Shared components
 import ProtectedRoute from './common/ProtectedRoute';
@@ -281,11 +282,13 @@ const AppShell = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppShell />
-      </Router>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <Router>
+          <AppShell />
+        </Router>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

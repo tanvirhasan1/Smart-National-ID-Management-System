@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   FaBars,
   FaTimes,
@@ -20,13 +21,10 @@ import {
 } from 'react-icons/fa';
 import '../styles/Navbar.css';
 
-const languageOptions = [
-  { code: 'en', label: 'English', shortLabel: 'EN' },
-  { code: 'bn', label: 'বাংলা', shortLabel: 'BN' }
-];
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { language: selectedLanguage, setLanguage, languageOptions, t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const navbarRef = useRef(null);
@@ -34,10 +32,6 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    return localStorage.getItem('smartNidLanguage') || 'en';
-  });
 
   const selectedLanguageData =
     languageOptions.find((item) => item.code === selectedLanguage) ||
@@ -81,7 +75,8 @@ const Navbar = () => {
   };
 
   const handleLanguageSelect = (languageCode) => {
-    setSelectedLanguage(languageCode);
+    // This changes the language for the whole app, not only the navbar.
+    setLanguage(languageCode);
     setIsLanguageDropdownOpen(false);
   };
 
@@ -96,11 +91,6 @@ const Navbar = () => {
   useEffect(() => {
     closeAllMenus();
   }, [location.pathname]);
-
-  useEffect(() => {
-    localStorage.setItem('smartNidLanguage', selectedLanguage);
-    document.documentElement.lang = selectedLanguage === 'bn' ? 'bn' : 'en';
-  }, [selectedLanguage]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -133,7 +123,7 @@ const Navbar = () => {
         </span>
 
         <span className="site-navbar-language-text">
-          <span className="site-navbar-language-title">Language</span>
+          <span className="site-navbar-language-title">{t('nav.language')}</span>
           <span className="site-navbar-language-current">
             {selectedLanguageData.shortLabel}
           </span>
@@ -183,7 +173,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaHome />
         </span>
-        <span>Home</span>
+        <span>{t('nav.home')}</span>
       </Link>
 
       <Link
@@ -196,7 +186,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaSignInAlt />
         </span>
-        <span>Login</span>
+        <span>{t('nav.login')}</span>
       </Link>
 
       {renderLanguageSelector()}
@@ -211,7 +201,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaUserPlus />
         </span>
-        <span>Register</span>
+        <span>{t('nav.register')}</span>
       </Link>
     </>
   );
@@ -228,7 +218,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaHome />
         </span>
-        <span>Dashboard</span>
+        <span>{t('nav.dashboard')}</span>
       </Link>
 
       <Link
@@ -241,7 +231,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaIdCard />
         </span>
-        <span>Apply NID</span>
+        <span>{t('nav.applyNid')}</span>
       </Link>
 
       <Link
@@ -254,7 +244,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaSearch />
         </span>
-        <span>Track Status</span>
+        <span>{t('nav.trackStatus')}</span>
       </Link>
 
       <Link
@@ -267,7 +257,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaHeadset />
         </span>
-        <span>Support</span>
+        <span>{t('nav.support')}</span>
       </Link>
 
       {renderLanguageSelector()}
@@ -286,7 +276,7 @@ const Navbar = () => {
             <FaUser />
           </span>
 
-          <span>{user?.fullName?.split(' ')[0] || 'Profile'}</span>
+          <span>{user?.fullName?.split(' ')[0] || t('nav.profile')}</span>
 
           <span className="site-navbar-desktop-chevron">
             <FaChevronDown />
@@ -305,7 +295,7 @@ const Navbar = () => {
               onClick={handleNavClick}
             >
               <FaUser />
-              <span>Profile</span>
+              <span>{t('nav.profile')}</span>
             </Link>
 
             <button
@@ -314,7 +304,7 @@ const Navbar = () => {
               onClick={handleLogout}
             >
               <FaSignOutAlt />
-              <span>Logout</span>
+              <span>{t('nav.logout')}</span>
             </button>
           </div>
         )}
@@ -334,7 +324,7 @@ const Navbar = () => {
         <span className="site-navbar-link-icon">
           <FaSignOutAlt />
         </span>
-        <span>Logout</span>
+        <span>{t('nav.logout')}</span>
       </button>
     </>
   );
@@ -356,7 +346,7 @@ const Navbar = () => {
             isMobileMenuOpen ? 'is-active' : ''
           }`}
           onClick={toggleMobileMenu}
-          aria-label="Toggle navigation menu"
+          aria-label={t('nav.toggleNavigation')}
           aria-expanded={isMobileMenuOpen}
         >
           {isMobileMenuOpen ? <FaTimes /> : <FaBars />}

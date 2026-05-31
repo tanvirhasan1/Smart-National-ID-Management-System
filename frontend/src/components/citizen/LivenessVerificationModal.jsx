@@ -40,7 +40,7 @@ const CHALLENGE_GUIDES = {
 const CHALLENGE_POOL = ['blink', 'turn_left', 'turn_right', 'smile'];
 const FACE_MATCH_CANDIDATE_KEY = 'face_match_candidate';
 const MAX_CHALLENGE_FRAMES = 20;
-const DEFAULT_CHALLENGE_TIMEOUT_SECONDS = 20;
+const DEFAULT_CHALLENGE_TIMEOUT_SECONDS = 60;
 const DETECTOR_START_MESSAGE =
   'Liveness detector could not start. Please refresh and try again.';
 const TIMEOUT_MESSAGE =
