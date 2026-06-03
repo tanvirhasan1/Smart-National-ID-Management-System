@@ -87,7 +87,7 @@ const landingCopy = {
       }
     ],
     trust: {
-      tag: 'Why citizens can trust this service',
+      tag: 'Why citizens can trust this service?',
       title: 'Secure, guided, and simple access to Smart NID services',
       description:
         'The homepage keeps key actions visible, explains the process clearly, and uses a restrained official layout for a public identity service.',
@@ -159,7 +159,7 @@ const landingCopy = {
         'Better preparation means smoother digital submission'
       ],
       items: [
-        'Birth Registration Number',
+        'Birth Registration',
         'Recent passport-size photo',
         'Clear signature image',
         'Valid Bangladeshi mobile number',
@@ -219,7 +219,7 @@ const landingCopy = {
         actionLabel: 'অ্যাকাউন্ট তৈরি করুন'
       },
       {
-        title: 'স্মার্ট এনআইডির জন্য আবেদন',
+        title: 'স্মার্ট এনআইডি আবেদন',
         description:
           'প্রয়োজনীয় ডকুমেন্টসহ আপনার স্মার্ট এনআইডি আবেদন শুরু বা চালিয়ে যান।',
         actionLabel: 'আবেদন করতে লগইন'
@@ -239,7 +239,7 @@ const landingCopy = {
       {
         title: 'সাপোর্ট সেবা',
         description:
-          'নিবন্ধন, আবেদন, অ্যাপয়েন্টমেন্ট বা যাচাইকরণ সমস্যা নিয়ে সহায়তা নিন।',
+          'নিবন্ধন, আবেদন, অ্যাপয়েন্টমেন্ট বা যাচাইকরণ সমস্যায় দ্রুত সাপোর্ট নিন এবং সমাধান দেখুন।',
         actionLabel: 'সাপোর্ট খুলুন'
       }
     ],
@@ -316,8 +316,8 @@ const landingCopy = {
         'ভালো প্রস্তুতি মানে সহজ ডিজিটাল আবেদন'
       ],
       items: [
-        'জন্ম নিবন্ধন নম্বর',
-        'সাম্প্রতিক পাসপোর্ট সাইজ ছবি',
+        'জন্ম নিবন্ধন',
+        'পাসপোর্ট সাইজ ছবি',
         'পরিষ্কার স্বাক্ষরের ছবি',
         'বৈধ বাংলাদেশি মোবাইল নম্বর',
         'পিতা-মাতার এনআইডি তথ্য',
@@ -402,6 +402,36 @@ const LandingPage = () => {
   };
 
   return (
+    <>
+      <style>{`
+        @media (max-width: 640px) {
+          .requirements-mobile-two-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.75rem !important;
+          }
+
+          .requirements-mobile-two-grid .requirement-item {
+            min-height: 128px !important;
+            border-radius: 20px !important;
+            padding: 1rem 0.7rem !important;
+          }
+
+          .requirements-mobile-two-grid .requirement-icon {
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 16px !important;
+          }
+
+          .requirements-mobile-two-grid h3 {
+            max-width: 100% !important;
+            font-size: 0.84rem !important;
+            line-height: 1.3 !important;
+            overflow-wrap: anywhere;
+          }
+        }
+      `}</style>
+
     <div
       className="landing-page has-cursor-pattern bg-slate-50 text-slate-900 overflow-x-hidden"
       onMouseMove={handlePatternMove}
@@ -413,10 +443,6 @@ const LandingPage = () => {
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="hero-layout grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
             <div className="hero-copy">
-              <span className="hero-kicker inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold tracking-wide">
-                {copy.hero.kicker}
-              </span>
-
               <h1 className="hero-title mt-5 text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.02] tracking-tight text-slate-950">
                 {copy.hero.titleLine1}
                 <span className="hero-title-accent block text-emerald-600">
@@ -457,7 +483,7 @@ const LandingPage = () => {
                 ))}
               </div>
 
-              <div className="hero-summary-grid mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="hero-summary-grid mt-8 hidden sm:grid sm:grid-cols-3 gap-4">
                 {copy.summaryCards.map((item) => (
                   <div
                     key={item.value}
@@ -477,7 +503,7 @@ const LandingPage = () => {
             <div className="hero-visual flex justify-center lg:justify-end">
               <div className="hero-image-shell relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-2xl shadow-slate-900/10">
                 <img
-                  src="hero/hero-img.webp"
+                  src="hero/hero-img-2.webp"
                   alt={copy.imageAlt}
                   width="820"
                   height="600"
@@ -524,15 +550,15 @@ const LandingPage = () => {
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="actions-panel rounded-[28px] border border-slate-200 bg-white p-5 md:p-7 lg:p-8 shadow-xl shadow-slate-900/5">
             <div className="section-heading mb-8 md:mb-10">
-              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
+              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-semibold">
                 {copy.actions.tag}
               </span>
 
-              <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
+              <h2 className="section-head-title mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-950">
                 {copy.actions.title}
               </h2>
 
-              <p className="mt-3 max-w-2xl text-base leading-8 text-slate-600">
+              <p className="mt-2 max-w-2xl text-base leading-8 text-slate-600">
                 {copy.actions.description}
               </p>
             </div>
@@ -543,13 +569,15 @@ const LandingPage = () => {
                   key={item.title}
                   className="action-card flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50/80 p-5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md"
                 >
-                  <div className="action-icon action-icon-landing mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                    {quickActionMeta[index].icon}
-                  </div>
+                  <div className="action-card-head flex items-center gap-3 md:block">
+                    <div className="action-icon action-icon-landing mb-0 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 md:mb-4">
+                      {quickActionMeta[index].icon}
+                    </div>
 
-                  <h3 className="text-md font-semibold leading-6 text-slate-900">
-                    {item.title}
-                  </h3>
+                    <h3 className="text-md font-semibold leading-6 text-slate-900">
+                      {item.title}
+                    </h3>
+                  </div>
 
                   <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
                     {item.description}
@@ -573,12 +601,20 @@ const LandingPage = () => {
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="trust-layout grid grid-cols-1 lg:grid-cols-[1fr,1.05fr] gap-8 lg:gap-10 items-start">
             <div className="trust-copy">
-              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
+              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-semibold">
                 {copy.trust.tag}
               </span>
 
-              <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
-                {copy.trust.title}
+              <h2 className="trust-main-title mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-950">
+                {language === 'bn' ? (
+                  <>
+                    স্মার্ট এনআইডি সেবায় নিরাপদ,
+                    <br />
+                    নির্দেশনামূলক ও সহজ প্রবেশাধিকার
+                  </>
+                ) : (
+                  copy.trust.title
+                )}
               </h2>
 
               <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
@@ -609,7 +645,7 @@ const LandingPage = () => {
                   </div>
 
                   <div className="trust-card-content">
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-lg font-semibold text-slate-900">
                       {card.title}
                     </h3>
                     <p className="mt-2 text-sm leading-7 text-slate-600">
@@ -626,11 +662,11 @@ const LandingPage = () => {
       <section className="landing-process bg-slate-50 py-10 md:py-14">
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="section-heading-center text-center mb-8 md:mb-10">
-            <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
+            <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-semibold">
               {copy.process.tag}
             </span>
 
-            <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
+            <h2 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-950">
               {copy.process.title}
             </h2>
 
@@ -672,11 +708,11 @@ const LandingPage = () => {
         <div className="landing-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="requirements-layout grid grid-cols-1 lg:grid-cols-[0.95fr,1.05fr] gap-8 lg:gap-10 items-stretch">
             <div className="requirements-copy flex flex-col justify-center items-start">
-              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold">
+              <span className="section-tag inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-4 py-2 text-xs sm:text-sm font-semibold">
                 {copy.requirements.tag}
               </span>
 
-              <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
+              <h2 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-950">
                 {copy.requirements.title}
               </h2>
 
@@ -699,7 +735,7 @@ const LandingPage = () => {
               </div>
             </div>
 
-            <div className="requirements-grid grid grid-cols-2 sm:grid-cols-3 gap-4 lg:h-full lg:grid-rows-2">
+            <div className="requirements-grid requirements-mobile-two-grid grid grid-cols-2 sm:grid-cols-3 gap-4 lg:h-full lg:grid-rows-2">
               {copy.requirements.items.map((title, index) => (
                 <div
                   key={title}
@@ -754,6 +790,7 @@ const LandingPage = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };
 

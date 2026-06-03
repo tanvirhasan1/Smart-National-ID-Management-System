@@ -21,9 +21,9 @@
 }
 
 .landing-page .hero-title {
-  font-size: 3rem;
+  font-size: 2.5rem;
   color: #1F2937;
-  line-height: 1.2;
+  line-height: 1;
   margin-bottom: 1.5rem;
 }
 
@@ -110,7 +110,10 @@
   max-width: 600px;
   margin: 0 auto;
 }
-
+.section-head-title,
+.trust-main-title  {
+  font-size: 2rem;
+}
 /* Features Section */
 .landing-page .features-section {
   padding: 5rem 1rem;
@@ -582,8 +585,6 @@
     transparent 74%
   );
 }
-
-/* Keep navbar above the pattern */
 .site-navbar {
   z-index: 1000;
 }

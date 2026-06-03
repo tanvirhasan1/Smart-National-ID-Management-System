@@ -739,6 +739,13 @@
   min-width: 150px;
 }
 
+.application-form-page-wrapper .form-actions .btn.submit-disabled-by-active-application:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.18);
+  box-shadow: none;
+}
+
 .application-form-page-wrapper .locked-input {
   background-color: rgb(249, 250, 251);
   cursor: not-allowed;

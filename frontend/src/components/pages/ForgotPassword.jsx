@@ -8,17 +8,19 @@ import {
   FaEye,
   FaEyeSlash,
   FaSpinner,
-  FaShieldAlt,
   FaArrowLeft,
   FaPaperPlane,
   FaRedoAlt,
   FaCheckCircle
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import '../styles/ForgotPassword.css';
+
 
 const ForgotPassword = () => {
   const { forgotPassword, resetPassword, passwordResetKey } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const storedResetData = useMemo(() => {
@@ -50,7 +52,7 @@ const ForgotPassword = () => {
     event.preventDefault();
 
     if (!identifier.trim()) {
-      toast.error('Please enter your email address');
+      toast.error(t('forgotPasswordPage.enterEmail'));
       return;
     }
 
@@ -60,9 +62,9 @@ const ForgotPassword = () => {
       const result = await forgotPassword(identifier.trim());
       setIdentifier(result?.recipientEmail || identifier.trim());
       setStep('reset');
-      toast.success('Password reset code sent to your email');
+      toast.success(t('forgotPasswordPage.codeSentSuccess'));
     } catch (error) {
-      toast.error(error.message || 'Failed to send reset code');
+      toast.error(error.message || t('forgotPasswordPage.sendFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -72,17 +74,17 @@ const ForgotPassword = () => {
     event.preventDefault();
 
     if (otp.trim().length !== 6) {
-      toast.error('Please enter the 6-digit code');
+      toast.error(t('forgotPasswordPage.enterCode'));
       return;
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      toast.error(t('forgotPasswordPage.passwordMin'));
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t('forgotPasswordPage.passwordsDoNotMatch'));
       return;
     }
 
@@ -90,7 +92,7 @@ const ForgotPassword = () => {
     const resetToken = storedData?.resetToken;
 
     if (!resetToken) {
-      toast.error('Reset session expired. Please request a new code.');
+      toast.error(t('forgotPasswordPage.sessionExpired'));
       setStep('request');
       return;
     }
@@ -104,10 +106,10 @@ const ForgotPassword = () => {
         resetToken
       });
 
-      toast.success('Password reset successful. Please login.');
+      toast.success(t('forgotPasswordPage.resetSuccess'));
       navigate('/login');
     } catch (error) {
-      toast.error(error.message || 'Failed to reset password');
+      toast.error(error.message || t('forgotPasswordPage.resetFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -115,43 +117,23 @@ const ForgotPassword = () => {
 
   return (
     <div className="forgot-password-page-wrapper">
-      <div className="forgot-password-bg-orb forgot-password-bg-orb-one" aria-hidden="true" />
-      <div className="forgot-password-bg-orb forgot-password-bg-orb-two" aria-hidden="true" />
-
       <div className="forgot-password-container">
         <div className="forgot-password-card-panel">
           <div className="forgot-password-header-block">
-            <Link to="/" className="forgot-password-logo-wrap" aria-label="Smart NID home">
-              <img
-                src="/logo/logo.png"
-                alt="Smart NID Card Management System"
-                className="forgot-password-brand-logo"
-                width="280"
-                height="72"
-                loading="eager"
-                decoding="async"
-              />
-            </Link>
-
-            <div className="forgot-password-secure-badge">
-              <FaShieldAlt />
-              <span>Secure password recovery</span>
-            </div>
-
             <h1 className="forgot-password-title-text">
-              {step === 'request' ? 'Forgot Password' : 'Reset Password'}
+              {step === 'request' ? t('forgotPasswordPage.requestTitle') : t('forgotPasswordPage.resetTitle')}
             </h1>
 
             <p className="forgot-password-subtitle-text">
               {step === 'request'
-                ? 'Enter your verified email to receive a reset code.'
-                : `Enter the 6-digit code sent to ${identifier}.`}
+                ? t('forgotPasswordPage.requestSubtitle')
+                : t('forgotPasswordPage.resetSubtitle', { email: identifier })}
             </p>
 
             {step === 'reset' && (
               <div className="forgot-password-code-note">
                 <FaCheckCircle />
-                <span>Reset code sent successfully. Check your inbox.</span>
+                <span>{t('forgotPasswordPage.codeSentNote')}</span>
               </div>
             )}
           </div>
@@ -161,7 +143,7 @@ const ForgotPassword = () => {
               <div className="forgot-password-form-group">
                 <label className="forgot-password-form-label" htmlFor="forgot-email">
                   <FaEnvelope />
-                  <span>Email Address</span>
+                  <span>{t('forgotPasswordPage.emailLabel')}</span>
                 </label>
 
                 <input
@@ -169,7 +151,7 @@ const ForgotPassword = () => {
                   type="email"
                   value={identifier}
                   onChange={(event) => setIdentifier(event.target.value)}
-                  placeholder="Enter your email address"
+                  placeholder={t('forgotPasswordPage.emailPlaceholder')}
                   className="forgot-password-form-input"
                   autoComplete="email"
                   autoFocus
@@ -184,14 +166,14 @@ const ForgotPassword = () => {
                 {isSubmitting ? (
                   <>
                     <FaSpinner className="forgot-password-spinner" />
-                    <span>Sending...</span>
+                    <span>{t('forgotPasswordPage.sending')}</span>
                   </>
                 ) : (
                   <span className="forgot-password-button-content">
                     <span className="forgot-password-action-icon" aria-hidden="true">
                       <FaPaperPlane />
                     </span>
-                    <span className="forgot-password-action-text">Send Reset Code</span>
+                    <span className="forgot-password-action-text">{t('forgotPasswordPage.sendResetCode')}</span>
                   </span>
                 )}
               </button>
@@ -201,7 +183,7 @@ const ForgotPassword = () => {
               <div className="forgot-password-form-group">
                 <label className="forgot-password-form-label" htmlFor="forgot-otp">
                   <FaKey />
-                  <span>Verification Code</span>
+                  <span>{t('forgotPasswordPage.verificationCodeLabel')}</span>
                 </label>
 
                 <input
@@ -211,7 +193,7 @@ const ForgotPassword = () => {
                   onChange={(event) =>
                     setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
                   }
-                  placeholder="Enter 6-digit code"
+                  placeholder={t('forgotPasswordPage.verificationCodePlaceholder')}
                   className="forgot-password-form-input forgot-password-code-input"
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -221,7 +203,7 @@ const ForgotPassword = () => {
               <div className="forgot-password-form-group">
                 <label className="forgot-password-form-label" htmlFor="new-password">
                   <FaLock />
-                  <span>New Password</span>
+                  <span>{t('forgotPasswordPage.newPasswordLabel')}</span>
                 </label>
 
                 <div className="forgot-password-password-field">
@@ -230,7 +212,7 @@ const ForgotPassword = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter new password"
+                    placeholder={t('forgotPasswordPage.newPasswordPlaceholder')}
                     className="forgot-password-form-input forgot-password-password-input"
                     autoComplete="new-password"
                   />
@@ -239,7 +221,7 @@ const ForgotPassword = () => {
                     type="button"
                     className="forgot-password-toggle-button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('forgotPasswordPage.hidePassword') : t('forgotPasswordPage.showPassword')}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -249,7 +231,7 @@ const ForgotPassword = () => {
               <div className="forgot-password-form-group">
                 <label className="forgot-password-form-label" htmlFor="confirm-new-password">
                   <FaLock />
-                  <span>Confirm Password</span>
+                  <span>{t('forgotPasswordPage.confirmPasswordLabel')}</span>
                 </label>
 
                 <div className="forgot-password-password-field">
@@ -258,7 +240,7 @@ const ForgotPassword = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Confirm new password"
+                    placeholder={t('forgotPasswordPage.confirmPasswordPlaceholder')}
                     className="forgot-password-form-input forgot-password-password-input"
                     autoComplete="new-password"
                   />
@@ -267,7 +249,7 @@ const ForgotPassword = () => {
                     type="button"
                     className="forgot-password-toggle-button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showConfirmPassword ? t('forgotPasswordPage.hidePassword') : t('forgotPasswordPage.showPassword')}
                   >
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -282,14 +264,14 @@ const ForgotPassword = () => {
                 {isSubmitting ? (
                   <>
                     <FaSpinner className="forgot-password-spinner" />
-                    <span>Resetting...</span>
+                    <span>{t('forgotPasswordPage.resetting')}</span>
                   </>
                 ) : (
                   <span className="forgot-password-button-content">
                     <span className="forgot-password-action-icon" aria-hidden="true">
                       <FaKey />
                     </span>
-                    <span className="forgot-password-action-text">Reset Password</span>
+                    <span className="forgot-password-action-text">{t('forgotPasswordPage.resetPassword')}</span>
                   </span>
                 )}
               </button>
@@ -303,7 +285,7 @@ const ForgotPassword = () => {
                   <span className="forgot-password-action-icon" aria-hidden="true">
                     <FaRedoAlt />
                   </span>
-                  <span className="forgot-password-action-text">Send New Code</span>
+                  <span className="forgot-password-action-text">{t('forgotPasswordPage.sendNewCode')}</span>
                 </span>
               </button>
             </form>
@@ -311,13 +293,13 @@ const ForgotPassword = () => {
 
           <div className="forgot-password-footer-block">
             <p className="forgot-password-footer-text">
-              <span>Remember your password?</span>
+              <span>{t('forgotPasswordPage.rememberPassword')}</span>
 
               <Link to="/login" className="forgot-password-action-link forgot-password-back-link">
                 <span className="forgot-password-action-icon" aria-hidden="true">
                   <FaArrowLeft />
                 </span>
-                <span className="forgot-password-action-text">Back to Login</span>
+                <span className="forgot-password-action-text">{t('forgotPasswordPage.backToLogin')}</span>
               </Link>
             </p>
           </div>

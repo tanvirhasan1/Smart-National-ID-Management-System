@@ -1,0 +1,374 @@
+.delivery-payment-page {
+  min-height: calc(100vh - 140px);
+  background: #f9fafb;
+  padding: 2rem 1rem 3rem;
+  color: #111827;
+}
+
+.delivery-payment-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.delivery-payment-loading {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delivery-payment-header {
+  margin-bottom: 1.5rem;
+}
+
+.delivery-payment-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #047857;
+  text-decoration: none;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.delivery-payment-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border: 1px solid #dbeafe;
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  padding: 1.75rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.delivery-payment-eyebrow {
+  display: inline-flex;
+  margin-bottom: 0.6rem;
+  color: #0284c7;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.delivery-payment-title-row h1 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.delivery-payment-title-row p {
+  margin: 0.6rem 0 0;
+  max-width: 680px;
+  color: #64748b;
+  line-height: 1.65;
+}
+
+.delivery-payment-fee-card {
+  min-width: 175px;
+  border: 1px solid #bfdbfe;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  padding: 1.1rem 1.25rem;
+  text-align: center;
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.1);
+}
+
+.delivery-payment-fee-card span {
+  display: block;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.delivery-payment-fee-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: #2563eb;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.delivery-payment-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 1.5rem;
+}
+
+.delivery-payment-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  padding: 1.5rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+}
+
+.delivery-payment-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.delivery-payment-heading-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 1.35rem;
+}
+
+.delivery-payment-card-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.delivery-payment-card-heading p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.delivery-payment-summary-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.delivery-payment-summary-list > div {
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.delivery-payment-summary-list span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.delivery-payment-summary-list strong {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.delivery-payment-status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+}
+
+.delivery-payment-status.status-printed {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.delivery-payment-status.status-dispatched,
+.delivery-payment-status.status-delivered {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.delivery-payment-success-box,
+.delivery-payment-warning-box,
+.delivery-payment-info-box {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+  border-radius: 1.1rem;
+  padding: 1rem;
+  line-height: 1.6;
+}
+
+.delivery-payment-success-box {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.delivery-payment-warning-box {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.delivery-payment-info-box {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.delivery-payment-success-box svg,
+.delivery-payment-warning-box svg,
+.delivery-payment-info-box svg {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  font-size: 1.1rem;
+}
+
+.delivery-payment-success-box h3,
+.delivery-payment-warning-box h3,
+.delivery-payment-info-box h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.delivery-payment-success-box p,
+.delivery-payment-warning-box p,
+.delivery-payment-info-box p {
+  margin: 0.2rem 0 0;
+}
+
+.delivery-payment-success-box small {
+  display: block;
+  margin-top: 0.45rem;
+  font-weight: 800;
+}
+
+.delivery-payment-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.delivery-payment-form label {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.delivery-payment-form label > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.delivery-payment-form input,
+.delivery-payment-form select,
+.delivery-payment-form textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  color: #111827;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.delivery-payment-form textarea {
+  resize: vertical;
+}
+
+.delivery-payment-form input:focus,
+.delivery-payment-form select:focus,
+.delivery-payment-form textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.delivery-payment-form input:disabled,
+.delivery-payment-form select:disabled,
+.delivery-payment-form textarea:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.delivery-payment-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.delivery-payment-primary-btn,
+.delivery-payment-secondary-btn {
+  min-height: 48px;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.1rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.delivery-payment-primary-btn {
+  border: 0;
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.22);
+}
+
+.delivery-payment-primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(22, 163, 74, 0.25);
+}
+
+.delivery-payment-primary-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.delivery-payment-secondary-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.delivery-payment-secondary-btn:hover {
+  background: #f8fafc;
+}
+
+.delivery-payment-spin {
+  animation: delivery-payment-spin 0.9s linear infinite;
+}
+
+@keyframes delivery-payment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .delivery-payment-title-row,
+  .delivery-payment-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .delivery-payment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-payment-fee-card {
+    width: 100%;
+  }
+}
