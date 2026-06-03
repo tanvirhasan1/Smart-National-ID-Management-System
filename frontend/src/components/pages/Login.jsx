@@ -8,18 +8,18 @@ import {
   FaEye,
   FaEyeSlash,
   FaSpinner,
-  FaShieldAlt,
-  FaCheckCircle,
   FaKey,
   FaSignInAlt,
   FaUserPlus
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { isInternalUserRole, getRoleHomePath } from '../utils/roles';
 import '../styles/Login.css';
 
 const Login = () => {
   const { login } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,10 +43,10 @@ const Login = () => {
       const userRole = result?.user?.role;
       const targetPath = isInternalUserRole(userRole) ? getRoleHomePath(userRole) : from;
 
-      toast.success('Login successful!');
+      toast.success(t('login.success'));
       navigate(targetPath, { replace: true });
     } catch (error) {
-      toast.error('Invalid email or password. Please try again.');
+      toast.error(t('login.invalidCredentials'));
     } finally {
       setIsLoading(false);
     }
@@ -60,27 +60,10 @@ const Login = () => {
       <div className="login-container">
         <div className="login-card-panel">
           <div className="login-header-block">
-            <Link to="/" className="login-logo-wrap" aria-label="Smart NID home">
-              <img
-                src="logo/logo.webp"
-                alt="Smart NID Card Management System"
-                className="login-brand-logo"
-                width="280"
-                height="72"
-                loading="eager"
-                decoding="async"
-              />
-            </Link>
-
-            <div className="login-secure-badge">
-              <FaShieldAlt />
-              <span>Secure citizen access</span>
-            </div>
-
-            <h1 className="login-title-text">Welcome Back</h1>
+            <h1 className="login-title-text">{t('login.title')}</h1>
 
             <p className="login-subtitle-text">
-              Login to continue your Smart NID service.
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -88,19 +71,19 @@ const Login = () => {
             <div className="login-form-group">
               <label className="login-form-label" htmlFor="login-email">
                 <FaUser className="login-label-icon" />
-                <span>Email Address</span>
+                <span>{t('login.emailLabel')}</span>
               </label>
 
               <input
                 id="login-email"
                 type="email"
-                placeholder="Enter your email address"
+                placeholder={t('login.emailPlaceholder')}
                 className={`login-form-input ${errors.email ? 'error' : ''}`}
                 {...register('email', {
-                  required: 'Email is required',
+                  required: t('login.emailRequired'),
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: 'Enter a valid email address'
+                    message: t('login.emailInvalid')
                   }
                 })}
                 autoComplete="email"
@@ -117,17 +100,17 @@ const Login = () => {
             <div className="login-form-group">
               <label className="login-form-label" htmlFor="login-password">
                 <FaLock className="login-label-icon" />
-                <span>Password</span>
+                <span>{t('login.passwordLabel')}</span>
               </label>
 
               <div className="login-password-field">
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   className={`login-form-input login-password-input ${errors.password ? 'error' : ''}`}
                   {...register('password', {
-                    required: 'Password is required'
+                    required: t('login.passwordRequired')
                   })}
                   autoComplete="current-password"
                 />
@@ -136,7 +119,7 @@ const Login = () => {
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -150,16 +133,11 @@ const Login = () => {
             </div>
 
             <div className="login-form-options">
-              <div className="login-helper-text">
-                <FaCheckCircle />
-                <span>Use your verified citizen account</span>
-              </div>
-
               <Link to="/forgot-password" className="login-action-link login-forgot-link">
                 <span className="login-action-icon" aria-hidden="true">
                   <FaKey />
                 </span>
-                <span className="login-action-text">Forgot Password?</span>
+                <span className="login-action-text">{t('login.forgotPassword')}</span>
               </Link>
             </div>
 
@@ -171,14 +149,14 @@ const Login = () => {
               {isLoading ? (
                 <>
                   <FaSpinner className="login-spinner" />
-                  <span>Logging in...</span>
+                  <span>{t('login.loggingIn')}</span>
                 </>
               ) : (
                 <span className="login-button-content">
                   <span className="login-action-icon" aria-hidden="true">
                     <FaSignInAlt />
                   </span>
-                  <span className="login-action-text">Login</span>
+                  <span className="login-action-text">{t('login.loginButton')}</span>
                 </span>
               )}
             </button>
@@ -186,12 +164,12 @@ const Login = () => {
 
           <div className="login-footer-block">
             <p className="login-footer-text">
-              <span>Don&apos;t have an account?</span>
+              <span>{t('login.noAccount')}</span>
               <Link to="/register" className="login-action-link login-register-link">
                 <span className="login-action-icon" aria-hidden="true">
                   <FaUserPlus />
                 </span>
-                <span className="login-action-text">Register Now</span>
+                <span className="login-action-text">{t('login.registerNow')}</span>
               </Link>
             </p>
 

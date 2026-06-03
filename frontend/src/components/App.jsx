@@ -30,6 +30,7 @@ import MobileLivenessPage from './citizen/MobileLivenessPage';
 import AppointmentBooking from './citizen/AppointmentBooking';
 import ApplicationTracker from './citizen/ApplicationTracker';
 import DigitalNID from './citizen/DigitalNID';
+import DeliveryPayment from './citizen/DeliveryPayment';
 import SupportTicket from './citizen/SupportTicket';
 
 // Admin pages
@@ -162,6 +163,16 @@ const AppShell = () => {
             element={
               <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
                 <DigitalNID />
+              </ProtectedRoute>
+            }
+          />
+
+
+          <Route
+            path="/delivery-payment/:id"
+            element={
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
+                <DeliveryPayment />
               </ProtectedRoute>
             }
           />

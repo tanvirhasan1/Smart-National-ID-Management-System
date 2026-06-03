@@ -88,7 +88,7 @@ const APPLICATION_ERROR_MESSAGES = {
   NEW_NID_ACTIVE_APPLICATION_EXISTS:
     'You already have an active New NID application. You cannot submit another New NID application.',
   NEW_NID_ALREADY_APPROVED:
-    'You already have a New NID record. Please use Correction or Reissue if you need changes.',
+    'You already have a New NID record. Please use Correction if you need changes.',
   FIELD_MISMATCH:
     'Birth certificate information does not match your provided information.',
   REGISTRY_MISMATCH:
@@ -146,6 +146,61 @@ const SUBMIT_STAGES = {
 };
 
 const DEFAULT_SUBMIT_BUTTON_TEXT = 'Submit Application';
+const REISSUE_REMOVED_MESSAGE = 'Reissue is no longer available. You can download the digital NID or request another delivery when needed.';
+
+const ACTIVE_APPLICATION_SUBMIT_BLOCKING_STATUSES = new Set([
+  'draft',
+  'submitted',
+  'under_review',
+  'correction_required',
+  'approved',
+  'printed',
+  'dispatched'
+]);
+
+const NEW_NID_SUBMIT_BLOCKING_STATUSES = new Set([
+  ...ACTIVE_APPLICATION_SUBMIT_BLOCKING_STATUSES,
+  'delivered'
+]);
+
+const CORRECTION_UNLOCK_STATUSES = new Set([
+  'approved',
+  'printed',
+  'dispatched',
+  'delivered'
+]);
+
+const isNewNidApplication = (application = {}) =>
+  String(application.applicationType || 'new').toLowerCase() === 'new';
+
+const getApplicationTimeValue = (application = {}) => {
+  const time = new Date(application.updatedAt || application.createdAt || 0).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const getActiveApplicationSubmitBlockMessage = (application) => {
+  if (!application) {
+    return 'Submit is disabled because another application is already active.';
+  }
+
+  return `You already have an active application (#${
+    application.applicationId || application._id || 'N/A'
+  }). Please wait until it is completed, rejected, or cancelled before submitting another application.`;
+};
+
+const getNewNidSubmitBlockMessage = (application) => {
+  if (application?.status === 'delivered') {
+    return 'You already have a delivered Smart NID. New NID application is not allowed. Please use Correction if needed.';
+  }
+
+  if (application) {
+    return `You already have a New NID application (#${
+      application.applicationId || application._id || 'N/A'
+    }). Please wait until it is rejected or cancelled before submitting another New NID application.`;
+  }
+
+  return 'New NID application is not allowed right now. Please use Correction if needed.';
+};
 
 const formatEligibilityDate = (value) => {
   if (!value) return '';
@@ -218,6 +273,11 @@ const ApplicationForm = () => {
   const [hasIssuedNid, setHasIssuedNid] = useState(false);
   const [eligibility, setEligibility] = useState(null);
   const [isNidEligibilityLoading, setIsNidEligibilityLoading] = useState(true);
+  const [activeApplicationSubmitBlock, setActiveApplicationSubmitBlock] =
+    useState(null);
+  const [newNidSubmitBlock, setNewNidSubmitBlock] = useState(null);
+  const [isActiveApplicationChecking, setIsActiveApplicationChecking] =
+    useState(true);
 
   const [livenessSession, setLivenessSession] = useState(null);
   const [qrSession, setQrSession] = useState(null);
@@ -319,11 +379,18 @@ const ApplicationForm = () => {
     scrollToApplicationTop();
   }, [currentStep]);
 
+  const correctionUnlockApplication =
+    newNidSubmitBlock && CORRECTION_UNLOCK_STATUSES.has(newNidSubmitBlock?.status)
+      ? newNidSubmitBlock
+      : null;
   const canUseCorrectionServices =
-    Boolean(eligibility?.canRequestCorrection) || hasIssuedNid;
+    Boolean(eligibility?.canRequestCorrection) ||
+    hasIssuedNid ||
+    Boolean(correctionUnlockApplication);
   const isCorrectionServiceLocked = !canUseCorrectionServices;
+  const isNewNidEligibilityBlocked = eligibility?.canApplyNewNid === false;
   const newNidBlocked =
-    applicationType === 'new' && eligibility?.canApplyNewNid === false;
+    applicationType === 'new' && isNewNidEligibilityBlocked;
   const newNidBlockedMessage =
     eligibility?.blockedReasonMessage ||
     APPLICATION_ERROR_MESSAGES[eligibility?.blockedReasonCode] ||
@@ -336,15 +403,31 @@ const ApplicationForm = () => {
     eligibility?.rejectionNotice || eligibility?.latestRejectedNewApplication || {};
   const isSubmitBlockedByNewNidEligibility =
     applicationType === 'new' && (isNidEligibilityLoading || newNidBlocked);
-  const submitBlockedReason = isNidEligibilityLoading
-    ? 'Checking New NID eligibility...'
-    : newNidBlockedMessage;
-  const idleSubmitButtonText = isSubmitBlockedByNewNidEligibility
-    ? isNidEligibilityLoading
-      ? 'Checking eligibility...'
-      : 'New NID unavailable'
-    : t('apply.submitApplication');
-  const isIdentityLocked = ['new', 'correction', 'reissue'].includes(applicationType);
+  const isSubmitBlockedByActiveApplication =
+    applicationType === 'new' &&
+    (isActiveApplicationChecking || Boolean(activeApplicationSubmitBlock));
+  const isSubmitBlockedByDeliveredNewNid =
+    applicationType === 'new' && Boolean(newNidSubmitBlock);
+  const activeApplicationBlockedReason = isActiveApplicationChecking
+    ? 'Checking active application...'
+    : getActiveApplicationSubmitBlockMessage(activeApplicationSubmitBlock);
+  const deliveredNewNidBlockedReason = getNewNidSubmitBlockMessage(newNidSubmitBlock);
+  const submitBlockedReason = isSubmitBlockedByActiveApplication
+    ? activeApplicationBlockedReason
+    : isSubmitBlockedByDeliveredNewNid
+      ? deliveredNewNidBlockedReason
+      : isNidEligibilityLoading
+        ? 'Checking New NID eligibility...'
+        : newNidBlockedMessage;
+  const idleSubmitButtonText =
+    isSubmitBlockedByNewNidEligibility || isSubmitBlockedByDeliveredNewNid
+      ? isNidEligibilityLoading
+        ? 'Checking eligibility...'
+        : 'New NID unavailable'
+      : t('apply.submitApplication');
+  const isNewNidTypeLocked =
+    Boolean(newNidSubmitBlock) || isNewNidEligibilityBlocked;
+  const isIdentityLocked = ['new', 'correction'].includes(applicationType);
   const activeSubmitStage = submitStage ? SUBMIT_STAGES[submitStage] : null;
   const submitButtonText =
     activeSubmitStage?.buttonText || t('apply.submitApplication');
@@ -362,7 +445,12 @@ const ApplicationForm = () => {
 
     event.preventDefault();
     setValue('applicationType', 'new', { shouldValidate: true });
-    toast.info('Correction/Reissue will unlock after your New NID is approved or issued.');
+    toast.info('Correction will unlock after your New NID is approved or issued.');
+  };
+
+  const handleLockedNewNidTypeClick = (event) => {
+    event.preventDefault();
+    toast.error(getNewNidSubmitBlockMessage(newNidSubmitBlock));
   };
 
   const clearSubmitStageTimers = () => {
@@ -385,6 +473,58 @@ const ApplicationForm = () => {
     setSubmitStage('');
     setIsSubmitting(false);
   };
+
+  const loadActiveApplicationSubmitBlock = useCallback(async ({ silent = false } = {}) => {
+    if (!user) {
+      setActiveApplicationSubmitBlock(null);
+      setNewNidSubmitBlock(null);
+      setIsActiveApplicationChecking(false);
+      return { activeBlock: null, newNidBlock: null };
+    }
+
+    if (!silent) {
+      setIsActiveApplicationChecking(true);
+    }
+
+    try {
+      const response = await api.get('/applications/my');
+      const applicationList = Array.isArray(response?.data?.applications)
+        ? response.data.applications
+        : [];
+
+      const sortedApplicationList = [...applicationList].sort((first, second) =>
+        getApplicationTimeValue(second) - getApplicationTimeValue(first)
+      );
+
+      const blockingApplication =
+        sortedApplicationList.find((application) =>
+          ACTIVE_APPLICATION_SUBMIT_BLOCKING_STATUSES.has(application?.status)
+        ) || null;
+
+      const newNidBlockingApplication =
+        sortedApplicationList.find(
+          (application) =>
+            isNewNidApplication(application) &&
+            NEW_NID_SUBMIT_BLOCKING_STATUSES.has(application?.status)
+        ) || null;
+
+      setActiveApplicationSubmitBlock(blockingApplication);
+      setNewNidSubmitBlock(newNidBlockingApplication);
+      return {
+        activeBlock: blockingApplication,
+        newNidBlock: newNidBlockingApplication
+      };
+    } catch (error) {
+      console.error('Failed to check active applications:', error);
+      setActiveApplicationSubmitBlock(null);
+      setNewNidSubmitBlock(null);
+      return { activeBlock: null, newNidBlock: null };
+    } finally {
+      if (!silent) {
+        setIsActiveApplicationChecking(false);
+      }
+    }
+  }, [user]);
 
   const loadNidEligibility = useCallback(async ({ intent = '' } = {}) => {
     if (user) {
@@ -430,10 +570,27 @@ const ApplicationForm = () => {
   }, [loadNidEligibility]);
 
   useEffect(() => {
-    if (isCorrectionServiceLocked && ['correction', 'reissue'].includes(applicationType)) {
+    loadActiveApplicationSubmitBlock();
+  }, [loadActiveApplicationSubmitBlock]);
+
+  useEffect(() => {
+    if (isCorrectionServiceLocked && applicationType === 'correction') {
       setValue('applicationType', 'new', { shouldValidate: true });
     }
   }, [applicationType, isCorrectionServiceLocked, setValue]);
+
+  useEffect(() => {
+    if (applicationType === 'reissue') {
+      setValue(canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
+      toast.info(REISSUE_REMOVED_MESSAGE);
+    }
+  }, [applicationType, canUseCorrectionServices, setValue]);
+
+  useEffect(() => {
+    if (newNidSubmitBlock && canUseCorrectionServices && applicationType === 'new') {
+      setValue('applicationType', 'correction', { shouldValidate: true });
+    }
+  }, [applicationType, canUseCorrectionServices, newNidSubmitBlock, setValue]);
 
   useEffect(() => {
     const loadPrefillData = async () => {
@@ -906,7 +1063,7 @@ const ApplicationForm = () => {
         'occupation'
       ];
 
-      if (applicationType === 'correction' || applicationType === 'reissue') {
+      if (applicationType === 'correction') {
         fields.push('existingNidNumber');
       }
 
@@ -992,8 +1149,36 @@ const ApplicationForm = () => {
       return;
     }
 
-    if (isCorrectionServiceLocked && ['correction', 'reissue'].includes(data.applicationType)) {
-      toast.error('Please complete and receive your New NID before requesting Correction or Reissue.');
+    const latestSubmitBlocks = await loadActiveApplicationSubmitBlock({ silent: true });
+    const blockingApplication =
+      data.applicationType === 'new'
+        ? activeApplicationSubmitBlock || latestSubmitBlocks?.activeBlock || null
+        : null;
+    const newNidBlockingApplication =
+      data.applicationType === 'new'
+        ? newNidSubmitBlock || latestSubmitBlocks?.newNidBlock || null
+        : null;
+
+    if (blockingApplication) {
+      toast.error(getActiveApplicationSubmitBlockMessage(blockingApplication));
+      return;
+    }
+
+    if (newNidBlockingApplication) {
+      toast.error(getNewNidSubmitBlockMessage(newNidBlockingApplication));
+      setCurrentStep(1);
+      return;
+    }
+
+    if (data.applicationType === 'reissue') {
+      toast.error(REISSUE_REMOVED_MESSAGE);
+      setValue(canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
+      setCurrentStep(1);
+      return;
+    }
+
+    if (isCorrectionServiceLocked && data.applicationType === 'correction') {
+      toast.error('Please complete and receive your New NID before requesting Correction.');
       setValue('applicationType', 'new', { shouldValidate: true });
       setCurrentStep(1);
       return;
@@ -1091,9 +1276,7 @@ const ApplicationForm = () => {
         maritalStatus: data.maritalStatus || 'single',
         birthRegistrationNumber: data.birthRegistrationNumber || '',
         existingNidNumber:
-          data.applicationType === 'correction' || data.applicationType === 'reissue'
-            ? data.existingNidNumber || ''
-            : '',
+          data.applicationType === 'correction' ? data.existingNidNumber || '' : '',
         phone: data.phone,
         email: data.email || '',
         occupation: data.occupation || '',
@@ -1302,16 +1485,23 @@ const ApplicationForm = () => {
 
               {/* 
                 Application type cards:
-                Correction/Reissue stay locked in logic until the user is eligible,
+                Correction stays locked in logic until the user is eligible,
                 but the extra visible "Locked" text is hidden for a cleaner UI.
               */}
-              <div className="application-types mb-8 grid gap-5 md:grid-cols-3">
+              <div className="application-types mb-8 grid gap-5 md:grid-cols-2">
                 <label
                   className={`type-card ${
                     applicationType === 'new' ? 'selected' : ''
-                  }`}
+                  } ${isNewNidTypeLocked ? 'locked-type' : ''}`}
+                  onClick={isNewNidTypeLocked ? handleLockedNewNidTypeClick : undefined}
+                  aria-disabled={isNewNidTypeLocked}
                 >
-                  <input type="radio" value="new" {...register('applicationType')} />
+                  <input
+                    type="radio"
+                    value="new"
+                    disabled={isNewNidTypeLocked}
+                    {...register('applicationType')}
+                  />
                   <div className="type-content">
                     <div className="type-icon new-icon">
                       <FaIdCard />
@@ -1343,37 +1533,7 @@ const ApplicationForm = () => {
                     <p>{t('apply.correctionDescription')}</p>
                   </div>
                 </label>
-
-                <label
-                  className={`type-card ${
-                    applicationType === 'reissue' ? 'selected' : ''
-                  } ${isCorrectionServiceLocked ? 'locked-type' : ''}`}
-                  onClick={isCorrectionServiceLocked ? handleLockedApplicationTypeClick : undefined}
-                  aria-disabled={isCorrectionServiceLocked}
-                >
-                  <input
-                    type="radio"
-                    value="reissue"
-                    // UI is clean, but the actual lock condition still protects this option.
-                    disabled={isCorrectionServiceLocked}
-                    {...register('applicationType')}
-                  />
-                  <div className="type-content">
-                    <div className="type-icon renewal-icon">
-                      <FaIdCard />
-                    </div>
-                    <h4>{t('apply.reissueTitle')}</h4>
-                    <p>{t('apply.reissueDescription')}</p>
-                  </div>
-                </label>
               </div>
-
-              {newNidBlocked ? (
-                <div className="application-eligibility-note blocked" role="alert">
-                  <strong>New NID submission is not available.</strong>
-                  <span>{newNidBlockedMessage}</span>
-                </div>
-              ) : null}
 
               {showNewNidResubmissionNotice ? (
                 <div className="application-eligibility-note resubmission" role="note">
@@ -1631,8 +1791,7 @@ const ApplicationForm = () => {
                   </div>
                 </div>
 
-                {(applicationType === 'correction' ||
-                  applicationType === 'reissue') && (
+                {applicationType === 'correction' && (
                   <div className="form-group">
                     <label className="form-label">{t('apply.existingNidNumber')}</label>
                     <input
@@ -1641,8 +1800,7 @@ const ApplicationForm = () => {
                       placeholder={t('apply.existingNidPlaceholder')}
                       {...register('existingNidNumber', {
                         required:
-                          applicationType === 'correction' ||
-                          applicationType === 'reissue'
+                          applicationType === 'correction'
                             ? 'Existing NID number is required'
                             : false
                       })}
@@ -2439,13 +2597,6 @@ const ApplicationForm = () => {
                 )}
               </div>
 
-              {newNidBlocked ? (
-                <div className="application-eligibility-note blocked" role="alert">
-                  <strong>New NID submission is blocked.</strong>
-                  <span>{newNidBlockedMessage}</span>
-                </div>
-              ) : null}
-
               {isSubmitting && activeSubmitStage && (
                 <div
                   id="application-submit-progress"
@@ -2487,12 +2638,23 @@ const ApplicationForm = () => {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary btn-lg"
-                  disabled={isSubmitting || isSubmitBlockedByNewNidEligibility}
+                  className={`btn btn-primary btn-lg ${
+                    isSubmitBlockedByActiveApplication || isSubmitBlockedByDeliveredNewNid
+                      ? 'submit-disabled-by-active-application'
+                      : ''
+                  }`}
+                  disabled={
+                    isSubmitting ||
+                    isSubmitBlockedByNewNidEligibility ||
+                    isSubmitBlockedByActiveApplication ||
+                    isSubmitBlockedByDeliveredNewNid
+                  }
                   title={
                     isSubmitting
                       ? submitLockReason
-                      : isSubmitBlockedByNewNidEligibility
+                      : isSubmitBlockedByNewNidEligibility ||
+                          isSubmitBlockedByActiveApplication ||
+                          isSubmitBlockedByDeliveredNewNid
                         ? submitBlockedReason
                         : undefined
                   }

@@ -64,7 +64,7 @@ const Footer = () => {
 
               <a href="tel:+8801000000000">
                 <FaPhoneAlt />
-                <span>+880 1000-000000</span>
+                <span>{t('footer.phoneNumber')}</span>
               </a>
             </div>
           </div>
@@ -73,8 +73,8 @@ const Footer = () => {
             <p>{t('footer.copyright', { year: currentYear })}</p>
 
             <div className="footer-compact-bottom-links">
-              <a href="#" aria-label="Privacy policy placeholder">{t('footer.privacyPolicy')}</a>
-              <a href="#" aria-label="Terms of service placeholder">{t('footer.termsOfService')}</a>
+              <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
+              <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
             </div>
           </div>
         </div>
@@ -104,9 +104,6 @@ const Footer = () => {
                 {t('footer.description')}
               </p>
 
-              <div className="footer-note">
-                {t('footer.note')}
-              </div>
             </div>
 
             <div className="footer-column">
@@ -123,32 +120,29 @@ const Footer = () => {
                   <Link to="/login">{t('footer.login')}</Link>
                 </li>
                 <li>
-                  <Link to="/track-application">Track Application</Link>
+                  <Link to="/track-application">{t('footer.trackApplication')}</Link>
                 </li>
               </ul>
             </div>
 
             <div className="footer-column">
-              <h4 className="footer-title">Citizen Services</h4>
+              <h4 className="footer-title">{t('footer.citizenServices')}</h4>
 
               <ul className="footer-links">
                 <li>
-                  <Link to="/login">Apply for NID</Link>
+                  <Link to="/login">{t('footer.applyForNid')}</Link>
                 </li>
                 <li>
                   <Link to="/support">{t('footer.support')}</Link>
                 </li>
                 <li>
-                  <Link to="/forgot-password">Forgot Password</Link>
-                </li>
-                <li>
-                  <Link to="/verify-otp">OTP Verification</Link>
+                  <Link to="/forgot-password">{t('footer.forgotPassword')}</Link>
                 </li>
               </ul>
             </div>
 
             <div className="footer-column">
-              <h4 className="footer-title">Contact</h4>
+              <h4 className="footer-title">{t('footer.contact')}</h4>
 
               <div className="footer-contact-list">
                 <div className="footer-contact-item">
@@ -162,14 +156,14 @@ const Footer = () => {
                   <span className="footer-contact-icon">
                     <FaPhoneAlt />
                   </span>
-                  <span>+880 1000-000000</span>
+                  <span>{t('footer.phoneNumber')}</span>
                 </div>
 
                 <div className="footer-contact-item footer-contact-address">
                   <span className="footer-contact-icon">
                     <FaMapMarkerAlt />
                   </span>
-                  <span>Demo Service Office, Dhaka, Bangladesh</span>
+                  <span>{t('footer.demoAddress')}</span>
                 </div>
               </div>
             </div>
