@@ -1,9 +1,8 @@
+const { completeDeliveryPayment } = require('../controllers/deliveryController');
 const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
-  verifyBirthCertificateDocument,
-  getApplicationEligibility,
   uploadApplicationDocument,
   getApplicationPrefill,
   getMyApplications,
@@ -17,8 +16,7 @@ const {
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
-  uploadSingleApplicationDocument,
-  uploadBirthCertificateVerificationDocument
+  uploadSingleApplicationDocument
 } = require('../middleware/applicationDocumentUpload');
 
 const router = express.Router();
@@ -26,21 +24,21 @@ const router = express.Router();
 router.get(
   '/admin/stats',
   protect,
-  authorize('admin', 'system_supervisor'),
+  authorize('admin', 'super_admin'),
   getAdminDashboardStats
 );
 
 router.get(
   '/admin/all',
   protect,
-  authorize('admin', 'system_supervisor'),
+  authorize('admin', 'super_admin'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/admin/:id',
   protect,
-  authorize('admin', 'system_supervisor'),
+  authorize('admin', 'super_admin'),
   getSingleApplicationForAdmin
 );
 
@@ -49,21 +47,6 @@ router.patch(
   protect,
   authorize('admin', 'super_admin'),
   reviewApplicationByAdmin
-);
-
-router.post(
-  '/document-verification/birth-certificate',
-  protect,
-  authorize('citizen'),
-  uploadBirthCertificateVerificationDocument,
-  verifyBirthCertificateDocument
-);
-
-router.get(
-  '/eligibility',
-  protect,
-  authorize('citizen'),
-  getApplicationEligibility
 );
 
 router.post(
@@ -89,10 +72,7 @@ router.post(
       .withMessage('Permanent address division is required'),
     body('permanentAddress.district')
       .notEmpty()
-      .withMessage('Permanent address district is required'),
-    body('biometricSessionId')
-      .notEmpty()
-      .withMessage('Biometric verification is required before application submission')
+      .withMessage('Permanent address district is required')
   ],
   createApplication
 );
@@ -103,6 +83,13 @@ router.post(
   authorize('citizen'),
   uploadSingleApplicationDocument,
   uploadApplicationDocument
+);
+
+router.patch(
+  '/:id/delivery-payment',
+  protect,
+  authorize('citizen'),
+  completeDeliveryPayment
 );
 
 router.put('/:id', protect, updateApplication);
