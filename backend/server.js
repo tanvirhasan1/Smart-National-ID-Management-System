@@ -10,6 +10,7 @@ require('./models/User');
 require('./models/Application');
 require('./models/BiometricVerificationSession');
 require('./models/DocumentVerificationSession');
+require('./models/CorrectionApplication');
 require('./models/Appointment');
 require('./models/SupportTicket');
 require('./models/Center');
@@ -20,9 +21,10 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const applicationRoutes = require('./routes/applications');
-const biometricRoutes = require('./routes/biometric');
 const supportRoutes = require('./routes/support');
+const correctionRoutes = require('./routes/corrections');
 const cookieParser = require('cookie-parser');
+const biometricRoutes = require('./routes/biometric');
 
 const app = express();
 
@@ -113,6 +115,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/corrections', correctionRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/support', supportRoutes);
 

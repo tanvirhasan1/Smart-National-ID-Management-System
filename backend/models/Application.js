@@ -155,7 +155,7 @@ const documentHistorySchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ['citizen', 'admin', 'system_supervisor', 'support_staff'],
+      enum: ['citizen', 'admin', 'system_supervisor', 'support_staff', 'system'],
       default: 'citizen'
     },
     note: {
@@ -214,6 +214,10 @@ const managedDocumentSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    verification: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     },
     history: {
       type: [documentHistorySchema],
@@ -391,6 +395,18 @@ const applicationSchema = new mongoose.Schema(
     documentAssets: {
       type: documentAssetsSchema,
       default: () => ({})
+    },
+    birthCertificateVerificationSession: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DocumentVerificationSession',
+      default: null,
+      index: true
+    },
+    biometricVerificationSession: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BiometricVerificationSession',
+      default: null,
+      index: true
     },
     status: {
       type: String,

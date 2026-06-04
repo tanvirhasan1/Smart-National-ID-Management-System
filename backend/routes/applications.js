@@ -3,8 +3,10 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   createApplication,
+  verifyBirthCertificateDocument,
   uploadApplicationDocument,
   getApplicationPrefill,
+  getNidEligibility,
   getMyApplications,
   getSingleApplication,
   updateApplication,
@@ -16,7 +18,8 @@ const {
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
-  uploadSingleApplicationDocument
+  uploadSingleApplicationDocument,
+  uploadBirthCertificateVerificationDocument
 } = require('../middleware/applicationDocumentUpload');
 
 const router = express.Router();
@@ -50,8 +53,21 @@ router.patch(
 );
 
 router.post(
+  '/document-verification/birth-certificate',
+  protect,
+  authorize('citizen'),
+  uploadBirthCertificateVerificationDocument,
+  verifyBirthCertificateDocument
+);
+
+router.get('/eligibility', protect, authorize('citizen'), getNidEligibility);
+router.get('/prefill', protect, authorize('citizen'), getApplicationPrefill);
+router.get('/my', protect, authorize('citizen'), getMyApplications);
+
+router.post(
   '/',
   protect,
+  authorize('citizen'),
   [
     body('fullNameEnglish')
       .notEmpty()
@@ -92,10 +108,8 @@ router.patch(
   completeDeliveryPayment
 );
 
-router.put('/:id', protect, updateApplication);
-router.get('/prefill', protect, getApplicationPrefill);
-router.patch('/:id/cancel', protect, cancelApplication);
-router.get('/my', protect, getMyApplications);
-router.get('/:id', protect, getSingleApplication);
+router.patch('/:id/cancel', protect, authorize('citizen'), cancelApplication);
+router.put('/:id', protect, authorize('citizen'), updateApplication);
+router.get('/:id', protect, authorize('citizen'), getSingleApplication);
 
 module.exports = router;

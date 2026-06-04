@@ -41,7 +41,10 @@ const uploadSingleApplicationDocument = (req, res, next) => {
 };
 
 const uploadBirthCertificateVerificationDocument = (req, res, next) => {
-  const uploadHandler = applicationDocumentUpload.single('birthCertificate');
+  const uploadHandler = applicationDocumentUpload.fields([
+    { name: 'birthCertificate', maxCount: 1 },
+    { name: 'birth_certificate', maxCount: 1 }
+  ]);
 
   uploadHandler(req, res, (error) => {
     if (error) {
@@ -50,6 +53,9 @@ const uploadBirthCertificateVerificationDocument = (req, res, next) => {
         message: error.message
       });
     }
+
+    req.file =
+      req.files?.birthCertificate?.[0] || req.files?.birth_certificate?.[0] || null;
 
     next();
   });
