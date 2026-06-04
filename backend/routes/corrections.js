@@ -31,7 +31,35 @@ router.post(
     body('presentAddress.district').notEmpty().withMessage('Present address district is required'),
     body('permanentAddress.division').notEmpty().withMessage('Permanent address division is required'),
     body('permanentAddress.district').notEmpty().withMessage('Permanent address district is required'),
-    body('reason').notEmpty().withMessage('Correction reason is required')
+    body('reason').notEmpty().withMessage('Correction reason is required'),
+    body().custom((_, { req }) => {
+      const rawValue =
+        req.body.supportingDocumentCount ??
+        req.body.correctionInfo?.supportingDocumentCount ??
+        req.body.documentCount;
+      const count = Number(rawValue);
+
+      if (!Number.isInteger(count) || count < 1 || count > 4) {
+        throw new Error('Upload 1-4 supporting documents for your correction request.');
+      }
+
+      return true;
+    }),
+    body().custom((_, { req }) => {
+      const value =
+        req.body.photoChangeRequested ??
+        req.body.correctionInfo?.photoChangeRequested;
+
+      if (value === undefined || value === null || value === '') {
+        return true;
+      }
+
+      if ([true, false, 'true', 'false', '1', '0', 1, 0].includes(value)) {
+        return true;
+      }
+
+      throw new Error('Photo change flag must be true or false');
+    })
   ],
   createCorrection
 );

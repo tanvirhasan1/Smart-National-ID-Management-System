@@ -435,7 +435,10 @@ const updateApplicationReviewDecision = async (req, res) => {
       req,
       currentStatus,
       status,
-      rejectionReason || `Application moved to ${status}`,
+      rejectionReason ||
+        (status === 'approved'
+          ? 'Application approved. Biometric appointment is required.'
+          : `Application moved to ${status}`),
       decisionNote
     );
 

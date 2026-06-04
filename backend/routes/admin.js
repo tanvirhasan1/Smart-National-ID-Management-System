@@ -19,6 +19,7 @@ const {
   getDeliveryQueue,
   markApplicationAsDelivered,
   getRecentAuditLogs,
+  getPrintingQueue,
   getPrintingStats,
   getDeliveryStats,
   getAuditStats,
@@ -38,6 +39,13 @@ const {
   getApplicationReviewDetails,
   updateApplicationReviewDecision
 } = require('../controllers/adminApplicationReviewController');
+
+const {
+  getAdminCorrectionStats,
+  getAdminCorrectionQueue,
+  getAdminCorrectionDetails,
+  updateAdminCorrectionDecision
+} = require('../controllers/correctionController');
 
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -115,6 +123,35 @@ router.patch(
   protect,
   authorize('admin'),
   updateApplicationReviewDecision
+);
+
+// Correction review workspace
+router.get(
+  '/corrections/stats',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionStats
+);
+
+router.get(
+  '/corrections/queue',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionQueue
+);
+
+router.get(
+  '/corrections/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionDetails
+);
+
+router.patch(
+  '/corrections/:id/decision',
+  protect,
+  authorize('admin'),
+  updateAdminCorrectionDecision
 );
 
 // Internal users
@@ -242,6 +279,13 @@ router.get(
 );
 
 // Printing
+router.get(
+  '/printing/queue',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getPrintingQueue
+);
+
 router.get(
   '/printing/stats',
   protect,

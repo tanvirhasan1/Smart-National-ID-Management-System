@@ -5,9 +5,11 @@ const Application = require('../models/Application');
 const CorrectionApplication = require('../models/CorrectionApplication');
 const { createAuditLog } = require('../utils/auditLogger');
 const uploadApplicationDocumentToCloudinary = require('../utils/uploadApplicationDocumentToCloudinary');
+const { ISSUED_NID_STATUSES } = require('../utils/applicationLifecycle');
 
-const ISSUED_NEW_NID_STATUSES = ['approved', 'printed', 'dispatched', 'delivered'];
 const ACTIVE_CORRECTION_STATUSES = ['submitted', 'under_review'];
+const MIN_CORRECTION_SUPPORTING_DOCUMENTS = 1;
+const MAX_CORRECTION_SUPPORTING_DOCUMENTS = 4;
 
 const BIRTH_CERTIFICATE_LOCKED_CORRECTION_FIELDS = new Set([
   'fullNameEnglish',
@@ -93,6 +95,22 @@ const formatDisplayValue = (value, type = '') => {
   return String(value ?? '').trim() || 'N/A';
 };
 
+const parseBooleanFlag = (value) =>
+  value === true || value === 'true' || value === '1' || value === 1;
+
+const getDeclaredSupportingDocumentCount = (body = {}) => {
+  const rawValue =
+    body.supportingDocumentCount ??
+    body.correctionInfo?.supportingDocumentCount ??
+    body.documentCount;
+  const count = Number(rawValue);
+
+  return Number.isInteger(count) ? count : 0;
+};
+
+const getPhotoChangeRequested = (body = {}) =>
+  parseBooleanFlag(body.photoChangeRequested ?? body.correctionInfo?.photoChangeRequested);
+
 const buildCorrectionDataFromApplication = (application = {}) => ({
   fullNameEnglish: application.fullNameEnglish || '',
   fullNameBangla: application.fullNameBangla || '',
@@ -177,8 +195,8 @@ const findIssuedBaseApplication = (userId) =>
   Application.findOne({
     applicant: userId,
     applicationType: 'new',
-    status: { $in: ISSUED_NEW_NID_STATUSES }
-  }).sort({ approvedAt: -1, updatedAt: -1, createdAt: -1 });
+    status: { $in: ISSUED_NID_STATUSES }
+  }).sort({ printedAt: -1, updatedAt: -1, createdAt: -1 });
 
 const mapCorrectionForResponse = (correction) => {
   const item = correction?.toObject ? correction.toObject() : correction;
@@ -206,9 +224,10 @@ const getCorrectionPrefill = async (req, res) => {
     const baseApplication = await findIssuedBaseApplication(req.user._id).lean();
 
     if (!baseApplication) {
-      return res.status(404).json({
+      return res.status(403).json({
         success: false,
-        message: 'No approved New NID application found for correction'
+        code: 'NID_NOT_ISSUED_YET',
+        message: 'Correction is available only after your NID card has been printed.'
       });
     }
 
@@ -244,6 +263,8 @@ const createCorrection = async (req, res) => {
     }
 
     const reason = String(req.body.reason || req.body.correctionReason || '').trim();
+    const supportingDocumentCount = getDeclaredSupportingDocumentCount(req.body);
+    const photoChangeRequested = getPhotoChangeRequested(req.body);
 
     if (!reason) {
       return res.status(400).json({
@@ -252,12 +273,23 @@ const createCorrection = async (req, res) => {
       });
     }
 
+    if (
+      supportingDocumentCount < MIN_CORRECTION_SUPPORTING_DOCUMENTS ||
+      supportingDocumentCount > MAX_CORRECTION_SUPPORTING_DOCUMENTS
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Upload 1-4 supporting documents for your correction request.'
+      });
+    }
+
     const baseApplication = await findIssuedBaseApplication(req.user._id);
 
     if (!baseApplication) {
-      return res.status(400).json({
+      return res.status(403).json({
         success: false,
-        message: 'Correction is available only after a New NID application is approved or issued'
+        code: 'NID_NOT_ISSUED_YET',
+        message: 'Correction is available only after your NID card has been printed.'
       });
     }
 
@@ -281,10 +313,10 @@ const createCorrection = async (req, res) => {
     );
     const changedFields = buildChangedFields(previousData, requestedData);
 
-    if (changedFields.length === 0) {
+    if (changedFields.length === 0 && !photoChangeRequested) {
       return res.status(400).json({
         success: false,
-        message: 'Please change at least one field before submitting correction'
+        message: 'Please change at least one field or request a photo change before submitting correction'
       });
     }
 
@@ -300,6 +332,8 @@ const createCorrection = async (req, res) => {
       previousData,
       requestedData,
       changedFields,
+      photoChangeRequested,
+      supportingDocumentCount,
       status: 'submitted',
       submittedAt,
       latestStatusChangedAt: submittedAt,
@@ -347,12 +381,15 @@ const createCorrection = async (req, res) => {
 const uploadCorrectionDocument = async (req, res) => {
   try {
     const { id, documentType } = req.params;
+    const isVerificationDocument = ['verificationDocument', 'correctionProof'].includes(documentType);
+    const storedDocumentType = isVerificationDocument ? 'verificationDocument' : documentType;
+    const cloudinaryDocumentType = isVerificationDocument ? 'correctionProof' : documentType;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid correction id' });
     }
 
-    if (!['photograph', 'verificationDocument'].includes(documentType)) {
+    if (!['photograph', 'verificationDocument', 'correctionProof'].includes(documentType)) {
       return res.status(400).json({ success: false, message: 'Invalid correction document type' });
     }
 
@@ -376,13 +413,20 @@ const uploadCorrectionDocument = async (req, res) => {
       });
     }
 
+    if (storedDocumentType === 'photograph' && !correction.photoChangeRequested) {
+      return res.status(400).json({
+        success: false,
+        message: 'Photo upload is allowed only when photo change is requested'
+      });
+    }
+
     if (
-      documentType === 'verificationDocument' &&
-      correction.documents.verificationDocuments.length >= 3
+      isVerificationDocument &&
+      correction.documents.verificationDocuments.length >= MAX_CORRECTION_SUPPORTING_DOCUMENTS
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 3 verification images can be uploaded'
+        message: 'Maximum 4 supporting documents can be uploaded'
       });
     }
 
@@ -390,11 +434,11 @@ const uploadCorrectionDocument = async (req, res) => {
       fileBuffer: req.file.buffer,
       applicationId: correction.correctionId,
       citizenId: req.user._id,
-      documentType
+      documentType: cloudinaryDocumentType
     });
 
     const documentRecord = {
-      documentType,
+      documentType: storedDocumentType,
       status: 'uploaded',
       cloudinary: {
         assetId: uploadResult.assetId,
@@ -416,7 +460,7 @@ const uploadCorrectionDocument = async (req, res) => {
       rejectionReason: ''
     };
 
-    if (documentType === 'photograph') {
+    if (storedDocumentType === 'photograph') {
       correction.documents.photograph = documentRecord;
     } else {
       correction.documents.verificationDocuments.push(documentRecord);
@@ -430,10 +474,11 @@ const uploadCorrectionDocument = async (req, res) => {
       action: 'CORRECTION_DOCUMENT_UPLOADED',
       entityType: 'CorrectionApplication',
       entityId: updatedCorrection._id,
-      message: `${documentType} uploaded for ${updatedCorrection.correctionId}`,
+      message: `${storedDocumentType} uploaded for ${updatedCorrection.correctionId}`,
       meta: {
         correctionId: updatedCorrection.correctionId,
-        documentType,
+        documentType: storedDocumentType,
+        uploadDocumentType: cloudinaryDocumentType,
         publicId: uploadResult.publicId,
         secureUrl: uploadResult.secureUrl
       }
@@ -444,7 +489,7 @@ const uploadCorrectionDocument = async (req, res) => {
       message: 'Correction document uploaded successfully',
       data: {
         correctionId: updatedCorrection.correctionId,
-        documentType,
+        documentType: storedDocumentType,
         documents: updatedCorrection.documents
       }
     });
@@ -596,6 +641,39 @@ const getAdminCorrectionDetails = async (req, res) => {
   }
 };
 
+const getCorrectionDocumentReadinessMessage = (correction) => {
+  const supportingDocuments = correction.documents?.verificationDocuments || [];
+  const uploadedCount = supportingDocuments.length;
+  const expectedCount = Math.min(
+    Math.max(
+      Number(correction.supportingDocumentCount) || MIN_CORRECTION_SUPPORTING_DOCUMENTS,
+      MIN_CORRECTION_SUPPORTING_DOCUMENTS
+    ),
+    MAX_CORRECTION_SUPPORTING_DOCUMENTS
+  );
+
+  if (uploadedCount < MIN_CORRECTION_SUPPORTING_DOCUMENTS) {
+    return 'At least one supporting document is required before review.';
+  }
+
+  if (uploadedCount > MAX_CORRECTION_SUPPORTING_DOCUMENTS) {
+    return 'Maximum 4 supporting documents are allowed.';
+  }
+
+  if (uploadedCount < expectedCount) {
+    return `Supporting document upload is incomplete (${uploadedCount}/${expectedCount}).`;
+  }
+
+  if (
+    correction.photoChangeRequested &&
+    !correction.documents?.photograph?.cloudinary?.secureUrl
+  ) {
+    return 'A new passport-size photo is required because photo change was requested.';
+  }
+
+  return '';
+};
+
 const applyApprovedCorrectionToBaseApplication = async (correction) => {
   const baseApplication = await Application.findById(correction.baseApplication);
 
@@ -616,6 +694,38 @@ const applyApprovedCorrectionToBaseApplication = async (correction) => {
 
     baseApplication.set(field.key, correction.requestedData[field.key]);
   });
+
+  if (correction.photoChangeRequested && correction.documents?.photograph?.cloudinary?.secureUrl) {
+    const photograph = correction.documents.photograph;
+    const approvedAt = new Date();
+    const existingHistory = Array.isArray(baseApplication.documentAssets?.photograph?.history)
+      ? baseApplication.documentAssets.photograph.history
+      : [];
+
+    baseApplication.set('documents.photo', photograph.cloudinary.originalFilename || photograph.cloudinary.secureUrl);
+    baseApplication.set('documentAssets.photograph', {
+      status: 'verified',
+      cloudinary: photograph.cloudinary,
+      uploadedAt: photograph.uploadedAt || approvedAt,
+      uploadedBy: photograph.uploadedBy || correction.applicant,
+      verifiedAt: approvedAt,
+      verifiedBy: correction.reviewedBy || null,
+      rejectionReason: '',
+      verification: null,
+      history: [
+        ...existingHistory,
+        {
+          action: 'replaced',
+          actor: correction.reviewedBy || null,
+          actorRole: 'admin',
+          note: `Approved correction ${correction.correctionId} photo change`,
+          publicId: photograph.cloudinary.publicId || '',
+          secureUrl: photograph.cloudinary.secureUrl || '',
+          occurredAt: approvedAt
+        }
+      ]
+    });
+  }
 
   baseApplication.latestStatusChangedAt = new Date();
   await baseApplication.save();
@@ -661,6 +771,17 @@ const updateAdminCorrectionDecision = async (req, res) => {
         success: false,
         message: 'Rejection reason is required'
       });
+    }
+
+    if (['under_review', 'approved'].includes(status)) {
+      const readinessMessage = getCorrectionDocumentReadinessMessage(correction);
+
+      if (readinessMessage) {
+        return res.status(400).json({
+          success: false,
+          message: readinessMessage
+        });
+      }
     }
 
     correction.status = status;

@@ -59,6 +59,19 @@ const buildPaginationMeta = ({ page, limit, total }) => {
   };
 };
 
+const getAdminAppointmentSort = (hasStatusFilter = false) => {
+  const fifoSort = {
+    appointmentDateKey: 1,
+    timeSlotStart: 1,
+    slotSerial: 1,
+    bookedAt: 1,
+    createdAt: 1,
+    _id: 1
+  };
+
+  return hasStatusFilter ? fifoSort : { status: 1, ...fifoSort };
+};
+
 const getBusinessDateKey = (date = new Date()) => {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: BUSINESS_TIME_ZONE,
@@ -967,6 +980,7 @@ const getAllAppointmentsForAdmin = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationOptions(req.query);
     const filter = {};
+    const hasStatusFilter = Boolean(req.query.status);
 
     if (req.query.status) filter.status = req.query.status;
     if (req.query.centerDistrict) filter.centerDistrict = req.query.centerDistrict;
@@ -986,7 +1000,7 @@ const getAllAppointmentsForAdmin = async (req, res) => {
         .populate('applicant', 'fullName email phone role')
         .populate('center', 'name district address')
         .populate('application', 'applicationId fullNameEnglish applicationType status')
-        .sort({ appointmentDateKey: -1, timeSlotStart: 1, createdAt: -1 })
+        .sort(getAdminAppointmentSort(hasStatusFilter))
         .skip(skip)
         .limit(limit),
       Appointment.countDocuments(filter)

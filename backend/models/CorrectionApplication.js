@@ -118,6 +118,8 @@ const correctionApplicationSchema = new mongoose.Schema(
     previousData: { type: correctionDataSchema, required: true },
     requestedData: { type: correctionDataSchema, required: true },
     changedFields: { type: [changedFieldSchema], default: [] },
+    photoChangeRequested: { type: Boolean, default: false },
+    supportingDocumentCount: { type: Number, min: 1, max: 4, default: 1 },
     documents: {
       photograph: { type: correctionDocumentSchema, default: null },
       verificationDocuments: { type: [correctionDocumentSchema], default: [] }

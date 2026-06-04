@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { validationResult } = require('express-validator');
 const Application = require('../models/Application');
+const Appointment = require('../models/Appointment');
 const CorrectionApplication = require('../models/CorrectionApplication');
 const DocumentVerificationSession = require('../models/DocumentVerificationSession');
 const BiometricVerificationSession = require('../models/BiometricVerificationSession');
@@ -19,6 +20,14 @@ const {
   hashVerificationToken,
   getDocumentVerificationTtlMinutes
 } = require('../utils/documentVerification');
+const {
+  ACTIVE_NEW_NID_STATUSES,
+  NEW_NID_BLOCKING_STATUSES,
+  canViewDigitalNid,
+  isCorrectionEligibleApplication,
+  canBookBiometricAppointment,
+  isNewNidBlockingApplication
+} = require('../utils/applicationLifecycle');
 
 const generateApplicationId = () => {
   const shortId = randomUUID().split('-')[0].toUpperCase();
@@ -67,6 +76,29 @@ const mapDeliveryRequestToDeliveryInfo = (deliveryRequest) => {
   };
 };
 
+const mapAppointmentToSummary = (appointment) => {
+  if (!appointment) return null;
+
+  return {
+    appointmentId: appointment._id,
+    status: appointment.status,
+    appointmentStatus: appointment.status,
+    appointmentDate: appointment.appointmentDate,
+    appointmentDateKey: appointment.appointmentDateKey,
+    timeSlot: appointment.timeSlot,
+    timeSlotStart: appointment.timeSlotStart,
+    timeSlotEnd: appointment.timeSlotEnd,
+    slotSerial: appointment.slotSerial,
+    centerName: appointment.centerName,
+    centerDistrict: appointment.centerDistrict,
+    bookedAt: appointment.bookedAt || appointment.createdAt || null,
+    completedAt: appointment.completedAt || null,
+    cancelledAt: appointment.cancelledAt || null,
+    createdAt: appointment.createdAt || null,
+    updatedAt: appointment.updatedAt || null
+  };
+};
+
 const attachDeliveryInfoToApplications = async (applications = []) => {
   const plainApplications = applications.map((application) =>
     application?.toObject ? application.toObject() : application
@@ -80,9 +112,17 @@ const attachDeliveryInfoToApplications = async (applications = []) => {
     return plainApplications;
   }
 
-  const deliveryRequests = await DeliveryRequest.find({
-    application: { $in: applicationIds }
-  }).lean();
+  const [deliveryRequests, appointments] = await Promise.all([
+    DeliveryRequest.find({
+      application: { $in: applicationIds }
+    }).lean(),
+    Appointment.find({
+      application: { $in: applicationIds },
+      status: { $in: ['booked', 'completed'] }
+    })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean()
+  ]);
 
   const deliveryRequestMap = new Map(
     deliveryRequests.map((deliveryRequest) => [
@@ -91,12 +131,40 @@ const attachDeliveryInfoToApplications = async (applications = []) => {
     ])
   );
 
-  return plainApplications.map((application) => ({
-    ...application,
-    deliveryInfo: mapDeliveryRequestToDeliveryInfo(
-      deliveryRequestMap.get(String(application._id))
-    )
-  }));
+  const appointmentMap = new Map();
+
+  appointments.forEach((appointment) => {
+    const applicationId = String(appointment.application);
+
+    if (!appointmentMap.has(applicationId)) {
+      appointmentMap.set(applicationId, appointment);
+    }
+  });
+
+  return plainApplications.map((application) => {
+    const appointment = mapAppointmentToSummary(
+      appointmentMap.get(String(application._id))
+    );
+    const appointmentEligible = canBookBiometricAppointment(application) && !appointment;
+
+    return {
+      ...application,
+      appointment,
+      latestAppointment: appointment,
+      deliveryInfo: mapDeliveryRequestToDeliveryInfo(
+        deliveryRequestMap.get(String(application._id))
+      ),
+      lifecycle: {
+        digitalNidAvailable: canViewDigitalNid(application),
+        correctionEligible: isCorrectionEligibleApplication(application),
+        appointmentEligible,
+        appointment
+      },
+      digitalNidAvailable: canViewDigitalNid(application),
+      correctionEligible: isCorrectionEligibleApplication(application),
+      appointmentEligible
+    };
+  });
 };
 
 const pushApplicationStatusHistory = ({
@@ -142,16 +210,6 @@ const buildChangedFields = (application, payload, allowedFields) => {
 
   return changedFields;
 };
-
-const NEW_NID_BLOCKING_STATUSES = [
-  'draft',
-  'submitted',
-  'under_review',
-  'approved',
-  'printed',
-  'dispatched',
-  'delivered'
-];
 
 const isEnabled = (value) => value === true || value === 'true';
 
@@ -359,9 +417,7 @@ const validateNewApplicationPrerequisites = async ({ req, payload }) => {
   const existingNewApplication = await findExistingNewNidApplication(req.user._id);
 
   if (existingNewApplication) {
-    const hasIssuedNid = ['approved', 'printed', 'dispatched', 'delivered'].includes(
-      existingNewApplication.status
-    );
+    const hasIssuedNid = isCorrectionEligibleApplication(existingNewApplication);
 
     throw buildApiError({
       code: hasIssuedNid
@@ -916,6 +972,19 @@ const getSingleApplication = async (req, res) => {
       });
     }
 
+    const purpose = String(req.query.purpose || req.query.view || '').toLowerCase();
+
+    if (
+      ['digitalnid', 'digital_nid', 'digital-nid'].includes(purpose) &&
+      !canViewDigitalNid(application)
+    ) {
+      return res.status(403).json({
+        success: false,
+        code: 'DIGITAL_NID_NOT_AVAILABLE_YET',
+        message: 'Digital NID will be available after your card is printed.'
+      });
+    }
+
     const [applicationWithDeliveryInfo] = await attachDeliveryInfoToApplications([
       application
     ]);
@@ -1226,6 +1295,8 @@ const reviewApplicationByAdmin = async (req, res) => {
       note:
         status === 'rejected'
           ? `Application rejected: ${application.rejectionReason}`
+          : status === 'approved'
+            ? 'Application approved. Biometric appointment is required.'
           : `Application moved to ${status} by admin`,
       changedBy: req.user._id,
       changedByRole: req.user.role
@@ -1336,22 +1407,13 @@ const getNidEligibility = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const activeStatuses = new Set([
-      'draft',
-      'submitted',
-      'under_review',
-      'correction_required',
-      'approved',
-      'printed',
-      'dispatched'
-    ]);
-    const issuedStatuses = new Set(['approved', 'printed', 'dispatched', 'delivered']);
-
+    const activeStatuses = new Set([...ACTIVE_NEW_NID_STATUSES, 'correction_required']);
     const activeNewApplication = applications.find((item) => activeStatuses.has(item.status));
-    const issuedNewApplication = applications.find((item) => issuedStatuses.has(item.status));
-    const deliveredNewApplication = applications.find((item) => item.status === 'delivered');
+    const blockingNewApplication = applications.find(isNewNidBlockingApplication);
+    const issuedNewApplication = applications.find(isCorrectionEligibleApplication);
+    const approvedNewApplication = applications.find(canBookBiometricAppointment);
     const latestRejectedNewApplication = applications.find((item) => item.status === 'rejected');
-    const [activeCorrectionRequest, latestCorrectionRequest] = await Promise.all([
+    const [activeCorrectionRequest, latestCorrectionRequest, activeAppointment] = await Promise.all([
       CorrectionApplication.findOne({
         applicant: req.user._id,
         status: { $in: ['submitted', 'under_review'] }
@@ -1360,31 +1422,85 @@ const getNidEligibility = async (req, res) => {
         .lean(),
       CorrectionApplication.findOne({ applicant: req.user._id })
         .sort({ createdAt: -1 })
-        .lean()
+        .lean(),
+      approvedNewApplication
+        ? Appointment.findOne({
+            applicant: req.user._id,
+            application: approvedNewApplication._id,
+            status: { $in: ['booked', 'completed'] }
+          })
+            .sort({ updatedAt: -1, createdAt: -1 })
+            .lean()
+        : Promise.resolve(null)
     ]);
 
-    let canApplyNewNid = true;
+    const latestNewApplicationStatus = applications[0]?.status || null;
+    const correctionEligible = Boolean(issuedNewApplication);
+    const digitalNidAvailable = Boolean(issuedNewApplication);
+    const appointmentEligible = Boolean(approvedNewApplication && !activeAppointment);
+    let newNidEligible = true;
     let blockedReasonCode = '';
     let blockedReasonMessage = '';
+    let blockingReason = null;
+    let nextAction = null;
 
-    if (deliveredNewApplication || issuedNewApplication) {
-      canApplyNewNid = false;
+    if (issuedNewApplication) {
+      newNidEligible = false;
       blockedReasonCode = 'NEW_NID_ALREADY_APPROVED';
       blockedReasonMessage = 'You already have a New NID record. Please use Correction if you need changes.';
-    } else if (activeNewApplication) {
-      canApplyNewNid = false;
+      blockingReason = blockedReasonMessage;
+      nextAction = activeCorrectionRequest ? 'track_correction' : 'view_digital_nid_or_apply_correction';
+    } else if (blockingNewApplication) {
+      newNidEligible = false;
       blockedReasonCode = 'NEW_NID_ACTIVE_APPLICATION_EXISTS';
-      blockedReasonMessage = `You already have an active New NID application (#${activeNewApplication.applicationId || activeNewApplication._id}).`;
+      blockedReasonMessage = `You already have an active New NID application (#${blockingNewApplication.applicationId || blockingNewApplication._id}).`;
+      blockingReason = blockedReasonMessage;
+
+      if (approvedNewApplication) {
+        if (activeAppointment?.status === 'completed') {
+          nextAction = 'wait_for_printing';
+          blockingReason = 'Your biometric appointment is complete. Digital NID and Correction will be available after your card is printed.';
+        } else if (activeAppointment?.status === 'booked') {
+          nextAction = 'attend_biometric_appointment';
+          blockingReason = 'Complete your booked biometric appointment. Digital NID and Correction will be available after printing.';
+        } else {
+          nextAction = 'book_biometric_appointment';
+          blockingReason = 'Your application is approved. Book your biometric appointment as the next step.';
+        }
+      } else {
+        nextAction = 'track_new_nid_application';
+      }
+    } else if (latestRejectedNewApplication) {
+      nextAction = 'submit_new_nid_application';
+    } else {
+      nextAction = 'submit_new_nid_application';
     }
 
     return res.status(200).json({
       success: true,
       data: {
-        canApplyNewNid,
-        canRequestCorrection: Boolean(issuedNewApplication && !activeCorrectionRequest),
-        hasIssuedNid: Boolean(issuedNewApplication),
+        newNidEligible,
+        correctionEligible,
+        correctionEligibleApplicationId: issuedNewApplication?._id
+          ? String(issuedNewApplication._id)
+          : null,
+        digitalNidAvailable,
+        digitalNidApplicationId: issuedNewApplication?._id
+          ? String(issuedNewApplication._id)
+          : null,
+        appointmentEligible,
+        appointmentApplicationId: approvedNewApplication?._id
+          ? String(approvedNewApplication._id)
+          : null,
+        latestNewApplicationStatus,
+        blockingReason,
+        nextAction,
+        canApplyNewNid: newNidEligible,
+        canRequestCorrection: correctionEligible && !activeCorrectionRequest,
+        hasIssuedNid: correctionEligible,
         issuedNewApplication: issuedNewApplication || null,
         activeNewApplication: activeNewApplication || null,
+        activeAppointment: activeAppointment || null,
         hasActiveCorrectionRequest: Boolean(activeCorrectionRequest),
         activeCorrectionRequest: activeCorrectionRequest || null,
         latestCorrectionRequest: latestCorrectionRequest || null,
@@ -1395,7 +1511,7 @@ const getNidEligibility = async (req, res) => {
         blockedReasonCode,
         blockedReasonMessage,
         hasPreviousRejection: Boolean(latestRejectedNewApplication),
-        resubmissionAllowed: Boolean(latestRejectedNewApplication && canApplyNewNid),
+        resubmissionAllowed: Boolean(latestRejectedNewApplication && newNidEligible),
         latestRejectedNewApplication,
         latestRejectedApplicationId: latestRejectedNewApplication?.applicationId || '',
         latestRejectedAt: latestRejectedNewApplication?.updatedAt || latestRejectedNewApplication?.createdAt || null,

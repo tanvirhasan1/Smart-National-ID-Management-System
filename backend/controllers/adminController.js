@@ -6,6 +6,7 @@ const AdminPresence = require('../models/AdminPresence');
 const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
+const DeliveryRequest = require('../models/DeliveryRequest');
 const AuditLog = require('../models/AuditLog');
 const {
   createAuditLog,
@@ -22,6 +23,7 @@ const {
   buildInternalPresenceMap,
   markInternalUserOffline
 } = require('../utils/internalPresence');
+const { isCompletedAppointment } = require('../utils/applicationLifecycle');
 
 // Allowed internal roles for manually created staff users.
 const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
@@ -243,6 +245,179 @@ const appendApplicationStatusHistory = (
   }
 };
 
+const getCompletedAppointmentMap = async (applications = []) => {
+  const approvedApplicationIds = applications
+    .filter((application) => application?.status === 'approved' && application?._id)
+    .map((application) => application._id);
+
+  if (approvedApplicationIds.length === 0) {
+    return new Map();
+  }
+
+  const completedAppointments = await Appointment.find({
+    application: { $in: approvedApplicationIds },
+    status: 'completed'
+  })
+    .select('application status completedAt appointmentDate appointmentDateKey timeSlot centerName updatedAt createdAt')
+    .lean();
+
+  return new Map(
+    completedAppointments
+      .filter(isCompletedAppointment)
+      .map((appointment) => [String(appointment.application), appointment])
+  );
+};
+
+const getCompletedAppointmentApplicationIdSet = async (applications = []) =>
+  new Set((await getCompletedAppointmentMap(applications)).keys());
+
+const filterApplicationsReadyForPrinting = async (applications = []) => {
+  const completedApplicationIds =
+    await getCompletedAppointmentApplicationIdSet(applications);
+
+  return applications.filter(
+    (application) =>
+      application?.status !== 'approved' ||
+      completedApplicationIds.has(String(application._id))
+  );
+};
+
+const hasCompletedBiometricAppointment = async (applicationId) => {
+  const appointment = await Appointment.findOne({
+    application: applicationId,
+    status: 'completed'
+  })
+    .select('_id status')
+    .lean();
+
+  return isCompletedAppointment(appointment);
+};
+
+const getSortableTime = (value) => {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+};
+
+const getStableApplicationSortValue = (application = {}) =>
+  String(application.applicationId || application._id || '');
+
+const compareQueueRows = (a, b, getGroup, getDate) => {
+  const groupDiff = getGroup(a) - getGroup(b);
+  if (groupDiff !== 0) return groupDiff;
+
+  const dateDiff = getSortableTime(getDate(a)) - getSortableTime(getDate(b));
+  if (dateDiff !== 0) return dateDiff;
+
+  return getStableApplicationSortValue(a).localeCompare(getStableApplicationSortValue(b));
+};
+
+const getPrintingQueueGroup = (application = {}) =>
+  application.printQueueState === 'ready' ? 0 : 1;
+
+const getPrintingQueueDate = (application = {}) => {
+  if (application.printQueueState === 'ready') {
+    return (
+      application.printReadyAt ||
+      application.approvedAt ||
+      application.submittedAt ||
+      application.createdAt
+    );
+  }
+
+  return (
+    application.printedAt ||
+    application.dispatchedAt ||
+    application.deliveredAt ||
+    application.latestStatusChangedAt ||
+    application.updatedAt ||
+    application.createdAt
+  );
+};
+
+const mapPrintingQueueApplication = (application = {}, appointment = null) => {
+  const isReady = application.status === 'approved' && Boolean(appointment);
+  const appointmentCompletedAt =
+    appointment?.completedAt || appointment?.updatedAt || appointment?.createdAt || null;
+
+  return {
+    ...application,
+    biometricAppointment: appointment
+      ? {
+          status: appointment.status,
+          completedAt: appointmentCompletedAt,
+          appointmentDate: appointment.appointmentDate || null,
+          appointmentDateKey: appointment.appointmentDateKey || '',
+          timeSlot: appointment.timeSlot || '',
+          centerName: appointment.centerName || ''
+        }
+      : null,
+    printQueueState: isReady ? 'ready' : 'completed',
+    printReadyAt:
+      appointmentCompletedAt ||
+      application.approvedAt ||
+      application.submittedAt ||
+      application.createdAt ||
+      null
+  };
+};
+
+const isDeliveryPaymentComplete = (deliveryRequest = null) =>
+  ['paid', 'waived'].includes(deliveryRequest?.payment?.status);
+
+const isActiveDeliveryRequest = (application = {}, deliveryRequest = null) =>
+  application.status === 'printed' &&
+  Boolean(deliveryRequest?.delivery?.requested) &&
+  isDeliveryPaymentComplete(deliveryRequest) &&
+  !['delivered', 'cancelled'].includes(deliveryRequest?.delivery?.status);
+
+const mapDeliveryQueueApplication = (application = {}, deliveryRequest = null) => {
+  const deliveryRequestedAt = deliveryRequest?.delivery?.requestedAt || null;
+  const paymentCompletedAt = deliveryRequest?.payment?.completedAt || null;
+  const activeDeliveryRequest = isActiveDeliveryRequest(application, deliveryRequest);
+
+  return {
+    ...application,
+    deliveryQueueState: activeDeliveryRequest ? 'active' : 'completed',
+    deliveryQueueAt:
+      paymentCompletedAt ||
+      deliveryRequestedAt ||
+      application.printedAt ||
+      application.updatedAt ||
+      application.createdAt ||
+      null,
+    deliveryInfo: deliveryRequest
+      ? {
+          requestId: deliveryRequest._id,
+          requested: Boolean(deliveryRequest.delivery?.requested),
+          requestedAt: deliveryRequestedAt,
+          status: deliveryRequest.delivery?.status || 'not_requested',
+          address: deliveryRequest.delivery?.address || '',
+          contactPhone: deliveryRequest.delivery?.contactPhone || '',
+          note: deliveryRequest.delivery?.note || '',
+          paymentStatus: deliveryRequest.payment?.status || 'pending',
+          paymentMethod: deliveryRequest.payment?.method || '',
+          paymentCompletedAt,
+          transactionId: deliveryRequest.payment?.transactionId || '',
+          amount: deliveryRequest.payment?.amount || 0,
+          currency: deliveryRequest.payment?.currency || 'BDT',
+          history: deliveryRequest.history || []
+        }
+      : null
+  };
+};
+
+const getDeliveryQueueGroup = (application = {}) =>
+  application.deliveryQueueState === 'active' ? 0 : 1;
+
+const getDeliveryQueueDate = (application = {}) =>
+  application.deliveryQueueAt ||
+  application.deliveredAt ||
+  application.printedAt ||
+  application.updatedAt ||
+  application.createdAt;
+
 const getAdminDashboard = async (req, res) => {
   try {
     res.status(200).json({
@@ -377,8 +552,16 @@ const getAdminDashboardSummary = async (req, res) => {
       AuditLog.countDocuments({ createdAt: { $gte: last24HoursStart } })
     ]);
 
+    const approvedForPrintApplications = await Application.find(
+      appScopeFilter({ status: 'approved' })
+    )
+      .select('_id status')
+      .lean();
+    const approvedForPrintCount =
+      (await getCompletedAppointmentApplicationIdSet(approvedForPrintApplications)).size;
+
     const reviewQueue = submittedApplications + underReviewApplications;
-    const printingQueue = approvedApplications;
+    const printingQueue = approvedForPrintCount;
     const deliveryQueue = printedApplications;
 
     let roleFocus;
@@ -1567,19 +1750,54 @@ const getPrintingQueue = async (req, res) => {
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
-      filter.status = { $in: ['approved', 'printed'] };
+      filter.status = { $in: ['approved', 'printed', 'dispatched', 'delivered'] };
+    }
+
+    if (req.query.applicationType) {
+      filter.applicationType = req.query.applicationType;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { applicationId: regex },
+        { fullNameEnglish: regex },
+        { fullNameBangla: regex },
+        { phone: regex },
+        { email: regex },
+        { birthRegistrationNumber: regex },
+        { existingNidNumber: regex }
+      ];
     }
 
     const scopedFilter = applyAdminJurisdictionFilter(req, filter);
 
     const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone role')
-      .sort({ approvedAt: 1, createdAt: 1 });
+      .sort({ approvedAt: 1, printedAt: 1, createdAt: 1, _id: 1 })
+      .lean();
+    const completedAppointmentMap = await getCompletedAppointmentMap(applications);
+    const queueApplications = applications
+      .filter(
+        (application) =>
+          application.status !== 'approved' ||
+          completedAppointmentMap.has(String(application._id))
+      )
+      .map((application) =>
+        mapPrintingQueueApplication(
+          application,
+          completedAppointmentMap.get(String(application._id)) || null
+        )
+      )
+      .sort((a, b) =>
+        compareQueueRows(a, b, getPrintingQueueGroup, getPrintingQueueDate)
+      );
 
     res.status(200).json({
       success: true,
-      count: applications.length,
-      applications
+      count: queueApplications.length,
+      applications: queueApplications,
+      data: queueApplications
     });
   } catch (error) {
     res.status(500).json({
@@ -1618,6 +1836,16 @@ const markApplicationAsPrinted = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Only approved applications can be marked as printed'
+      });
+    }
+
+    const appointmentCompleted = await hasCompletedBiometricAppointment(application._id);
+
+    if (!appointmentCompleted) {
+      return res.status(400).json({
+        success: false,
+        code: 'BIOMETRIC_APPOINTMENT_NOT_COMPLETED',
+        message: 'Application can be printed only after the biometric appointment is completed.'
       });
     }
 
@@ -1676,20 +1904,12 @@ const markApplicationAsPrinted = async (req, res) => {
 const getDeliveryQueue = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationOptions(req.query);
-    const sort = getSafeSort(req.query.sort, { printedAt: 1, createdAt: 1 }, [
-      'createdAt',
-      'updatedAt',
-      'printedAt',
-      'deliveredAt',
-      'status'
-    ]);
-
     const filter = {};
 
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
-      filter.status = { $in: ['printed', 'delivered'] };
+      filter.status = { $in: ['printed', 'delivered', 'cancelled'] };
     }
 
     if (req.query.applicationType) {
@@ -1711,20 +1931,50 @@ const getDeliveryQueue = async (req, res) => {
 
     const scopedFilter = applyAdminJurisdictionFilter(req, filter);
 
-    const [applications, total] = await Promise.all([
-      Application.find(scopedFilter)
-        .populate('applicant', 'fullName email phone role')
-        .sort(sort)
-        .skip(skip)
-        .limit(limit),
-      Application.countDocuments(scopedFilter)
-    ]);
+    const applications = await Application.find(scopedFilter)
+      .populate('applicant', 'fullName email phone role')
+      .sort({ printedAt: 1, deliveredAt: 1, createdAt: 1, _id: 1 })
+      .lean();
+
+    const deliveryRequests = applications.length
+      ? await DeliveryRequest.find({
+          application: { $in: applications.map((application) => application._id) }
+        })
+          .lean()
+      : [];
+    const deliveryRequestMap = new Map(
+      deliveryRequests.map((deliveryRequest) => [
+        String(deliveryRequest.application),
+        deliveryRequest
+      ])
+    );
+
+    const queueApplications = applications
+      .map((application) =>
+        mapDeliveryQueueApplication(
+          application,
+          deliveryRequestMap.get(String(application._id)) || null
+        )
+      )
+      .filter((application) => {
+        if (application.status === 'printed') {
+          return application.deliveryQueueState === 'active';
+        }
+
+        return ['delivered', 'cancelled'].includes(application.status);
+      })
+      .sort((a, b) =>
+        compareQueueRows(a, b, getDeliveryQueueGroup, getDeliveryQueueDate)
+      );
+
+    const pagedApplications = queueApplications.slice(skip, skip + limit);
+    const total = queueApplications.length;
 
     res.status(200).json({
       success: true,
-      count: applications.length,
-      applications,
-      data: applications,
+      count: pagedApplications.length,
+      applications: pagedApplications,
+      data: pagedApplications,
       meta: buildPaginationMeta({ page, limit, total })
     });
   } catch (error) {
@@ -2020,7 +2270,9 @@ const reviewApplicationByAdmin = async (req, res) => {
       reason:
         rejectionReason ||
         decisionNote ||
-        `Application review moved to ${status}`,
+        (status === 'approved'
+          ? 'Application approved. Biometric appointment is required.'
+          : `Application review moved to ${status}`),
       note: decisionNote
     });
 
@@ -2149,6 +2401,9 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
       });
     }
 
+    const completedApplicationIds =
+      await getCompletedAppointmentApplicationIdSet(applications);
+
     let updatedCount = 0;
     const skipped = [];
 
@@ -2158,6 +2413,15 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
           id: application._id,
           applicationId: application.applicationId,
           reason: `Status is '${application.status}'`
+        });
+        continue;
+      }
+
+      if (!completedApplicationIds.has(String(application._id))) {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: 'Biometric appointment is not completed'
         });
         continue;
       }
@@ -2405,13 +2669,17 @@ const getPrintingStats = async (req, res) => {
     const scopeFilter = (extra = {}) =>
       applyAdminJurisdictionFilter(req, extra);
 
+    const approvedApplications = await Application.find(scopeFilter({ status: 'approved' }))
+      .select('_id status')
+      .lean();
+    const approvedForPrint =
+      (await getCompletedAppointmentApplicationIdSet(approvedApplications)).size;
+
     const [
-      approvedForPrint,
       printedCount,
       deliveredAfterPrint,
       printedToday
     ] = await Promise.all([
-      Application.countDocuments(scopeFilter({ status: 'approved' })),
       Application.countDocuments(scopeFilter({ status: 'printed' })),
       Application.countDocuments(scopeFilter({ status: 'delivered' })),
       Application.countDocuments(scopeFilter({
@@ -2443,13 +2711,28 @@ const getDeliveryStats = async (req, res) => {
     const scopeFilter = (extra = {}) =>
       applyAdminJurisdictionFilter(req, extra);
 
+    const printedApplications = await Application.find(scopeFilter({ status: 'printed' }))
+      .select('_id status')
+      .lean();
+    const readyDeliveryRequests = printedApplications.length
+      ? await DeliveryRequest.find({
+          application: { $in: printedApplications.map((application) => application._id) },
+          'delivery.requested': true,
+          'delivery.status': { $nin: ['delivered', 'cancelled'] },
+          'payment.status': { $in: ['paid', 'waived'] }
+        })
+          .select('application payment delivery')
+          .lean()
+      : [];
+    const readyForDelivery = readyDeliveryRequests.filter((deliveryRequest) =>
+      isActiveDeliveryRequest({ status: 'printed' }, deliveryRequest)
+    ).length;
+
     const [
-      readyForDelivery,
       deliveredCount,
       deliveredToday,
       cancelledCount
     ] = await Promise.all([
-      Application.countDocuments(scopeFilter({ status: 'printed' })),
       Application.countDocuments(scopeFilter({ status: 'delivered' })),
       Application.countDocuments(scopeFilter({
         deliveredAt: { $gte: today }
@@ -2526,8 +2809,9 @@ const exportPrintingReport = async (req, res) => {
     const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone')
       .sort({ createdAt: -1 });
+    const reportApplications = await filterApplicationsReadyForPrinting(applications);
 
-    const rows = applications.map((item) => ({
+    const rows = reportApplications.map((item) => ({
       applicationId: item.applicationId,
       applicantName: item.fullNameEnglish,
       userName: item.applicant?.fullName || '',
