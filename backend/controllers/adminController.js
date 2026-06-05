@@ -20,10 +20,14 @@ const {
   canAccessApplicationByJurisdiction
 } = require('../utils/adminScope');
 const {
+  LIVE_WINDOW_MINUTES,
   buildInternalPresenceMap,
   markInternalUserOffline
 } = require('../utils/internalPresence');
 const { isCompletedAppointment } = require('../utils/applicationLifecycle');
+const {
+  getOrCreateNidNumberAssignment
+} = require('../services/nidNumberProvider');
 
 // Allowed internal roles for manually created staff users.
 const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
@@ -53,6 +57,7 @@ const buildPaginationMeta = ({ page, limit, total }) => {
     limit,
     total,
     pages,
+    totalPages: pages,
     hasPrevPage: page > 1,
     hasNextPage: page < pages
   };
@@ -199,7 +204,8 @@ const buildApplicationAuditState = (application) => ({
   dispatchedAt: application.dispatchedAt || null,
   deliveredAt: application.deliveredAt || null,
   cancelledAt: application.cancelledAt || null,
-  latestStatusChangedAt: application.latestStatusChangedAt || null
+  latestStatusChangedAt: application.latestStatusChangedAt || null,
+  nidNumber: application.nidNumber || ''
 });
 
 const buildSupportTicketAuditState = (ticket) => ({
@@ -293,53 +299,19 @@ const hasCompletedBiometricAppointment = async (applicationId) => {
   return isCompletedAppointment(appointment);
 };
 
-const getSortableTime = (value) => {
-  if (!value) return Number.MAX_SAFE_INTEGER;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
-};
-
-const getStableApplicationSortValue = (application = {}) =>
-  String(application.applicationId || application._id || '');
-
-const compareQueueRows = (a, b, getGroup, getDate) => {
-  const groupDiff = getGroup(a) - getGroup(b);
-  if (groupDiff !== 0) return groupDiff;
-
-  const dateDiff = getSortableTime(getDate(a)) - getSortableTime(getDate(b));
-  if (dateDiff !== 0) return dateDiff;
-
-  return getStableApplicationSortValue(a).localeCompare(getStableApplicationSortValue(b));
-};
-
-const getPrintingQueueGroup = (application = {}) =>
-  application.printQueueState === 'ready' ? 0 : 1;
-
-const getPrintingQueueDate = (application = {}) => {
-  if (application.printQueueState === 'ready') {
-    return (
-      application.printReadyAt ||
-      application.approvedAt ||
-      application.submittedAt ||
-      application.createdAt
-    );
-  }
-
-  return (
-    application.printedAt ||
-    application.dispatchedAt ||
-    application.deliveredAt ||
-    application.latestStatusChangedAt ||
-    application.updatedAt ||
-    application.createdAt
+const buildMongoCoalesce = (...values) =>
+  values.reduceRight(
+    (fallback, value) => ({ $ifNull: [value, fallback] }),
+    null
   );
-};
 
 const mapPrintingQueueApplication = (application = {}, appointment = null) => {
-  const isReady = application.status === 'approved' && Boolean(appointment);
+  const appointmentCompleted = isCompletedAppointment(appointment);
+  const isReady = application.status === 'approved' && appointmentCompleted;
   const appointmentCompletedAt =
-    appointment?.completedAt || appointment?.updatedAt || appointment?.createdAt || null;
+    appointmentCompleted
+      ? appointment?.completedAt || appointment?.updatedAt || appointment?.createdAt || null
+      : null;
 
   return {
     ...application,
@@ -354,6 +326,13 @@ const mapPrintingQueueApplication = (application = {}, appointment = null) => {
         }
       : null,
     printQueueState: isReady ? 'ready' : 'completed',
+    printStatus: isReady
+      ? 'ready_for_print'
+      : ['printed', 'dispatched', 'delivered'].includes(application.status)
+        ? 'printed'
+        : ['rejected', 'cancelled'].includes(application.status)
+          ? application.status
+          : 'not_printable',
     printReadyAt:
       appointmentCompletedAt ||
       application.approvedAt ||
@@ -393,6 +372,8 @@ const mapDeliveryQueueApplication = (application = {}, deliveryRequest = null) =
           requested: Boolean(deliveryRequest.delivery?.requested),
           requestedAt: deliveryRequestedAt,
           status: deliveryRequest.delivery?.status || 'not_requested',
+          dispatchedAt: deliveryRequest.delivery?.dispatchedAt || null,
+          deliveredAt: deliveryRequest.delivery?.deliveredAt || null,
           address: deliveryRequest.delivery?.address || '',
           contactPhone: deliveryRequest.delivery?.contactPhone || '',
           note: deliveryRequest.delivery?.note || '',
@@ -404,19 +385,13 @@ const mapDeliveryQueueApplication = (application = {}, deliveryRequest = null) =
           currency: deliveryRequest.payment?.currency || 'BDT',
           history: deliveryRequest.history || []
         }
-      : null
+      : null,
+    deliveryStatus:
+      application.status === 'delivered' || application.status === 'cancelled'
+        ? application.status
+        : deliveryRequest?.delivery?.status || application.status || 'not_requested'
   };
 };
-
-const getDeliveryQueueGroup = (application = {}) =>
-  application.deliveryQueueState === 'active' ? 0 : 1;
-
-const getDeliveryQueueDate = (application = {}) =>
-  application.deliveryQueueAt ||
-  application.deliveredAt ||
-  application.printedAt ||
-  application.updatedAt ||
-  application.createdAt;
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -700,6 +675,7 @@ const getInternalUsers = async (req, res) => {
       return;
     }
 
+    const { page, limit, skip } = getPaginationOptions(req.query);
     const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
       'createdAt',
       'updatedAt',
@@ -713,13 +689,26 @@ const getInternalUsers = async (req, res) => {
       role: { $in: INTERNAL_USER_ROLES },
       isArchived: { $ne: true }
     };
+    const liveCutoff = new Date(
+      Date.now() - LIVE_WINDOW_MINUTES * 60 * 1000
+    );
+    const liveUserIds = await AdminPresence.distinct('userId', {
+      isOnline: true,
+      lastSeenAt: { $gte: liveCutoff }
+    });
 
-    if (req.query.role) {
+    if (INTERNAL_USER_ROLES.includes(req.query.role)) {
       filter.role = req.query.role;
     }
 
-    if (req.query.status) {
+    if (['active', 'blocked', 'pending'].includes(req.query.status)) {
       filter.status = req.query.status;
+    }
+
+    if (req.query.workingStatus === 'live') {
+      filter._id = { $in: liveUserIds };
+    } else if (req.query.workingStatus === 'offline') {
+      filter._id = { $nin: liveUserIds };
     }
 
     if (req.query.search) {
@@ -727,14 +716,40 @@ const getInternalUsers = async (req, res) => {
       filter.$or = [
         { fullName: regex },
         { email: regex },
-        { phone: regex }
+        { phone: regex },
+        { role: regex }
       ];
     }
 
-    const users = await User.find(filter)
-      .select('-password')
-      .populate('createdBy', 'fullName email')
-      .sort(sort);
+    const baseInternalFilter = {
+      role: { $in: INTERNAL_USER_ROLES },
+      isArchived: { $ne: true }
+    };
+    const [
+      total,
+      users,
+      totalInternalUsers,
+      totalAdmins,
+      totalSupervisors,
+      totalSupportStaff,
+      liveNow
+    ] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select('-password')
+        .populate('createdBy', 'fullName email')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(baseInternalFilter),
+      User.countDocuments({ ...baseInternalFilter, role: 'admin' }),
+      User.countDocuments({ ...baseInternalFilter, role: 'system_supervisor' }),
+      User.countDocuments({ ...baseInternalFilter, role: 'support_staff' }),
+      User.countDocuments({
+        ...baseInternalFilter,
+        _id: { $in: liveUserIds }
+      })
+    ]);
 
     const presenceMap = await buildInternalPresenceMap(users.map((user) => user._id));
 
@@ -748,11 +763,64 @@ const getInternalUsers = async (req, res) => {
       data: mappedUsers,
       users: mappedUsers,
       meta: {
-        total: mappedUsers.length
+        ...buildPaginationMeta({ page, limit, total }),
+        stats: {
+          total: totalInternalUsers,
+          admins: totalAdmins,
+          supervisors: totalSupervisors,
+          supportStaff: totalSupportStaff,
+          liveNow,
+          offline: Math.max(0, totalInternalUsers - liveNow)
+        }
       }
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getInternalUserDetails = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user id'
+      });
+    }
+
+    const internalUser = await User.findById(req.params.id)
+      .select('-password')
+      .populate('createdBy', 'fullName email');
+
+    if (
+      !internalUser ||
+      !INTERNAL_USER_ROLES.includes(internalUser.role) ||
+      internalUser.isArchived
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Internal user not found'
+      });
+    }
+
+    const presenceMap = await buildInternalPresenceMap([internalUser._id]);
+
+    return res.status(200).json({
+      success: true,
+      data: buildInternalUserResponse(
+        internalUser,
+        presenceMap[internalUser._id.toString()]
+      )
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -1745,9 +1813,12 @@ const toggleCenterStatus = async (req, res) => {
 
 const getPrintingQueue = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
     const filter = {};
 
-    if (req.query.status) {
+    if (req.query.status === 'printed') {
+      filter.status = { $in: ['printed', 'dispatched', 'delivered'] };
+    } else if (req.query.status) {
       filter.status = req.query.status;
     } else {
       filter.status = { $in: ['approved', 'printed', 'dispatched', 'delivered'] };
@@ -1766,38 +1837,164 @@ const getPrintingQueue = async (req, res) => {
         { phone: regex },
         { email: regex },
         { birthRegistrationNumber: regex },
-        { existingNidNumber: regex }
+        { existingNidNumber: regex },
+        { nidNumber: regex }
       ];
     }
 
     const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+    const activeQueueDate = buildMongoCoalesce(
+      { $arrayElemAt: ['$completedAppointments.completedAt', 0] },
+      '$approvedAt',
+      '$submittedAt',
+      '$createdAt'
+    );
+    const completedQueueDate = buildMongoCoalesce(
+      '$printedAt',
+      '$dispatchedAt',
+      '$deliveredAt',
+      '$latestStatusChangedAt',
+      '$updatedAt',
+      '$createdAt'
+    );
 
-    const applications = await Application.find(scopedFilter)
-      .populate('applicant', 'fullName email phone role')
-      .sort({ approvedAt: 1, printedAt: 1, createdAt: 1, _id: 1 })
-      .lean();
-    const completedAppointmentMap = await getCompletedAppointmentMap(applications);
-    const queueApplications = applications
-      .filter(
-        (application) =>
-          application.status !== 'approved' ||
-          completedAppointmentMap.has(String(application._id))
-      )
-      .map((application) =>
-        mapPrintingQueueApplication(
-          application,
-          completedAppointmentMap.get(String(application._id)) || null
-        )
-      )
-      .sort((a, b) =>
-        compareQueueRows(a, b, getPrintingQueueGroup, getPrintingQueueDate)
+    const [result = {}] = await Application.aggregate([
+      { $match: scopedFilter },
+      {
+        $lookup: {
+          from: Appointment.collection.name,
+          let: { applicationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$application', '$$applicationId'] },
+                    { $eq: ['$status', 'completed'] }
+                  ]
+                }
+              }
+            },
+            { $sort: { completedAt: 1, updatedAt: 1, createdAt: 1, _id: 1 } },
+            { $limit: 1 },
+            {
+              $project: {
+                status: 1,
+                completedAt: 1,
+                appointmentDate: 1,
+                appointmentDateKey: 1,
+                timeSlot: 1,
+                centerName: 1,
+                updatedAt: 1,
+                createdAt: 1
+              }
+            }
+          ],
+          as: 'completedAppointments'
+        }
+      },
+      {
+        $match: {
+          $or: [
+            { status: { $ne: 'approved' } },
+            { 'completedAppointments.0': { $exists: true } }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          queueGroup: { $cond: [{ $eq: ['$status', 'approved'] }, 0, 1] },
+          queueDate: {
+            $cond: [
+              { $eq: ['$status', 'approved'] },
+              activeQueueDate,
+              completedQueueDate
+            ]
+          }
+        }
+      },
+      { $sort: { queueGroup: 1, queueDate: 1, applicationId: 1, _id: 1 } },
+      {
+        $facet: {
+          rows: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: 'value' }]
+        }
+      }
+    ]);
+
+    const populatedRows = await Application.populate(result.rows || [], {
+      path: 'applicant',
+      select: 'fullName email phone role'
+    });
+    const queueApplications = populatedRows.map((row) => {
+      const {
+        completedAppointments = [],
+        queueGroup,
+        queueDate,
+        ...application
+      } = row;
+
+      return mapPrintingQueueApplication(
+        application,
+        completedAppointments[0] || null
       );
+    });
+    const total = result.total?.[0]?.value || 0;
 
     res.status(200).json({
       success: true,
       count: queueApplications.length,
       applications: queueApplications,
-      data: queueApplications
+      data: queueApplications,
+      meta: buildPaginationMeta({ page, limit, total })
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getPrintingQueueDetails = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role')
+      .lean();
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
+    const appointment = await Appointment.findOne({
+      application: application._id
+    })
+      .sort({ completedAt: -1, updatedAt: -1, createdAt: -1, _id: -1 })
+      .select('status completedAt appointmentDate appointmentDateKey timeSlot centerName updatedAt createdAt')
+      .lean();
+    const queueApplication = mapPrintingQueueApplication(application, appointment);
+
+    res.status(200).json({
+      success: true,
+      application: queueApplication,
+      data: queueApplication
     });
   } catch (error) {
     res.status(500).json({
@@ -1854,6 +2051,13 @@ const markApplicationAsPrinted = async (req, res) => {
     const requestContext = getRequestAuditContext(req);
     const printNote = String(req.body.printNote || '').trim();
     const batchReference = String(req.body.batchReference || '').trim();
+    const assignmentResult = await getOrCreateNidNumberAssignment(application, {
+      metadata: {
+        source: 'admin.printing',
+        action: 'mark_printed',
+        assignedBy: req.user?._id || null
+      }
+    });
 
     application.status = 'printed';
     application.printedAt = new Date();
@@ -1868,33 +2072,46 @@ const markApplicationAsPrinted = async (req, res) => {
     const updatedApplication = await application.save();
     const afterState = buildApplicationAuditState(updatedApplication);
 
-    await createAuditLog({
-      actor: req.user._id,
-      actorRole: req.user.role,
-      action: 'MARK_APPLICATION_PRINTED',
-      entityType: 'Application',
-      entityId: updatedApplication._id,
-      message: `Marked application ${updatedApplication.applicationId} as printed`,
-      reason: printNote || batchReference || 'Application marked as printed',
-      severity: 'info',
-      sourceModule: 'admin.printing',
-      requestContext,
-      beforeState,
-      afterState,
-      meta: {
-        status: updatedApplication.status,
-        printNote,
-        batchReference
-      }
-    });
+    try {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'MARK_APPLICATION_PRINTED',
+        entityType: 'Application',
+        entityId: updatedApplication._id,
+        message: `Marked application ${updatedApplication.applicationId} as printed`,
+        reason: printNote || batchReference || 'Application marked as printed',
+        severity: 'info',
+        sourceModule: 'admin.printing',
+        requestContext,
+        beforeState,
+        afterState,
+        meta: {
+          status: updatedApplication.status,
+          nidNumber: updatedApplication.nidNumber,
+          nidNumberProvider: assignmentResult.provider,
+          printNote,
+          batchReference
+        }
+      });
+    } catch (auditError) {
+      console.error('Failed to create printing audit log:', auditError);
+    }
 
     res.status(200).json({
       success: true,
       message: 'Application marked as printed successfully',
-      application: updatedApplication
+      application: updatedApplication,
+      nidNumber: updatedApplication.nidNumber,
+      nidNumberAssignment: {
+        nidNumber: assignmentResult.nidNumber,
+        provider: assignmentResult.provider,
+        created: assignmentResult.created,
+        assignedAt: assignmentResult.assignment.assignedAt
+      }
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(error?.code === 'NID_NUMBER_ASSIGNMENT_FAILED' ? 409 : 500).json({
       success: false,
       message: error.message
     });
@@ -1925,50 +2142,111 @@ const getDeliveryQueue = async (req, res) => {
         { phone: regex },
         { email: regex },
         { birthRegistrationNumber: regex },
-        { existingNidNumber: regex }
+        { existingNidNumber: regex },
+        { nidNumber: regex }
       ];
     }
 
     const scopedFilter = applyAdminJurisdictionFilter(req, filter);
-
-    const applications = await Application.find(scopedFilter)
-      .populate('applicant', 'fullName email phone role')
-      .sort({ printedAt: 1, deliveredAt: 1, createdAt: 1, _id: 1 })
-      .lean();
-
-    const deliveryRequests = applications.length
-      ? await DeliveryRequest.find({
-          application: { $in: applications.map((application) => application._id) }
-        })
-          .lean()
-      : [];
-    const deliveryRequestMap = new Map(
-      deliveryRequests.map((deliveryRequest) => [
-        String(deliveryRequest.application),
-        deliveryRequest
-      ])
+    const activeDeliveryExpression = {
+      $and: [
+        { $eq: ['$status', 'printed'] },
+        { $eq: ['$deliveryRequest.delivery.requested', true] },
+        { $in: ['$deliveryRequest.payment.status', ['paid', 'waived']] },
+        {
+          $not: [
+            {
+              $in: [
+                '$deliveryRequest.delivery.status',
+                ['delivered', 'cancelled']
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const activeQueueDate = buildMongoCoalesce(
+      '$deliveryRequest.payment.completedAt',
+      '$deliveryRequest.delivery.requestedAt',
+      '$printedAt',
+      '$updatedAt',
+      '$createdAt'
+    );
+    const completedQueueDate = buildMongoCoalesce(
+      '$deliveredAt',
+      '$printedAt',
+      '$updatedAt',
+      '$createdAt'
     );
 
-    const queueApplications = applications
-      .map((application) =>
-        mapDeliveryQueueApplication(
-          application,
-          deliveryRequestMap.get(String(application._id)) || null
-        )
-      )
-      .filter((application) => {
-        if (application.status === 'printed') {
-          return application.deliveryQueueState === 'active';
+    const [result = {}] = await Application.aggregate([
+      { $match: scopedFilter },
+      {
+        $lookup: {
+          from: DeliveryRequest.collection.name,
+          localField: '_id',
+          foreignField: 'application',
+          as: 'deliveryRequests'
         }
+      },
+      {
+        $addFields: {
+          deliveryRequest: { $arrayElemAt: ['$deliveryRequests', 0] }
+        }
+      },
+      {
+        $addFields: {
+          activeDeliveryRequest: activeDeliveryExpression
+        }
+      },
+      {
+        $match: {
+          $expr: {
+            $or: [
+              { $ne: ['$status', 'printed'] },
+              { $eq: ['$activeDeliveryRequest', true] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          queueGroup: { $cond: ['$activeDeliveryRequest', 0, 1] },
+          queueDate: {
+            $cond: [
+              '$activeDeliveryRequest',
+              activeQueueDate,
+              completedQueueDate
+            ]
+          }
+        }
+      },
+      { $sort: { queueGroup: 1, queueDate: 1, applicationId: 1, _id: 1 } },
+      {
+        $facet: {
+          rows: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: 'value' }]
+        }
+      }
+    ]);
 
-        return ['delivered', 'cancelled'].includes(application.status);
-      })
-      .sort((a, b) =>
-        compareQueueRows(a, b, getDeliveryQueueGroup, getDeliveryQueueDate)
-      );
+    const populatedRows = await Application.populate(result.rows || [], {
+      path: 'applicant',
+      select: 'fullName email phone role'
+    });
+    const pagedApplications = populatedRows.map((row) => {
+      const {
+        deliveryRequests,
+        deliveryRequest,
+        activeDeliveryRequest,
+        queueGroup,
+        queueDate,
+        ...application
+      } = row;
 
-    const pagedApplications = queueApplications.slice(skip, skip + limit);
-    const total = queueApplications.length;
+      return mapDeliveryQueueApplication(application, deliveryRequest || null);
+    });
+    const total = result.total?.[0]?.value || 0;
 
     res.status(200).json({
       success: true,
@@ -1976,6 +2254,54 @@ const getDeliveryQueue = async (req, res) => {
       applications: pagedApplications,
       data: pagedApplications,
       meta: buildPaginationMeta({ page, limit, total })
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getDeliveryQueueDetails = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role')
+      .lean();
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
+    const deliveryRequest = await DeliveryRequest.findOne({
+      application: application._id
+    }).lean();
+    const queueApplication = mapDeliveryQueueApplication(
+      application,
+      deliveryRequest
+    );
+
+    res.status(200).json({
+      success: true,
+      application: queueApplication,
+      data: queueApplication
     });
   } catch (error) {
     res.status(500).json({
@@ -2405,6 +2731,7 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
       await getCompletedAppointmentApplicationIdSet(applications);
 
     let updatedCount = 0;
+    const assignedNidNumbers = [];
     const skipped = [];
 
     for (const application of applications) {
@@ -2428,43 +2755,75 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
 
       const previousStatus = application.status;
       const beforeState = buildApplicationAuditState(application);
+      let assignmentResult;
 
-      application.status = 'printed';
-      application.printedAt = new Date();
+      try {
+        assignmentResult = await getOrCreateNidNumberAssignment(application, {
+          metadata: {
+            source: 'admin.printing',
+            action: 'bulk_mark_printed',
+            assignedBy: req.user?._id || null
+          }
+        });
 
-      appendApplicationStatusHistory(application, req, {
-        fromStatus: previousStatus,
-        toStatus: 'printed',
-        reason:
-          actionNote || batchReference || 'Application marked as printed in bulk',
-        note: actionNote || batchReference
-      });
+        application.status = 'printed';
+        application.printedAt = new Date();
 
-      await application.save();
+        appendApplicationStatusHistory(application, req, {
+          fromStatus: previousStatus,
+          toStatus: 'printed',
+          reason:
+            actionNote || batchReference || 'Application marked as printed in bulk',
+          note: actionNote || batchReference
+        });
+
+        await application.save();
+      } catch (error) {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: error.message || 'NID number assignment or print update failed'
+        });
+        continue;
+      }
+
       updatedCount += 1;
+      assignedNidNumbers.push({
+        id: application._id,
+        applicationId: application.applicationId,
+        nidNumber: application.nidNumber,
+        provider: assignmentResult.provider,
+        created: assignmentResult.created
+      });
 
       const afterState = buildApplicationAuditState(application);
 
-      await createAuditLog({
-        actor: req.user._id,
-        actorRole: req.user.role,
-        action: 'BULK_MARK_APPLICATION_PRINTED',
-        entityType: 'Application',
-        entityId: application._id,
-        message: `Marked application ${application.applicationId} as printed`,
-        reason:
-          actionNote || batchReference || 'Bulk print action completed',
-        severity: 'info',
-        sourceModule: 'admin.printing',
-        requestContext,
-        beforeState,
-        afterState,
-        meta: {
-          status: application.status,
-          actionNote,
-          batchReference
-        }
-      });
+      try {
+        await createAuditLog({
+          actor: req.user._id,
+          actorRole: req.user.role,
+          action: 'BULK_MARK_APPLICATION_PRINTED',
+          entityType: 'Application',
+          entityId: application._id,
+          message: `Marked application ${application.applicationId} as printed`,
+          reason:
+            actionNote || batchReference || 'Bulk print action completed',
+          severity: 'info',
+          sourceModule: 'admin.printing',
+          requestContext,
+          beforeState,
+          afterState,
+          meta: {
+            status: application.status,
+            nidNumber: application.nidNumber,
+            nidNumberProvider: assignmentResult.provider,
+            actionNote,
+            batchReference
+          }
+        });
+      } catch (auditError) {
+        console.error('Failed to create bulk printing audit log:', auditError);
+      }
     }
 
     res.status(200).json({
@@ -2473,6 +2832,7 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
       totalRequested: applicationIds.length,
       processed: applications.length,
       updatedCount,
+      assignedNidNumbers,
       skipped
     });
   } catch (error) {
@@ -2675,13 +3035,10 @@ const getPrintingStats = async (req, res) => {
     const approvedForPrint =
       (await getCompletedAppointmentApplicationIdSet(approvedApplications)).size;
 
-    const [
-      printedCount,
-      deliveredAfterPrint,
-      printedToday
-    ] = await Promise.all([
-      Application.countDocuments(scopeFilter({ status: 'printed' })),
-      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+    const [printedCount, printedToday] = await Promise.all([
+      Application.countDocuments(
+        scopeFilter({ status: { $in: ['printed', 'dispatched', 'delivered'] } })
+      ),
       Application.countDocuments(scopeFilter({
         printedAt: { $gte: today }
       }))
@@ -2692,7 +3049,6 @@ const getPrintingStats = async (req, res) => {
       data: {
         approvedForPrint,
         printedCount,
-        deliveredAfterPrint,
         printedToday
       }
     });
@@ -2706,8 +3062,6 @@ const getPrintingStats = async (req, res) => {
 
 const getDeliveryStats = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const scopeFilter = (extra = {}) =>
       applyAdminJurisdictionFilter(req, extra);
 
@@ -2724,28 +3078,20 @@ const getDeliveryStats = async (req, res) => {
           .select('application payment delivery')
           .lean()
       : [];
-    const readyForDelivery = readyDeliveryRequests.filter((deliveryRequest) =>
+    const activeDeliveryRequests = readyDeliveryRequests.filter((deliveryRequest) =>
       isActiveDeliveryRequest({ status: 'printed' }, deliveryRequest)
     ).length;
 
-    const [
-      deliveredCount,
-      deliveredToday,
-      cancelledCount
-    ] = await Promise.all([
+    const [deliveredCount, cancelledCount] = await Promise.all([
       Application.countDocuments(scopeFilter({ status: 'delivered' })),
-      Application.countDocuments(scopeFilter({
-        deliveredAt: { $gte: today }
-      })),
       Application.countDocuments(scopeFilter({ status: 'cancelled' }))
     ]);
 
     res.status(200).json({
       success: true,
       data: {
-        readyForDelivery,
+        activeDeliveryRequests,
         deliveredCount,
-        deliveredToday,
         cancelledCount
       }
     });
@@ -2924,6 +3270,7 @@ module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
   getInternalUsers,
+  getInternalUserDetails,
   createInternalUser,
   updateInternalUser,
   archiveInternalUser,
@@ -2937,8 +3284,10 @@ module.exports = {
   updateCenter,
   toggleCenterStatus,
   getPrintingQueue,
+  getPrintingQueueDetails,
   markApplicationAsPrinted,
   getDeliveryQueue,
+  getDeliveryQueueDetails,
   markApplicationAsDelivered,
   getRecentAuditLogs,
   getPrintingStats,

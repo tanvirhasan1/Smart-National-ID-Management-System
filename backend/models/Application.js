@@ -366,6 +366,12 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    nidNumber: {
+      type: String,
+      trim: true,
+      default: '',
+      match: [/^$|^[1-9]\d{9}$/, 'NID number must be a 10-digit numeric string']
+    },
     phone: {
       type: String,
       required: [true, 'Phone number is required'],
@@ -475,6 +481,7 @@ applicationSchema.index({ status: 1, updatedAt: -1, _id: -1 });
 applicationSchema.index({ phone: 1, createdAt: -1 });
 applicationSchema.index({ birthRegistrationNumber: 1, createdAt: -1 });
 applicationSchema.index({ existingNidNumber: 1, createdAt: -1 });
+applicationSchema.index({ nidNumber: 1 });
 
 module.exports =
   mongoose.models.Application ||

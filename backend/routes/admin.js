@@ -4,6 +4,7 @@ const {
   getAdminDashboard,
   getAdminDashboardSummary,
   getInternalUsers,
+  getInternalUserDetails,
   createInternalUser,
   updateInternalUser,
   archiveInternalUser,
@@ -17,10 +18,13 @@ const {
   updateCenter,
   toggleCenterStatus,
   getDeliveryQueue,
+  getDeliveryQueueDetails,
   markApplicationAsDelivered,
   getRecentAuditLogs,
   getPrintingQueue,
+  getPrintingQueueDetails,
   getPrintingStats,
+  markApplicationAsPrinted,
   getDeliveryStats,
   getAuditStats,
   bulkMarkApplicationsAsPrinted,
@@ -169,6 +173,13 @@ router.post(
   createInternalUser
 );
 
+router.get(
+  '/users/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getInternalUserDetails
+);
+
 router.put(
   '/users/:id',
   protect,
@@ -294,6 +305,13 @@ router.get(
 );
 
 router.patch(
+  '/printing/:id/mark-printed',
+  protect,
+  authorize('admin'),
+  markApplicationAsPrinted
+);
+
+router.patch(
   '/printing/bulk-mark-printed',
   protect,
   authorize('admin'),
@@ -305,6 +323,13 @@ router.get(
   protect,
   authorize('admin', 'system_supervisor'),
   exportPrintingReport
+);
+
+router.get(
+  '/printing/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getPrintingQueueDetails
 );
 
 // Delivery extra
@@ -327,6 +352,13 @@ router.get(
   protect,
   authorize('admin', 'system_supervisor'),
   exportDeliveryReport
+);
+
+router.get(
+  '/delivery/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getDeliveryQueueDetails
 );
 
 // Exports
