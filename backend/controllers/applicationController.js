@@ -211,7 +211,8 @@ const buildChangedFields = (application, payload, allowedFields) => {
   return changedFields;
 };
 
-const isEnabled = (value) => value === true || value === 'true';
+const isEnabled = (value) =>
+  value === true || String(value || '').trim().toLowerCase() === 'true';
 
 const isNewApplicationType = (applicationType) =>
   String(applicationType || 'new').toLowerCase() === 'new';
