@@ -56,6 +56,7 @@ export const ADMIN_MENU_ACCESS = Object.freeze({
   dashboard: [USER_ROLES.ADMIN, USER_ROLES.SYSTEM_SUPERVISOR, USER_ROLES.SUPPORT_STAFF],
   users: [USER_ROLES.ADMIN],
   applications: [USER_ROLES.ADMIN],
+  corrections: [USER_ROLES.ADMIN],
   appointments: [USER_ROLES.ADMIN],
   printing: [USER_ROLES.ADMIN],
   delivery: [USER_ROLES.ADMIN],

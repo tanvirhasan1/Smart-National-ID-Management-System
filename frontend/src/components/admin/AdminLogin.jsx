@@ -31,7 +31,7 @@ const AdminLogin = () => {
 
     try {
       await adminLogin(data.email, data.password);
-      toast.success('Admin login successful!');
+      toast.success('Admin login successful.');
       navigate('/admin/dashboard');
     } catch (error) {
       toast.error(error.message || 'Admin login failed. Please try again.');
@@ -51,7 +51,7 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            <h1 className="admin-login-title-text mb-2 text-[1.75rem] font-bold text-[#1F2937]">
+            <h1 className="admin-login-title-text mb-2 text-[1.75rem] font-semibold text-[#1F2937]">
               Admin Portal
             </h1>
 

@@ -103,7 +103,7 @@ const OTPVerification = () => {
     const otpCode = otp.join('');
 
     if (otpCode.length !== 6) {
-      toast.error('Please enter the complete 6-digit code');
+      toast.error('Please enter the 6-digit code.');
       return;
     }
 
@@ -111,7 +111,7 @@ const OTPVerification = () => {
 
     try {
       await verifyOTP(otpCode, verificationToken);
-      toast.success('Email verified successfully!');
+      toast.success('Email verified successfully.');
       navigate('/dashboard');
     } catch (error) {
       toast.error(error.message || 'Invalid code. Please try again.');
@@ -129,13 +129,13 @@ const OTPVerification = () => {
 
     try {
       await resendOTP(verificationToken);
-      toast.success('Verification code sent again!');
+      toast.success('Verification code sent again.');
       setCountdown(60);
       setCanResend(false);
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } catch (error) {
-      toast.error(error.message || 'Failed to resend code');
+      toast.error(error.message || 'Code could not be resent.');
     } finally {
       setIsResending(false);
     }
@@ -152,7 +152,7 @@ const OTPVerification = () => {
               </div>
             </div>
 
-            <h1 className="otp-title-text mb-2 text-[1.75rem] font-bold text-[#1F2937]">
+            <h1 className="otp-title-text mb-2 text-[1.75rem] font-semibold text-[#1F2937]">
               Verify Your Email
             </h1>
 

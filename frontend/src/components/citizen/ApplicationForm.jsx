@@ -21,28 +21,42 @@ import {
   FaMobileAlt,
   FaTimes,
   FaLaptop,
-  FaFileAlt
+  FaFileAlt,
+  FaLock,
+  FaUser,
+  FaTint
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { bangladeshLocations } from '../utils/helpers';
+import { isCorrectionEligible } from '../../utils/applicationLifecycle';
 import api from '../api/axios';
 import LivenessVerificationModal from './LivenessVerificationModal';
 import {
   uploadCitizenApplicationDocument,
+  uploadCitizenCorrectionDocument,
   verifyBirthCertificateDocument,
   getCitizenDocumentLabel
 } from '../../services/applicationDocumentService';
 import '../styles/ApplicationForm.css';
 
 const FACE_FAILURE_MESSAGE =
-  'Face verification failed. Please upload a recent passport-size photo and try again.';
+  'Face verification failed. Please try again.';
+
+const FieldLabel = ({ icon: Icon, children }) => (
+  <label className="form-label">
+    <span className="form-label-content">
+      {Icon ? <Icon className="form-label-icon" aria-hidden="true" /> : null}
+      <span className="form-label-text">{children}</span>
+    </span>
+  </label>
+);
 
 const BIOMETRIC_ERROR_MESSAGES = {
   BIOMETRIC_TOO_MANY_ATTEMPTS:
-    'Too many face verification attempts. Please restart verification and try again.',
+    'Too many face verification attempts. Please restart verification.',
   BIOMETRIC_TOO_MANY_QR_OPENS:
-    'This face verification link has been opened too many times. Please restart verification.',
+    'Face verification link limit reached. Please restart verification.',
   BIOMETRIC_SESSION_EXPIRED:
     'Face verification session expired. Please try again.',
   BIOMETRIC_VERIFICATION_IN_PROGRESS:
@@ -50,10 +64,10 @@ const BIOMETRIC_ERROR_MESSAGES = {
   BIOMETRIC_CHALLENGE_SEQUENCE_INVALID:
     'Challenge sequence is invalid. Please restart verification.',
   FACE_VERIFICATION_QUALITY_FAILED:
-    'Face verification failed. Please ensure your face is clear and try again.',
+    'Face verification failed. Please keep your face clear and try again.',
   FACE_MATCH_FAILED: FACE_FAILURE_MESSAGE,
   LIVENESS_FAILED:
-    'Face verification failed. Please ensure your face is clear and try again.',
+    'Face verification failed. Please keep your face clear and try again.',
   MODEL_FILE_MISSING:
     'Face verification service is not ready. Please try again later.',
   FACE_VERIFICATION_SERVICE_UNAVAILABLE:
@@ -66,13 +80,13 @@ const APPLICATION_ERROR_MESSAGES = {
   APPLICATION_BIOMETRIC_SESSION_NOT_FOUND:
     'Face verification session was not found. Please restart verification.',
   APPLICATION_BIOMETRIC_SESSION_NOT_PASSED:
-    'Application can be submitted only after face verification passes.',
+    'Please complete face verification before submitting.',
   APPLICATION_BIOMETRIC_SESSION_EXPIRED:
     'Face verification session expired. Please restart verification.',
   APPLICATION_BIOMETRIC_SESSION_ALREADY_USED:
     'Face verification session has already been used. Please restart verification.',
   APPLICATION_BIOMETRIC_OWNER_MISMATCH:
-    'Face verification session does not belong to this citizen.',
+    'Face verification session does not match this account.',
   APPLICATION_VALIDATION_FAILED:
     'Application validation failed. Please review the form and try again.',
   BIRTH_CERTIFICATE_VERIFICATION_REQUIRED:
@@ -80,15 +94,17 @@ const APPLICATION_ERROR_MESSAGES = {
   BIRTH_CERTIFICATE_VERIFICATION_EXPIRED:
     'Birth certificate verification expired. Please verify the birth certificate again.',
   BIRTH_CERTIFICATE_VERIFICATION_FIELD_CHANGED:
-    'Application information changed after document verification. Please verify the birth certificate again.',
+    'Application information changed. Please verify the birth certificate again.',
   BIRTH_CERTIFICATE_VERIFICATION_ALREADY_USED:
     'Birth certificate verification was already used. Please verify the document again.',
   NEW_NID_APPLICATION_EXISTS:
-    'You already have an active or completed New NID application. You cannot submit another New NID application.',
+    'You already have a New NID application.',
   NEW_NID_ACTIVE_APPLICATION_EXISTS:
-    'You already have an active New NID application. You cannot submit another New NID application.',
+    'You already have an active New NID application.',
   NEW_NID_ALREADY_APPROVED:
     'You already have a New NID record. Please use Correction if you need changes.',
+  NID_NOT_ISSUED_YET:
+    'Correction is available after your card is printed.',
   FIELD_MISMATCH:
     'Birth certificate information does not match your provided information.',
   REGISTRY_MISMATCH:
@@ -102,9 +118,77 @@ const APPLICATION_ERROR_MESSAGES = {
   DOCUMENT_UNREADABLE:
     'The document could not be read clearly. Please upload a clearer image.',
   DOCUMENT_LOW_CONFIDENCE:
-    'The document text could not be verified confidently. Please upload a clearer image.',
+    'Document text could not be verified. Please upload a clearer image.',
   DOCUMENT_VERIFICATION_UNAVAILABLE:
     'Document verification service is temporarily unavailable. Please try again later.'
+};
+
+const CORRECTION_SUPPORTING_DOCUMENT_MIN = 1;
+const CORRECTION_SUPPORTING_DOCUMENT_MAX = 4;
+
+const CORRECTION_FORM_COPY = {
+  en: {
+    lockedTitle: 'Correction locked',
+    lockedMessage: 'Correction will be available after your card is printed.',
+    pendingTitle: 'Your correction request is under review.',
+    pendingMessage:
+      'You can submit another correction request only after the current one is decided.',
+    rejectedTitle: 'Previous correction request rejected',
+    rejectedMessage:
+      'Your previous correction request was rejected. You may submit a new request with updated documents.',
+    rejectionReason: 'Reason',
+    currentDataReady: 'Current official NID data is loaded.',
+    currentDataHelp: 'Edit only the fields you want to correct.',
+    supportingDocumentsTitle: 'Supporting documents *',
+    supportingDocumentsHint: 'Upload 1-4 supporting documents for your correction request.',
+    supportingDocumentsPlaceholder: 'Upload supporting documents',
+    supportingDocumentsSmall: 'JPG, PNG, PDF (Max 4 files, 5MB each)',
+    supportingDocumentsAddMore: 'Click to add more documents',
+    supportingDocumentsRequired:
+      'Upload 1-4 supporting documents for your correction request.',
+    supportingDocumentsTooMany: 'Maximum 4 supporting documents are allowed.',
+    requestPhotoChange: 'Request photo change',
+    requestPhotoChangeHelp: 'Use this only if your NID photo needs to be updated.',
+    noOcrOrFaceVerification: 'Correction submission will not run OCR or face verification.',
+    passportPhotoOptional: 'Passport-size photo',
+    passportPhotoRequired: 'Passport-size photo *',
+    passportPhotoHint: 'Upload a new passport-size photo for review.',
+    passportPhotoRequiredError: 'Please upload a new passport-size photo for review.',
+    photoChangeNotRequested: 'Photo change not requested',
+    yes: 'Yes',
+    no: 'No'
+  },
+  bn: {
+    lockedTitle: 'সংশোধন লক করা আছে',
+    lockedMessage: 'কার্ড প্রিন্ট সম্পন্ন হলে সংশোধনের আবেদন করা যাবে।',
+    pendingTitle: 'আপনার সংশোধনের আবেদন পর্যালোচনাধীন রয়েছে।',
+    pendingMessage:
+      'বর্তমান আবেদনটি সিদ্ধান্ত হওয়ার পরই আপনি আরেকটি সংশোধনের আবেদন জমা দিতে পারবেন।',
+    rejectedTitle: 'পূর্বের সংশোধনের আবেদন বাতিল হয়েছে',
+    rejectedMessage:
+      'আপনার পূর্বের সংশোধনের আবেদন বাতিল হয়েছে। হালনাগাদ কাগজপত্রসহ নতুন আবেদন জমা দিতে পারেন।',
+    rejectionReason: 'কারণ',
+    currentDataReady: 'বর্তমান অফিসিয়াল এনআইডি তথ্য লোড হয়েছে।',
+    currentDataHelp: 'শুধু যে তথ্য সংশোধন করতে চান তা পরিবর্তন করুন।',
+    supportingDocumentsTitle: 'সহায়ক কাগজপত্র *',
+    supportingDocumentsHint: 'সংশোধনের আবেদনের জন্য ১-৪টি সহায়ক কাগজপত্র আপলোড করুন।',
+    supportingDocumentsPlaceholder: 'সহায়ক কাগজপত্র আপলোড করুন',
+    supportingDocumentsSmall: 'JPG, PNG, PDF (সর্বোচ্চ ৪টি ফাইল, প্রতিটি ৫MB)',
+    supportingDocumentsAddMore: 'আরও কাগজপত্র যোগ করতে ক্লিক করুন',
+    supportingDocumentsRequired:
+      'সংশোধনের আবেদনের জন্য ১-৪টি সহায়ক কাগজপত্র আপলোড করুন।',
+    supportingDocumentsTooMany: 'সর্বোচ্চ ৪টি সহায়ক কাগজপত্র আপলোড করা যাবে।',
+    requestPhotoChange: 'ছবি পরিবর্তনের আবেদন',
+    requestPhotoChangeHelp: 'শুধু এনআইডি ছবি পরিবর্তন করতে চাইলে এটি নির্বাচন করুন।',
+    noOcrOrFaceVerification: 'সংশোধনের আবেদন জমা দিতে OCR বা ফেস ভেরিফিকেশন চালু হবে না।',
+    passportPhotoOptional: 'পাসপোর্ট সাইজের ছবি',
+    passportPhotoRequired: 'পাসপোর্ট সাইজের ছবি *',
+    passportPhotoHint: 'পর্যালোচনার জন্য নতুন পাসপোর্ট সাইজের ছবি আপলোড করুন।',
+    passportPhotoRequiredError: 'পর্যালোচনার জন্য নতুন পাসপোর্ট সাইজের ছবি আপলোড করুন।',
+    photoChangeNotRequested: 'ছবি পরিবর্তনের আবেদন করা হয়নি',
+    yes: 'হ্যাঁ',
+    no: 'না'
+  }
 };
 
 const SUBMIT_STAGES = {
@@ -115,13 +199,18 @@ const SUBMIT_STAGES = {
   },
   reading_document_text: {
     label: 'Reading document text...',
-    subtext: 'We are reading your birth certificate. Please wait a moment.',
+    subtext: 'Reading your birth certificate. Please wait.',
     buttonText: 'Verifying document...'
   },
   matching_certificate_information: {
     label: 'Matching certificate information...',
-    subtext: 'We are matching the certificate with your form details.',
+    subtext: 'Matching the certificate with your form details.',
     buttonText: 'Verifying document...'
+  },
+  birth_certificate_verified: {
+    label: 'Birth certificate verified',
+    subtext: 'Document verification completed successfully. Preparing face verification.',
+    buttonText: 'Preparing face verification...'
   },
   preparing_face_verification: {
     label: 'Preparing face verification...',
@@ -130,7 +219,7 @@ const SUBMIT_STAGES = {
   },
   starting_face_verification: {
     label: 'Starting face verification...',
-    subtext: 'Please follow the next instructions to continue.',
+    subtext: 'Follow the next instructions to continue.',
     buttonText: 'Starting face verification...'
   },
   creating_application: {
@@ -138,15 +227,25 @@ const SUBMIT_STAGES = {
     subtext: 'Your application record is being created.',
     buttonText: 'Submitting...'
   },
+  checking_eligibility: {
+    label: 'Checking application eligibility...',
+    subtext: 'Please wait while we confirm your current application status.',
+    buttonText: 'Checking...'
+  },
   uploading_documents: {
     label: 'Uploading documents...',
     subtext: 'Your files are being uploaded securely.',
     buttonText: 'Submitting...'
+  },
+  birth_certificate_verified: {
+    label: 'Birth certificate verified',
+    subtext: 'Document verification completed successfully. Preparing face verification.',
+    buttonText: 'Preparing face verification...'
   }
 };
 
 const DEFAULT_SUBMIT_BUTTON_TEXT = 'Submit Application';
-const REISSUE_REMOVED_MESSAGE = 'Reissue is no longer available. You can download the digital NID or request another delivery when needed.';
+const REISSUE_REMOVED_MESSAGE = 'Reissue is not available. Use Digital NID or delivery services when eligible.';
 
 const ACTIVE_APPLICATION_SUBMIT_BLOCKING_STATUSES = new Set([
   'draft',
@@ -163,11 +262,26 @@ const NEW_NID_SUBMIT_BLOCKING_STATUSES = new Set([
   'delivered'
 ]);
 
-const CORRECTION_UNLOCK_STATUSES = new Set([
-  'approved',
-  'printed',
-  'dispatched',
-  'delivered'
+const NEW_NID_SOURCE_LOCKED_FIELDS = new Set([
+  'fullNameEnglish',
+  'fullNameBangla',
+  'dateOfBirth',
+  'gender',
+  'birthRegistrationNumber'
+]);
+
+const CORRECTION_BIRTH_CERTIFICATE_LOCKED_FIELDS = new Set([
+  'fullNameEnglish',
+  'fullNameBangla',
+  'fatherName',
+  'motherName',
+  'dateOfBirth',
+  'gender',
+  'birthRegistrationNumber'
+]);
+
+const CORRECTION_OFFICIAL_RECORD_LOCKED_FIELDS = new Set([
+  'existingNidNumber'
 ]);
 
 const isNewNidApplication = (application = {}) =>
@@ -180,26 +294,52 @@ const getApplicationTimeValue = (application = {}) => {
 
 const getActiveApplicationSubmitBlockMessage = (application) => {
   if (!application) {
-    return 'Submit is disabled because another application is already active.';
+    return 'Another application is already active.';
   }
 
-  return `You already have an active application (#${
-    application.applicationId || application._id || 'N/A'
-  }). Please wait until it is completed, rejected, or cancelled before submitting another application.`;
+  return `You already have an active application (#${application.applicationId || application._id || 'N/A'
+    }). Please wait before submitting another application.`;
 };
 
 const getNewNidSubmitBlockMessage = (application) => {
+  if (isCorrectionEligible(application)) {
+    return 'You already have an issued Smart NID. Please use Correction if needed.';
+  }
+
+  if (application?.status === 'approved') {
+    return 'Application approved. Complete your appointment and wait for printing.';
+  }
+
   if (application?.status === 'delivered') {
-    return 'You already have a delivered Smart NID. New NID application is not allowed. Please use Correction if needed.';
+    return 'You already have a delivered Smart NID. Use Correction if needed.';
   }
 
   if (application) {
-    return `You already have a New NID application (#${
-      application.applicationId || application._id || 'N/A'
-    }). Please wait until it is rejected or cancelled before submitting another New NID application.`;
+    return `You already have a New NID application (#${application.applicationId || application._id || 'N/A'
+      }). Please wait before submitting another New NID application.`;
   }
 
   return 'New NID application is not allowed right now. Please use Correction if needed.';
+};
+
+const getNewNidLockedToastMessage = (application) => {
+  if (isCorrectionEligible(application)) {
+    return 'New NID already exists. Use Correction if needed.';
+  }
+
+  if (application?.status === 'approved') {
+    return 'Book biometric appointment as the next step.';
+  }
+
+  if (application?.status === 'delivered') {
+    return 'New NID already exists. Use Correction if needed.';
+  }
+
+  if (application) {
+    return 'A New NID application is already active.';
+  }
+
+  return 'New NID is not available now.';
 };
 
 const formatEligibilityDate = (value) => {
@@ -214,14 +354,21 @@ const formatEligibilityDate = (value) => {
   });
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+};
+
 const getDocumentVerificationUnavailableMessage = (error) => {
   const responseData = error?.response?.data || {};
   const reason = String(
     responseData.failureReason ||
-      responseData.verification?.failureReason ||
-      responseData.message ||
-      error?.message ||
-      ''
+    responseData.verification?.failureReason ||
+    responseData.message ||
+    error?.message ||
+    ''
   ).toLowerCase();
 
   if (reason.includes('timeout') || reason.includes('timed out')) {
@@ -244,13 +391,13 @@ const getApplicationSubmitErrorMessage = (error) => {
     error?.response?.data?.message ||
     error?.response?.data?.errors?.[0]?.msg ||
     error?.message ||
-    'Failed to create application'
+    'Application could not be submitted.'
   );
 };
 
 const ApplicationForm = () => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -259,7 +406,10 @@ const ApplicationForm = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [signaturePreview, setSignaturePreview] = useState(null);
   const [birthCertPreview, setBirthCertPreview] = useState(null);
-  const [correctionProofPreview, setCorrectionProofPreview] = useState(null);
+  const [correctionProofPreviews, setCorrectionProofPreviews] = useState([]);
+  const [correctionBaseApplication, setCorrectionBaseApplication] = useState(null);
+  const [isCorrectionPrefillLoading, setIsCorrectionPrefillLoading] = useState(false);
+  const [activeCorrectionBlock, setActiveCorrectionBlock] = useState(null);
   const [sameAddress, setSameAddress] = useState(false);
   const [selectedPresentDivision, setSelectedPresentDivision] = useState('');
   const [selectedPermanentDivision, setSelectedPermanentDivision] = useState('');
@@ -267,7 +417,7 @@ const ApplicationForm = () => {
     photograph: null,
     signature: null,
     birthCertificate: null,
-    correctionProof: null
+    correctionProofs: []
   });
 
   const [hasIssuedNid, setHasIssuedNid] = useState(false);
@@ -328,6 +478,7 @@ const ApplicationForm = () => {
       email: '',
       occupation: '',
       correctionReason: '',
+      photoChangeRequested: false,
       fatherNID: '',
       motherNID: '',
       presentAddress: {
@@ -352,6 +503,7 @@ const ApplicationForm = () => {
   });
 
   const applicationType = watch('applicationType');
+  const photoChangeRequested = Boolean(watch('photoChangeRequested'));
   const bloodGroupValue = watch('bloodGroup');
   const occupationValue = watch('occupation');
 
@@ -375,18 +527,26 @@ const ApplicationForm = () => {
   }, [bloodGroupValue, occupationValue, clearErrors]);
 
   useEffect(() => {
-    // Keeps every new step starting from the top instead of staying at the old scroll position.
+    if (submitInProgressRef.current || isSubmitting) {
+      return;
+    }
+
     scrollToApplicationTop();
-  }, [currentStep]);
+  }, [currentStep, isSubmitting]);
 
   const correctionUnlockApplication =
-    newNidSubmitBlock && CORRECTION_UNLOCK_STATUSES.has(newNidSubmitBlock?.status)
+    newNidSubmitBlock &&
+      eligibility?.correctionEligible &&
+      String(newNidSubmitBlock?._id || '') ===
+      String(eligibility?.correctionEligibleApplicationId || '')
       ? newNidSubmitBlock
       : null;
-  const canUseCorrectionServices =
-    Boolean(eligibility?.canRequestCorrection) ||
+  const isCorrectionBlockedByActiveRequest = Boolean(activeCorrectionBlock);
+  const hasCorrectionBaseNid =
+    Boolean(eligibility?.correctionEligible) ||
     hasIssuedNid ||
     Boolean(correctionUnlockApplication);
+  const canUseCorrectionServices = hasCorrectionBaseNid && !isCorrectionBlockedByActiveRequest;
   const isCorrectionServiceLocked = !canUseCorrectionServices;
   const isNewNidEligibilityBlocked = eligibility?.canApplyNewNid === false;
   const newNidBlocked =
@@ -412,6 +572,26 @@ const ApplicationForm = () => {
     ? 'Checking active application...'
     : getActiveApplicationSubmitBlockMessage(activeApplicationSubmitBlock);
   const deliveredNewNidBlockedReason = getNewNidSubmitBlockMessage(newNidSubmitBlock);
+  const correctionCopy = CORRECTION_FORM_COPY[language === 'bn' ? 'bn' : 'en'];
+  const latestCorrectionRequest = eligibility?.latestCorrectionRequest || null;
+  const latestCorrectionRejected =
+    latestCorrectionRequest?.status === 'rejected' ? latestCorrectionRequest : null;
+  const isNewNidTypeLocked =
+    Boolean(newNidSubmitBlock) ||
+    Boolean(activeApplicationSubmitBlock) ||
+    isNewNidEligibilityBlocked;
+  const canSubmitNewNidType = !isNewNidTypeLocked && !isActiveApplicationChecking;
+  const hasAnyApplicationTypeAvailable = canSubmitNewNidType || canUseCorrectionServices;
+  const isSelectedApplicationTypeAvailable =
+    applicationType === 'correction'
+      ? canUseCorrectionServices
+      : applicationType === 'new'
+        ? canSubmitNewNidType
+        : false;
+  const shouldShowApplicantInformation =
+    !isNidEligibilityLoading && isSelectedApplicationTypeAvailable;
+  const shouldShowNoApplicationTypeMessage =
+    !isNidEligibilityLoading && !hasAnyApplicationTypeAvailable;
   const submitBlockedReason = isSubmitBlockedByActiveApplication
     ? activeApplicationBlockedReason
     : isSubmitBlockedByDeliveredNewNid
@@ -425,10 +605,56 @@ const ApplicationForm = () => {
         ? 'Checking eligibility...'
         : 'New NID unavailable'
       : t('apply.submitApplication');
-  const isNewNidTypeLocked =
-    Boolean(newNidSubmitBlock) || isNewNidEligibilityBlocked;
-  const isIdentityLocked = ['new', 'correction'].includes(applicationType);
+  const isApplicationFieldLocked = (fieldName) => {
+    if (
+      applicationType === 'new' &&
+      NEW_NID_SOURCE_LOCKED_FIELDS.has(fieldName)
+    ) {
+      return true;
+    }
+
+    if (applicationType === 'correction') {
+      return (
+        CORRECTION_BIRTH_CERTIFICATE_LOCKED_FIELDS.has(fieldName) ||
+        CORRECTION_OFFICIAL_RECORD_LOCKED_FIELDS.has(fieldName)
+      );
+    }
+
+    return false;
+  };
+
+  const getLockedCorrectionValue = (fieldName, fallback = '') => {
+    if (applicationType !== 'correction') return fallback;
+
+    const prefill = correctionBaseApplication?.prefill || {};
+
+    if (fieldName === 'existingNidNumber') {
+      return prefill.existingNidNumber || correctionBaseApplication?.nidNumber || fallback;
+    }
+
+    return prefill[fieldName] ?? fallback;
+  };
+
   const activeSubmitStage = submitStage ? SUBMIT_STAGES[submitStage] : null;
+
+
+  useEffect(() => {
+    if (!isSubmitting || !submitStage || currentStep !== 4) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      document
+        .getElementById('application-submit-progress')
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+    }, 180);
+
+    return () => window.clearTimeout(timerId);
+  }, [isSubmitting, submitStage, currentStep]);
+
   const submitButtonText =
     activeSubmitStage?.buttonText || t('apply.submitApplication');
   const submitLockReason =
@@ -436,7 +662,7 @@ const ApplicationForm = () => {
     'Submission is in progress. Please wait before changing steps.';
 
   const blockLockedSelect = (event) => {
-    if (!isIdentityLocked) return;
+    if (event.currentTarget?.getAttribute('aria-disabled') !== 'true') return;
     event.preventDefault();
   };
 
@@ -444,13 +670,19 @@ const ApplicationForm = () => {
     if (!isCorrectionServiceLocked) return;
 
     event.preventDefault();
+
+    if (isCorrectionBlockedByActiveRequest) {
+      toast.info('Correction request already submitted.');
+      return;
+    }
+
     setValue('applicationType', 'new', { shouldValidate: true });
-    toast.info('Correction will unlock after your New NID is approved or issued.');
+    toast.info('Correction will be available after your card is printed.');
   };
 
   const handleLockedNewNidTypeClick = (event) => {
     event.preventDefault();
-    toast.error(getNewNidSubmitBlockMessage(newNidSubmitBlock));
+    toast.error(getNewNidLockedToastMessage(newNidSubmitBlock));
   };
 
   const clearSubmitStageTimers = () => {
@@ -467,6 +699,9 @@ const ApplicationForm = () => {
 
     submitStageTimersRef.current.push(timerId);
   };
+
+  const waitForUiStep = (delayMs = 700) =>
+    new Promise((resolve) => setTimeout(resolve, delayMs));
 
   const resetSubmitProgress = () => {
     clearSubmitStageTimers();
@@ -536,12 +771,14 @@ const ApplicationForm = () => {
         });
         const nextEligibility = response?.data?.data || null;
         const hasEligibleNid = Boolean(
+          nextEligibility?.correctionEligible ||
           nextEligibility?.canRequestCorrection ||
-            nextEligibility?.issuedNewApplication
+          nextEligibility?.issuedNewApplication
         );
 
         setEligibility(nextEligibility);
         setHasIssuedNid(hasEligibleNid);
+        setActiveCorrectionBlock(nextEligibility?.activeCorrectionRequest || null);
 
         if (!hasEligibleNid) {
           setValue('applicationType', 'new', { shouldValidate: true });
@@ -552,6 +789,7 @@ const ApplicationForm = () => {
         console.error('Failed to check NID eligibility:', error);
         setEligibility(null);
         setHasIssuedNid(false);
+        setActiveCorrectionBlock(null);
         setValue('applicationType', 'new', { shouldValidate: true });
         return null;
       } finally {
@@ -561,6 +799,7 @@ const ApplicationForm = () => {
 
     setEligibility(null);
     setHasIssuedNid(false);
+    setActiveCorrectionBlock(null);
     setIsNidEligibilityLoading(false);
     return null;
   }, [user, setValue]);
@@ -581,7 +820,7 @@ const ApplicationForm = () => {
 
   useEffect(() => {
     if (applicationType === 'reissue') {
-      setValue(canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
+      setValue('applicationType', canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
       toast.info(REISSUE_REMOVED_MESSAGE);
     }
   }, [applicationType, canUseCorrectionServices, setValue]);
@@ -591,6 +830,16 @@ const ApplicationForm = () => {
       setValue('applicationType', 'correction', { shouldValidate: true });
     }
   }, [applicationType, canUseCorrectionServices, newNidSubmitBlock, setValue]);
+
+  useEffect(() => {
+    if (submitInProgressRef.current || isSubmitting) {
+      return;
+    }
+
+    if (!shouldShowApplicantInformation && currentStep > 1) {
+      setCurrentStep(1);
+    }
+  }, [currentStep, shouldShowApplicantInformation, isSubmitting]);
 
   useEffect(() => {
     const loadPrefillData = async () => {
@@ -639,6 +888,63 @@ const ApplicationForm = () => {
   }, [user, setValue]);
 
   useEffect(() => {
+    const loadCorrectionPrefill = async () => {
+      if (!user || applicationType !== 'correction' || isCorrectionServiceLocked) {
+        return;
+      }
+
+      try {
+        setIsCorrectionPrefillLoading(true);
+        const response = await api.get('/corrections/prefill');
+        const data = response?.data?.data || {};
+        const prefill = data.prefill || {};
+
+        setCorrectionBaseApplication(data);
+        setValue('fullNameEnglish', prefill.fullNameEnglish || '');
+        setValue('fullNameBangla', prefill.fullNameBangla || '');
+        setValue('fatherName', prefill.fatherName || '');
+        setValue('motherName', prefill.motherName || '');
+        setValue('spouseName', prefill.spouseName || '');
+        setValue('dateOfBirth', toDateInputValue(prefill.dateOfBirth));
+        setValue('gender', prefill.gender || '');
+        setValue('bloodGroup', prefill.bloodGroup || '');
+        setValue('maritalStatus', prefill.maritalStatus || 'single');
+        setValue('birthRegistrationNumber', prefill.birthRegistrationNumber || '');
+        setValue('existingNidNumber', prefill.existingNidNumber || data.nidNumber || '');
+        setValue('phone', prefill.phone || '');
+        setValue('email', prefill.email || '');
+        setValue('occupation', prefill.occupation || '');
+
+        setValue('presentAddress.division', prefill.presentAddress?.division || '');
+        setValue('presentAddress.district', prefill.presentAddress?.district || '');
+        setValue('presentAddress.upazila', prefill.presentAddress?.upazila || '');
+        setValue('presentAddress.unionOrWard', prefill.presentAddress?.unionOrWard || '');
+        setValue('presentAddress.villageOrArea', prefill.presentAddress?.villageOrArea || '');
+        setValue('presentAddress.postOffice', prefill.presentAddress?.postOffice || '');
+        setValue('presentAddress.postalCode', prefill.presentAddress?.postalCode || '');
+
+        setValue('permanentAddress.division', prefill.permanentAddress?.division || '');
+        setValue('permanentAddress.district', prefill.permanentAddress?.district || '');
+        setValue('permanentAddress.upazila', prefill.permanentAddress?.upazila || '');
+        setValue('permanentAddress.unionOrWard', prefill.permanentAddress?.unionOrWard || '');
+        setValue('permanentAddress.villageOrArea', prefill.permanentAddress?.villageOrArea || '');
+        setValue('permanentAddress.postOffice', prefill.permanentAddress?.postOffice || '');
+        setValue('permanentAddress.postalCode', prefill.permanentAddress?.postalCode || '');
+
+        setSelectedPresentDivision(prefill.presentAddress?.division || '');
+        setSelectedPermanentDivision(prefill.permanentAddress?.division || '');
+      } catch (error) {
+        setCorrectionBaseApplication(null);
+        toast.error(error?.response?.data?.message || 'Correction data could not be loaded.');
+      } finally {
+        setIsCorrectionPrefillLoading(false);
+      }
+    };
+
+    loadCorrectionPrefill();
+  }, [applicationType, isCorrectionServiceLocked, setValue, user]);
+
+  useEffect(() => {
     return () => {
       clearSubmitStageTimers();
 
@@ -659,17 +965,15 @@ const ApplicationForm = () => {
   }, []);
 
   const getInputClass = (hasError = false) =>
-    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-input form-input w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const getSelectClass = (hasError = false) =>
-    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${
-      hasError
-        ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
-        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+    `application-form-select form-select w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${hasError
+      ? 'error border-red-600 focus:border-red-600 focus:ring-red-600/10'
+      : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
     }`;
 
   const handlePhotoChange = (event) => {
@@ -677,7 +981,7 @@ const ApplicationForm = () => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Passport-size photo must be less than 2MB');
+      toast.error('Photo size must be 2MB or less.');
       return;
     }
 
@@ -697,7 +1001,7 @@ const ApplicationForm = () => {
     if (!file) return;
 
     if (file.size > 1 * 1024 * 1024) {
-      toast.error('Signature size must be less than 1MB');
+      toast.error('Signature size must be 1MB or less.');
       return;
     }
 
@@ -717,7 +1021,7 @@ const ApplicationForm = () => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Birth certificate size must be less than 5MB');
+      toast.error('Birth certificate size must be 5MB or less.');
       return;
     }
 
@@ -730,20 +1034,55 @@ const ApplicationForm = () => {
   };
 
   const handleCorrectionProofChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const incomingFiles = Array.from(event.target.files || []);
+    if (incomingFiles.length === 0) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Correction proof size must be less than 5MB');
+    const existingFiles = selectedFiles.correctionProofs || [];
+    const remainingSlots = Math.max(
+      0,
+      CORRECTION_SUPPORTING_DOCUMENT_MAX - existingFiles.length
+    );
+
+    if (remainingSlots === 0) {
+      toast.error(correctionCopy.supportingDocumentsTooMany);
+      event.target.value = '';
       return;
     }
 
+    const acceptedFiles = [];
+
+    for (const file of incomingFiles.slice(0, remainingSlots)) {
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(file.type)) {
+        toast.error(`${file.name} is not supported. Use JPG, PNG, or PDF.`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} must be 5MB or less.`);
+        continue;
+      }
+
+      acceptedFiles.push(file);
+    }
+
+    if (incomingFiles.length > remainingSlots) {
+      toast.info(correctionCopy.supportingDocumentsTooMany);
+    }
+
+    if (acceptedFiles.length === 0) {
+      event.target.value = '';
+      return;
+    }
+
+    const nextFiles = [...existingFiles, ...acceptedFiles];
+
     setSelectedFiles((prevState) => ({
       ...prevState,
-      correctionProof: file
+      correctionProofs: nextFiles
     }));
-    setValue('correctionProof', file);
-    setCorrectionProofPreview(file.name);
+    setValue('correctionProofs', nextFiles);
+    setCorrectionProofPreviews(nextFiles.map((file) => file.name));
+    event.target.value = '';
   };
 
   const handleSameAddress = (event) => {
@@ -778,6 +1117,12 @@ const ApplicationForm = () => {
     }
   };
 
+  useEffect(() => {
+    if (applicationType === 'correction' && !photoChangeRequested && selectedFiles.photograph) {
+      resetPhotoSelection();
+    }
+  }, [applicationType, photoChangeRequested, selectedFiles.photograph]);
+
   const resetSignatureSelection = () => {
     setSignaturePreview(null);
     setSelectedFiles((prevState) => ({
@@ -805,16 +1150,29 @@ const ApplicationForm = () => {
   };
 
   const resetCorrectionProofSelection = () => {
-    setCorrectionProofPreview(null);
+    setCorrectionProofPreviews([]);
     setSelectedFiles((prevState) => ({
       ...prevState,
-      correctionProof: null
+      correctionProofs: []
     }));
-    setValue('correctionProof', null);
+    setValue('correctionProofs', []);
 
     if (correctionProofInputRef.current) {
       correctionProofInputRef.current.value = '';
     }
+  };
+
+  const removeCorrectionProofSelection = (indexToRemove) => {
+    const nextFiles = (selectedFiles.correctionProofs || []).filter(
+      (_, index) => index !== indexToRemove
+    );
+
+    setSelectedFiles((prevState) => ({
+      ...prevState,
+      correctionProofs: nextFiles
+    }));
+    setValue('correctionProofs', nextFiles);
+    setCorrectionProofPreviews(nextFiles.map((file) => file.name));
   };
 
   const isMobileDevice = () => {
@@ -955,10 +1313,10 @@ const ApplicationForm = () => {
             resolver?.reject?.(
               new Error(
                 responseData.message ||
-                  BIOMETRIC_ERROR_MESSAGES[responseData.code] ||
-                  (nextStatus === 'failed'
-                    ? FACE_FAILURE_MESSAGE
-                    : 'Face verification session expired. Please try again.')
+                BIOMETRIC_ERROR_MESSAGES[responseData.code] ||
+                (nextStatus === 'failed'
+                  ? FACE_FAILURE_MESSAGE
+                  : 'Face verification session expired. Please try again.')
               )
             );
             return;
@@ -971,7 +1329,7 @@ const ApplicationForm = () => {
           qrResolverRef.current = null;
           setQrSession(null);
           setQrErrorMessage(
-            error?.response?.data?.message || 'Could not check face verification status.'
+            error?.response?.data?.message || 'Face verification status could not be checked.'
           );
           resolver?.reject?.(error);
         }
@@ -1001,13 +1359,6 @@ const ApplicationForm = () => {
       {
         documentType: 'birthCertificate',
         file: applicationType === 'new' ? selectedFiles.birthCertificate : null
-      },
-      {
-        documentType: 'correctionProof',
-        file:
-          applicationType === 'correction'
-            ? selectedFiles.correctionProof
-            : null
       }
     ].filter((item) => item.file);
 
@@ -1024,6 +1375,44 @@ const ApplicationForm = () => {
         failedUploads.push(getCitizenDocumentLabel(item.documentType));
         console.error(
           `Failed to upload ${item.documentType}:`,
+          error?.response?.data || error.message
+        );
+      }
+    }
+
+    return failedUploads;
+  };
+
+  const uploadSelectedCorrectionDocuments = async (correctionObjectId) => {
+    const uploadQueue = [];
+
+    if (photoChangeRequested && selectedFiles.photograph) {
+      uploadQueue.push({
+        documentType: 'photograph',
+        file: selectedFiles.photograph
+      });
+    }
+
+    (selectedFiles.correctionProofs || []).forEach((file) => {
+      uploadQueue.push({
+        documentType: 'correctionProof',
+        file
+      });
+    });
+
+    const failedUploads = [];
+
+    for (const item of uploadQueue) {
+      try {
+        await uploadCitizenCorrectionDocument({
+          correctionId: correctionObjectId,
+          documentType: item.documentType,
+          file: item.file
+        });
+      } catch (error) {
+        failedUploads.push(getCitizenDocumentLabel(item.documentType));
+        console.error(
+          `Failed to upload correction ${item.documentType}:`,
           error?.response?.data || error.message
         );
       }
@@ -1064,11 +1453,7 @@ const ApplicationForm = () => {
       ];
 
       if (applicationType === 'correction') {
-        fields.push('existingNidNumber');
-      }
-
-      if (applicationType === 'correction') {
-        fields.push('correctionReason');
+        fields.push('existingNidNumber', 'correctionReason');
       }
 
       return fields;
@@ -1097,14 +1482,28 @@ const ApplicationForm = () => {
     return [];
   };
 
+  const getCorrectionSupportingDocumentError = () => {
+    const supportingDocumentCount = (selectedFiles.correctionProofs || []).length;
+
+    if (supportingDocumentCount < CORRECTION_SUPPORTING_DOCUMENT_MIN) {
+      return correctionCopy.supportingDocumentsRequired;
+    }
+
+    if (supportingDocumentCount > CORRECTION_SUPPORTING_DOCUMENT_MAX) {
+      return correctionCopy.supportingDocumentsTooMany;
+    }
+
+    return '';
+  };
+
   const validateDocumentStep = () => {
     // File inputs are handled by React state, so we validate them manually here.
-    if (!selectedFiles.photograph || !photoPreview) {
+    if (applicationType === 'new' && (!selectedFiles.photograph || !photoPreview)) {
       toast.error(t('apply.uploadPhoto'));
       return false;
     }
 
-    if (!selectedFiles.signature || !signaturePreview) {
+    if (applicationType === 'new' && (!selectedFiles.signature || !signaturePreview)) {
       toast.error(t('apply.uploadSignature'));
       return false;
     }
@@ -1114,9 +1513,18 @@ const ApplicationForm = () => {
       return false;
     }
 
-    if (applicationType === 'correction' && !selectedFiles.correctionProof) {
-      toast.error(t('apply.uploadCorrectionProof'));
-      return false;
+    if (applicationType === 'correction') {
+      const supportingDocumentError = getCorrectionSupportingDocumentError();
+
+      if (supportingDocumentError) {
+        toast.error(supportingDocumentError);
+        return false;
+      }
+
+      if (photoChangeRequested && (!selectedFiles.photograph || !photoPreview)) {
+        toast.error(correctionCopy.passportPhotoRequiredError);
+        return false;
+      }
     }
 
     return true;
@@ -1149,6 +1557,21 @@ const ApplicationForm = () => {
       return;
     }
 
+    submitInProgressRef.current = true;
+    setCurrentStep(4);
+    setIsSubmitting(true);
+    setSubmitStage(
+      data.applicationType === 'new'
+        ? 'verifying_birth_certificate'
+        : 'creating_application'
+    );
+
+
+    await waitForUiStep(400);
+    setSubmitStage('checking_eligibility');
+    // scrollToApplicationTop();
+    await waitForUiStep(250);
+
     const latestSubmitBlocks = await loadActiveApplicationSubmitBlock({ silent: true });
     const blockingApplication =
       data.applicationType === 'new'
@@ -1161,6 +1584,7 @@ const ApplicationForm = () => {
 
     if (blockingApplication) {
       toast.error(getActiveApplicationSubmitBlockMessage(blockingApplication));
+      cancelSubmitAttempt(1);
       return;
     }
 
@@ -1172,23 +1596,37 @@ const ApplicationForm = () => {
 
     if (data.applicationType === 'reissue') {
       toast.error(REISSUE_REMOVED_MESSAGE);
-      setValue(canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
+      setValue('applicationType', canUseCorrectionServices ? 'correction' : 'new', { shouldValidate: true });
       setCurrentStep(1);
       return;
     }
 
     if (isCorrectionServiceLocked && data.applicationType === 'correction') {
-      toast.error('Please complete and receive your New NID before requesting Correction.');
+      toast.error('Correction will be available after your card is printed.');
       setValue('applicationType', 'new', { shouldValidate: true });
       setCurrentStep(1);
       return;
+    }
+
+    if (data.applicationType === 'correction') {
+      const latestEligibility = await loadNidEligibility({ intent: 'submit' });
+
+      if (!latestEligibility?.canRequestCorrection) {
+        toast.error(
+          latestEligibility?.correctionBlockedReasonMessage ||
+          latestEligibility?.blockedReasonMessage ||
+          correctionCopy.lockedMessage
+        );
+        setCurrentStep(1);
+        return;
+      }
     }
 
     if (data.applicationType === 'new') {
       const latestEligibility = await loadNidEligibility({ intent: 'submit' });
 
       if (!latestEligibility) {
-        toast.error('Could not check New NID eligibility. Please try again.');
+        toast.error('Eligibility check failed. Please try again.');
         setCurrentStep(1);
         return;
       }
@@ -1196,21 +1634,21 @@ const ApplicationForm = () => {
       if (latestEligibility.canApplyNewNid === false) {
         toast.error(
           latestEligibility.blockedReasonMessage ||
-            APPLICATION_ERROR_MESSAGES[latestEligibility.blockedReasonCode] ||
-            APPLICATION_ERROR_MESSAGES.NEW_NID_APPLICATION_EXISTS
+          APPLICATION_ERROR_MESSAGES[latestEligibility.blockedReasonCode] ||
+          APPLICATION_ERROR_MESSAGES.NEW_NID_APPLICATION_EXISTS
         );
         setCurrentStep(1);
         return;
       }
     }
 
-    if (!selectedFiles.photograph || !photoPreview) {
+    if (data.applicationType === 'new' && (!selectedFiles.photograph || !photoPreview)) {
       toast.error(t('apply.uploadPhoto'));
       setCurrentStep(3);
       return;
     }
 
-    if (!selectedFiles.signature || !signaturePreview) {
+    if (data.applicationType === 'new' && (!selectedFiles.signature || !signaturePreview)) {
       toast.error(t('apply.uploadSignature'));
       setCurrentStep(3);
       return;
@@ -1218,24 +1656,33 @@ const ApplicationForm = () => {
 
     if (data.applicationType === 'new' && !selectedFiles.birthCertificate) {
       toast.error(t('apply.uploadBirthCertificate'));
-      setCurrentStep(3);
+      cancelSubmitAttempt(3);
       return;
     }
 
-    if (data.applicationType === 'correction' && !selectedFiles.correctionProof) {
-      toast.error(t('apply.uploadCorrectionProof'));
-      setCurrentStep(3);
-      return;
+    if (data.applicationType === 'correction') {
+      const supportingDocumentError = getCorrectionSupportingDocumentError();
+
+      if (supportingDocumentError) {
+        toast.error(supportingDocumentError);
+        setCurrentStep(3);
+        return;
+      }
+
+      if (photoChangeRequested && (!selectedFiles.photograph || !photoPreview)) {
+        toast.error(correctionCopy.passportPhotoRequiredError);
+        setCurrentStep(3);
+        return;
+      }
     }
 
     if (data.applicationType === 'correction' && !data.correctionReason?.trim()) {
-      toast.error('Please enter the reason for correction');
+      toast.error('Please enter a correction reason.');
       setCurrentStep(1);
       return;
     }
 
-    submitInProgressRef.current = true;
-    setIsSubmitting(true);
+
 
     let finalBiometricSessionId = '';
     let finalApplicationSubmitCalled = false;
@@ -1254,29 +1701,52 @@ const ApplicationForm = () => {
       const permanentAddressPayload = sameAddress
         ? { ...presentAddressPayload }
         : {
-            division: data.permanentAddress.division,
-            district: data.permanentAddress.district,
-            upazila: data.permanentAddress.upazila,
-            unionOrWard: data.permanentAddress.unionOrWard || '',
-            villageOrArea: data.permanentAddress.villageOrArea || '',
-            postOffice: data.permanentAddress.postOffice || '',
-            postalCode: data.permanentAddress.postalCode || ''
-          };
+          division: data.permanentAddress.division,
+          district: data.permanentAddress.district,
+          upazila: data.permanentAddress.upazila,
+          unionOrWard: data.permanentAddress.unionOrWard || '',
+          villageOrArea: data.permanentAddress.villageOrArea || '',
+          postOffice: data.permanentAddress.postOffice || '',
+          postalCode: data.permanentAddress.postalCode || ''
+        };
 
       const payload = {
         applicationType: data.applicationType,
-        fullNameEnglish: data.fullNameEnglish,
-        fullNameBangla: data.fullNameBangla || '',
-        fatherName: data.fatherName,
-        motherName: data.motherName,
+        fullNameEnglish:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('fullNameEnglish', data.fullNameEnglish)
+            : data.fullNameEnglish,
+        fullNameBangla:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('fullNameBangla', data.fullNameBangla || '')
+            : data.fullNameBangla || '',
+        fatherName:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('fatherName', data.fatherName)
+            : data.fatherName,
+        motherName:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('motherName', data.motherName)
+            : data.motherName,
         spouseName: data.spouseName || '',
-        dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
+        dateOfBirth:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('dateOfBirth', data.dateOfBirth)
+            : data.dateOfBirth,
+        gender:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('gender', data.gender)
+            : data.gender,
         bloodGroup: data.bloodGroup || '',
         maritalStatus: data.maritalStatus || 'single',
-        birthRegistrationNumber: data.birthRegistrationNumber || '',
+        birthRegistrationNumber:
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('birthRegistrationNumber', data.birthRegistrationNumber || '')
+            : data.birthRegistrationNumber || '',
         existingNidNumber:
-          data.applicationType === 'correction' ? data.existingNidNumber || '' : '',
+          data.applicationType === 'correction'
+            ? getLockedCorrectionValue('existingNidNumber', data.existingNidNumber || '')
+            : '',
         phone: data.phone,
         email: data.email || '',
         occupation: data.occupation || '',
@@ -1291,24 +1761,67 @@ const ApplicationForm = () => {
           motherNid: data.motherNID || '',
           correctionProof:
             data.applicationType === 'correction'
-              ? selectedFiles.correctionProof?.name || ''
+              ? (selectedFiles.correctionProofs || []).map((file) => file.name).join(', ')
               : '',
-          photo: selectedFiles.photograph?.name || '',
-          signature: selectedFiles.signature?.name || ''
+          photo:
+            data.applicationType === 'new' || photoChangeRequested
+              ? selectedFiles.photograph?.name || ''
+              : '',
+          signature: data.applicationType === 'new' ? selectedFiles.signature?.name || '' : ''
         }
       };
 
       if (payload.applicationType === 'correction') {
         payload.correctionInfo = {
-          reason: data.correctionReason?.trim() || ''
+          reason: data.correctionReason?.trim() || '',
+          photoChangeRequested,
+          supportingDocumentCount: (selectedFiles.correctionProofs || []).length
         };
+        payload.photoChangeRequested = photoChangeRequested;
+        payload.supportingDocumentCount = (selectedFiles.correctionProofs || []).length;
+      }
+
+      if (payload.applicationType === 'correction') {
+        finalApplicationSubmitCalled = true;
+        setSubmitStage('creating_application');
+
+        const response = await api.post('/corrections', {
+          ...payload,
+          reason: data.correctionReason?.trim() || ''
+        });
+        const createdCorrection = response?.data?.data || response?.data?.correction;
+        const createdCorrectionId = createdCorrection?._id;
+
+        if (!createdCorrectionId) {
+          throw new Error('Correction request created but no correction id was returned');
+        }
+
+        setSubmitStage('uploading_documents');
+        const failedUploads = await uploadSelectedCorrectionDocuments(createdCorrectionId);
+
+        if (failedUploads.length > 0) {
+          toast.warning(
+            `Correction submitted, but these uploads failed: ${failedUploads.join(
+              ', '
+            )}. Contact support if needed.`
+          );
+        } else {
+          toast.success('Correction submitted successfully.');
+        }
+
+        navigate('/dashboard');
+        return;
       }
 
       if (payload.applicationType === 'new') {
         clearSubmitStageTimers();
+
+        setCurrentStep(4);
         setSubmitStage('verifying_birth_certificate');
-        queueSubmitStage('reading_document_text', 900);
-        queueSubmitStage('matching_certificate_information', 3200);
+        await waitForUiStep(500);
+
+        queueSubmitStage('reading_document_text', 700);
+        queueSubmitStage('matching_certificate_information', 1800);
 
         const documentVerificationResponse = await verifyBirthCertificateDocument({
           file: selectedFiles.birthCertificate,
@@ -1326,14 +1839,18 @@ const ApplicationForm = () => {
         clearSubmitStageTimers();
 
         if (!documentVerificationResponse?.verificationToken) {
-          throw new Error('Birth certificate verification could not be completed');
+          throw new Error('Birth certificate verification could not be completed.');
         }
+
+        setSubmitStage('birth_certificate_verified');
+        await waitForUiStep(1000);
 
         payload.birthCertificateVerificationToken =
           documentVerificationResponse.verificationToken;
       }
 
       setSubmitStage('preparing_face_verification');
+      await waitForUiStep(800);
 
       const deviceType = isMobileDevice() ? 'mobile' : 'desktop';
       const verificationMethod =
@@ -1347,7 +1864,7 @@ const ApplicationForm = () => {
       );
 
       if (!biometricSession?.sessionId) {
-        throw new Error('Could not create face verification session');
+        throw new Error('Face verification session could not be created.');
       }
 
       if (deviceType === 'mobile') {
@@ -1362,7 +1879,7 @@ const ApplicationForm = () => {
           biometricSession = await createBiometricSession(deviceType, true);
 
           if (!biometricSession?.sessionId) {
-            throw new Error('Could not create face verification session');
+            throw new Error('Face verification session could not be created.');
           }
 
           await waitForDesktopQr(biometricSession);
@@ -1398,10 +1915,10 @@ const ApplicationForm = () => {
         toast.warning(
           `Application submitted, but these document uploads failed: ${failedUploads.join(
             ', '
-          )}. Please contact support if needed.`
+          )}. Contact support if needed.`
         );
       } else {
-        toast.success('Application submitted successfully!');
+        toast.success('Application submitted successfully.');
       }
 
       navigate(`/track-application?id=${createdApplicationId}`);
@@ -1427,7 +1944,7 @@ const ApplicationForm = () => {
     <div className="application-form-page application-form-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
       <div className="form-container application-form-container mx-auto w-full max-w-[980px]">
         <div className="form-header application-form-header text-center">
-          <h1 className="application-form-title text-[2rem] font-bold text-[#1F2937]">
+          <h1 className="application-form-title text-[2rem] font-semibold text-[#1F2937]">
             {t('apply.title')}
           </h1>
           <p className="application-form-subtitle text-[#6B7280]">
@@ -1437,27 +1954,24 @@ const ApplicationForm = () => {
 
         <div className="progress-steps application-progress-steps mb-10 flex items-center justify-center px-2">
           <div
-            className={`progress-step ${currentStep >= 1 ? 'active' : ''} ${
-              currentStep > 1 ? 'completed' : ''
-            }`}
+            className={`progress-step ${currentStep >= 1 ? 'active' : ''} ${currentStep > 1 ? 'completed' : ''
+              }`}
           >
             <div className="step-circle">{currentStep > 1 ? <FaCheck /> : '1'}</div>
             <span>{t('apply.progressPersonal')}</span>
           </div>
           <div className="step-line" />
           <div
-            className={`progress-step ${currentStep >= 2 ? 'active' : ''} ${
-              currentStep > 2 ? 'completed' : ''
-            }`}
+            className={`progress-step ${currentStep >= 2 ? 'active' : ''} ${currentStep > 2 ? 'completed' : ''
+              }`}
           >
             <div className="step-circle">{currentStep > 2 ? <FaCheck /> : '2'}</div>
             <span>{t('apply.progressAddress')}</span>
           </div>
           <div className="step-line" />
           <div
-            className={`progress-step ${currentStep >= 3 ? 'active' : ''} ${
-              currentStep > 3 ? 'completed' : ''
-            }`}
+            className={`progress-step ${currentStep >= 3 ? 'active' : ''} ${currentStep > 3 ? 'completed' : ''
+              }`}
           >
             <div className="step-circle">{currentStep > 3 ? <FaCheck /> : '3'}</div>
             <span>{t('apply.progressDocuments')}</span>
@@ -1490,9 +2004,8 @@ const ApplicationForm = () => {
               */}
               <div className="application-types mb-8 grid gap-5 md:grid-cols-2">
                 <label
-                  className={`type-card ${
-                    applicationType === 'new' ? 'selected' : ''
-                  } ${isNewNidTypeLocked ? 'locked-type' : ''}`}
+                  className={`type-card ${applicationType === 'new' ? 'selected' : ''
+                    } ${isNewNidTypeLocked ? 'locked-type' : ''}`}
                   onClick={isNewNidTypeLocked ? handleLockedNewNidTypeClick : undefined}
                   aria-disabled={isNewNidTypeLocked}
                 >
@@ -1503,6 +2016,11 @@ const ApplicationForm = () => {
                     {...register('applicationType')}
                   />
                   <div className="type-content">
+                    {isNewNidTypeLocked ? (
+                      <span className="type-lock-badge">
+                        <FaLock /> Locked
+                      </span>
+                    ) : null}
                     <div className="type-icon new-icon">
                       <FaIdCard />
                     </div>
@@ -1512,9 +2030,8 @@ const ApplicationForm = () => {
                 </label>
 
                 <label
-                  className={`type-card ${
-                    applicationType === 'correction' ? 'selected' : ''
-                  } ${isCorrectionServiceLocked ? 'locked-type' : ''}`}
+                  className={`type-card ${applicationType === 'correction' ? 'selected' : ''
+                    } ${isCorrectionServiceLocked ? 'locked-type' : ''}`}
                   onClick={isCorrectionServiceLocked ? handleLockedApplicationTypeClick : undefined}
                   aria-disabled={isCorrectionServiceLocked}
                 >
@@ -1526,6 +2043,12 @@ const ApplicationForm = () => {
                     {...register('applicationType')}
                   />
                   <div className="type-content">
+                    {isCorrectionServiceLocked ? (
+                      <span className="type-lock-badge">
+                        <FaLock />
+                        {isCorrectionBlockedByActiveRequest ? ' Pending' : ' Locked'}
+                      </span>
+                    ) : null}
                     <div className="type-icon correction-icon">
                       <FaIdCard />
                     </div>
@@ -1544,303 +2067,327 @@ const ApplicationForm = () => {
                   <div className="application-eligibility-meta">
                     {(latestRejectionNotice.applicationId ||
                       eligibility?.latestRejectedApplicationId) && (
-                      <span>
-                        {t('apply.previous')}:{' '}
-                        {latestRejectionNotice.applicationId ||
-                          eligibility.latestRejectedApplicationId}
-                      </span>
-                    )}
+                        <span>
+                          {t('apply.previous')}:{' '}
+                          {latestRejectionNotice.applicationId ||
+                            eligibility.latestRejectedApplicationId}
+                        </span>
+                      )}
                     {(latestRejectionNotice.rejectedAt ||
                       eligibility?.latestRejectedAt) && (
-                      <span>
-                        {t('apply.rejected')}:{' '}
-                        {formatEligibilityDate(
-                          latestRejectionNotice.rejectedAt ||
+                        <span>
+                          {t('apply.rejected')}:{' '}
+                          {formatEligibilityDate(
+                            latestRejectionNotice.rejectedAt ||
                             eligibility.latestRejectedAt
-                        )}
-                      </span>
-                    )}
+                          )}
+                        </span>
+                      )}
                     {(latestRejectionNotice.rejectionReason ||
                       eligibility?.latestRejectionReason) && (
-                      <span>
-                        {t('apply.reason')}:{' '}
-                        {latestRejectionNotice.rejectionReason ||
-                          eligibility.latestRejectionReason}
-                      </span>
-                    )}
+                        <span>
+                          {t('apply.reason')}:{' '}
+                          {latestRejectionNotice.rejectionReason ||
+                            eligibility.latestRejectionReason}
+                        </span>
+                      )}
                   </div>
                 </div>
               ) : null}
 
-              <div className="info-section applicant-info-section">
-                <h3>{t('apply.applicantInfo')}</h3>
-
-                <div className="form-row grid gap-5 md:grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.fullNameEnglish')}</label>
-                    <input
-                      type="text"
-                      readOnly={isIdentityLocked}
-                      aria-readonly={isIdentityLocked}
-                      className={`input-field ${
-                        isIdentityLocked ? 'locked-input' : ''
-                      }`}
-                      placeholder={t('apply.enterFullNameEnglish')}
-                      {...register('fullNameEnglish', {
-                        required: 'Full name in English is required'
-                      })}
-                    />
-                    {errors.fullNameEnglish && (
-                      <span className="form-error">{errors.fullNameEnglish.message}</span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.fullNameBangla')}</label>
-                    <input
-                      type="text"
-                      readOnly={isIdentityLocked}
-                      aria-readonly={isIdentityLocked}
-                      className={`input-field ${
-                        isIdentityLocked ? 'locked-input' : ''
-                      }`}
-                      placeholder={t('apply.enterFullNameBangla')}
-                      {...register('fullNameBangla')}
-                    />
-                  </div>
+              {shouldShowNoApplicationTypeMessage ? (
+                <div
+                  className={`application-eligibility-note ${isCorrectionBlockedByActiveRequest ? 'pending' : 'blocked'
+                    }`}
+                  role="note"
+                >
+                  <strong>
+                    {isCorrectionBlockedByActiveRequest
+                      ? correctionCopy.pendingTitle
+                      : correctionCopy.lockedTitle}
+                  </strong>
+                  <span>
+                    {isCorrectionBlockedByActiveRequest
+                      ? correctionCopy.pendingMessage
+                      : correctionCopy.lockedMessage}
+                  </span>
                 </div>
+              ) : null}
 
-                <div className="form-row grid gap-5 md:grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="inline-flex items-center gap-2">
-                        <FaCalendar className="text-[#16A34A]" />
-                        {t('apply.dateOfBirth')}
-                      </span>
-                    </label>
-                    <input
-                      type="date"
-                      readOnly={isIdentityLocked}
-                      aria-readonly={isIdentityLocked}
-                      className={`input-field ${
-                        isIdentityLocked ? 'locked-input' : ''
-                      }`}
-                      {...register('dateOfBirth', {
-                        required: 'Date of birth is required'
-                      })}
-                    />
-                    {errors.dateOfBirth && (
-                      <span className="form-error">{errors.dateOfBirth.message}</span>
+              {applicationType === 'correction' && canUseCorrectionServices ? (
+                <>
+                  {latestCorrectionRejected ? (
+                    <div className="application-eligibility-note resubmission" role="note">
+                      <strong>{correctionCopy.rejectedTitle}</strong>
+                      <span>{correctionCopy.rejectedMessage}</span>
+                      {latestCorrectionRejected.rejectionReason ? (
+                        <div className="application-eligibility-meta">
+                          <span>
+                            {correctionCopy.rejectionReason}:{' '}
+                            {latestCorrectionRejected.rejectionReason}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div className="correction-prefill-note" role="note">
+                    <strong>
+                      {isCorrectionPrefillLoading
+                        ? 'Loading current official data...'
+                        : correctionCopy.currentDataReady}
+                    </strong>
+                    <span>{correctionCopy.currentDataHelp}</span>
+                  </div>
+                </>
+              ) : null}
+
+              {shouldShowApplicantInformation ? (
+                <>
+                  <div className="info-section applicant-info-section">
+                    <h3>{t('apply.applicantInfo')}</h3>
+
+                    <div className="form-row grid gap-5 md:grid-cols-2">
+                      <div className="form-group">
+                        <FieldLabel icon={FaUser}>{t('apply.fullNameEnglish')}</FieldLabel>
+                        <input
+                          type="text"
+                          readOnly={isApplicationFieldLocked('fullNameEnglish')}
+                          aria-readonly={isApplicationFieldLocked('fullNameEnglish')}
+                          className={`${getInputClass(!!errors.fullNameEnglish)} ${isApplicationFieldLocked('fullNameEnglish') ? 'locked-input' : ''
+                            }`}
+                          placeholder={t('apply.enterFullNameEnglish')}
+                          {...register('fullNameEnglish', {
+                            required: 'Full name in English is required'
+                          })}
+                        />
+                        {errors.fullNameEnglish && (
+                          <span className="form-error">{errors.fullNameEnglish.message}</span>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <FieldLabel icon={FaUser}>{t('apply.fullNameBangla')}</FieldLabel>
+                        <input
+                          type="text"
+                          readOnly={isApplicationFieldLocked('fullNameBangla')}
+                          aria-readonly={isApplicationFieldLocked('fullNameBangla')}
+                          className={`${getInputClass(false)} ${isApplicationFieldLocked('fullNameBangla') ? 'locked-input' : ''
+                            }`}
+                          placeholder={t('apply.enterFullNameBangla')}
+                          {...register('fullNameBangla')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row grid gap-5 md:grid-cols-2">
+                      <div className="form-group">
+                        <FieldLabel icon={FaCalendar}>{t('apply.dateOfBirth')}</FieldLabel>
+                        <input
+                          type="date"
+                          readOnly={isApplicationFieldLocked('dateOfBirth')}
+                          aria-readonly={isApplicationFieldLocked('dateOfBirth')}
+                          className={`${getInputClass(!!errors.dateOfBirth)} ${isApplicationFieldLocked('dateOfBirth') ? 'locked-input' : ''
+                            }`}
+                          {...register('dateOfBirth', {
+                            required: 'Date of birth is required'
+                          })}
+                        />
+                        {errors.dateOfBirth && (
+                          <span className="form-error">{errors.dateOfBirth.message}</span>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <FieldLabel icon={FaVenusMars}>{t('apply.gender')}</FieldLabel>
+                        <select
+                          aria-disabled={isApplicationFieldLocked('gender')}
+                          tabIndex={isApplicationFieldLocked('gender') ? -1 : 0}
+                          className={`${getSelectClass(!!errors.gender)} ${isApplicationFieldLocked('gender') ? 'locked-input' : ''
+                            }`}
+                          onMouseDown={blockLockedSelect}
+                          onTouchStart={blockLockedSelect}
+                          onKeyDown={blockLockedSelect}
+                          {...register('gender', {
+                            required: 'Gender is required'
+                          })}
+                        >
+                          <option value="">{t('apply.selectGender')}</option>
+                          <option value="male">{t('apply.male')}</option>
+                          <option value="female">{t('apply.female')}</option>
+                          <option value="other">{t('apply.other')}</option>
+                        </select>
+                        {errors.gender && (
+                          <span className="form-error">{errors.gender.message}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-row grid gap-5 md:grid-cols-2">
+                      <div className="form-group">
+                        <FieldLabel icon={FaIdCard}>{t('apply.birthRegistrationNumber')}</FieldLabel>
+                        <input
+                          type="text"
+                          readOnly={isApplicationFieldLocked('birthRegistrationNumber')}
+                          aria-readonly={isApplicationFieldLocked('birthRegistrationNumber')}
+                          className={`${getInputClass(!!errors.birthRegistrationNumber)} ${isApplicationFieldLocked('birthRegistrationNumber') ? 'locked-input' : ''
+                            }`}
+                          placeholder={t('apply.birthRegistrationPlaceholder')}
+                          {...register('birthRegistrationNumber', {
+                            pattern: {
+                              value: /^(\d{17})?$/,
+                              message: 'Enter a valid 17 digit birth registration number'
+                            }
+                          })}
+                        />
+                        {errors.birthRegistrationNumber && (
+                          <span className="form-error">
+                            {errors.birthRegistrationNumber.message}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <FieldLabel icon={FaTint}>{t('apply.bloodGroup')}</FieldLabel>
+                        <select
+                          className={getSelectClass(showBloodGroupError)}
+                          {...register('bloodGroup', {
+                            required: 'Blood group is required'
+                          })}
+                        >
+                          <option value="">{t('apply.selectBloodGroup')}</option>
+                          <option value="A+">A+</option>
+                          <option value="A-">A-</option>
+                          <option value="B+">B+</option>
+                          <option value="B-">B-</option>
+                          <option value="AB+">AB+</option>
+                          <option value="AB-">AB-</option>
+                          <option value="O+">O+</option>
+                          <option value="O-">O-</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-row grid gap-5 md:grid-cols-2">
+                      <div className="form-group">
+                        <FieldLabel icon={FaPhone}>{t('apply.phoneNumber')}</FieldLabel>
+                        <input
+                          type="text"
+                          className={getInputClass(!!errors.phone)}
+                          placeholder="01XXXXXXXXX"
+                          {...register('phone', {
+                            required: 'Phone number is required',
+                            pattern: {
+                              value: /^01[0-9]{9}$/,
+                              message: 'Enter a valid Bangladeshi mobile number'
+                            }
+                          })}
+                        />
+                        {errors.phone && (
+                          <span className="form-error">{errors.phone.message}</span>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <FieldLabel icon={FaEnvelope}>{t('apply.email')}</FieldLabel>
+                        <input
+                          type="email"
+                          className={getInputClass(!!errors.email)}
+                          placeholder={t('apply.emailPlaceholder')}
+                          {...register('email', {
+                            pattern: {
+                              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                              message: 'Enter a valid email address'
+                            }
+                          })}
+                        />
+                        {errors.email && (
+                          <span className="form-error">{errors.email.message}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-row grid gap-5 md:grid-cols-2">
+                      <div className="form-group">
+                        <FieldLabel icon={FaUser}>{t('apply.maritalStatus')}</FieldLabel>
+                        <select className={getSelectClass(false)} {...register('maritalStatus')}>
+                          <option value="single">{t('apply.single')}</option>
+                          <option value="married">{t('apply.married')}</option>
+                          <option value="divorced">{t('apply.divorced')}</option>
+                          <option value="widowed">{t('apply.widowed')}</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <FieldLabel icon={FaBriefcase}>{t('apply.occupation')}</FieldLabel>
+                        <input
+                          type="text"
+                          className={getInputClass(showOccupationError)}
+                          placeholder={t('apply.occupationPlaceholder')}
+                          {...register('occupation', {
+                            required: 'Occupation is required',
+                            validate: (value) =>
+                              value.trim().length > 0 || 'Occupation is required'
+                          })}
+                        />
+                      </div>
+                    </div>
+
+                    {applicationType === 'correction' && (
+                      <div className="form-group">
+                        <FieldLabel icon={FaIdCard}>{t('apply.existingNidNumber')}</FieldLabel>
+                        <input
+                          type="text"
+                          readOnly={isApplicationFieldLocked('existingNidNumber')}
+                          aria-readonly={isApplicationFieldLocked('existingNidNumber')}
+                          className={`${getInputClass(!!errors.existingNidNumber)} ${isApplicationFieldLocked('existingNidNumber') ? 'locked-input' : ''
+                            }`}
+                          placeholder={t('apply.existingNidPlaceholder')}
+                          {...register('existingNidNumber', {
+                            required:
+                              applicationType === 'correction'
+                                ? 'Existing NID number is required'
+                                : false
+                          })}
+                        />
+                        {errors.existingNidNumber && (
+                          <span className="form-error">
+                            {errors.existingNidNumber.message}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {applicationType === 'correction' && (
+                      <div className="form-group">
+                        <FieldLabel icon={FaFileAlt}>{t('apply.correctionReason')}</FieldLabel>
+                        <textarea
+                          rows={3}
+                          className={getInputClass(!!errors.correctionReason)}
+                          placeholder={t('apply.correctionReasonPlaceholder')}
+                          {...register('correctionReason', {
+                            required:
+                              applicationType === 'correction'
+                                ? 'Correction reason is required'
+                                : false
+                          })}
+                        />
+                        {errors.correctionReason && (
+                          <span className="form-error">
+                            {errors.correctionReason.message}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="inline-flex items-center gap-2">
-                        <FaVenusMars className="text-[#16A34A]" />
-                        {t('apply.gender')}
-                      </span>
-                    </label>
-                    <select
-                      aria-disabled={isIdentityLocked}
-                      tabIndex={isIdentityLocked ? -1 : 0}
-                      className={`input-field ${
-                        isIdentityLocked ? 'locked-input' : ''
-                      }`}
-                      onMouseDown={blockLockedSelect}
-                      onTouchStart={blockLockedSelect}
-                      onKeyDown={blockLockedSelect}
-                      {...register('gender', {
-                        required: 'Gender is required'
-                      })}
-                    >
-                      <option value="">{t('apply.selectGender')}</option>
-                      <option value="male">{t('apply.male')}</option>
-                      <option value="female">{t('apply.female')}</option>
-                      <option value="other">{t('apply.other')}</option>
-                    </select>
-                    {errors.gender && (
-                      <span className="form-error">{errors.gender.message}</span>
-                    )}
+                  <div className="form-actions">
+                    <button type="button" className="btn btn-primary" onClick={nextStep}>
+                      {t('apply.continue')}
+                    </button>
                   </div>
-                </div>
-
-                <div className="form-row grid gap-5 md:grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.birthRegistrationNumber')}</label>
-                    <input
-                      type="text"
-                      readOnly={isIdentityLocked}
-                      aria-readonly={isIdentityLocked}
-                      className={`input-field ${
-                        isIdentityLocked ? 'locked-input' : ''
-                      }`}
-                      placeholder={t('apply.birthRegistrationPlaceholder')}
-                      {...register('birthRegistrationNumber', {
-                        pattern: {
-                          value: /^(\d{17})?$/,
-                          message: 'Enter a valid 17 digit birth registration number'
-                        }
-                      })}
-                    />
-                    {errors.birthRegistrationNumber && (
-                      <span className="form-error">
-                        {errors.birthRegistrationNumber.message}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.bloodGroup')}</label>
-                    <select
-                      className={getSelectClass(showBloodGroupError)}
-                      {...register('bloodGroup', {
-                        required: 'Blood group is required'
-                      })}
-                    >
-                      <option value="">{t('apply.selectBloodGroup')}</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row grid gap-5 md:grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="inline-flex items-center gap-2">
-                        <FaPhone className="text-[#16A34A]" />
-                        {t('apply.phoneNumber')}
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      className={getInputClass(!!errors.phone)}
-                      placeholder="01XXXXXXXXX"
-                      {...register('phone', {
-                        required: 'Phone number is required',
-                        pattern: {
-                          value: /^01[0-9]{9}$/,
-                          message: 'Enter a valid Bangladeshi mobile number'
-                        }
-                      })}
-                    />
-                    {errors.phone && (
-                      <span className="form-error">{errors.phone.message}</span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="inline-flex items-center gap-2">
-                        <FaEnvelope className="text-[#16A34A]" />
-                        {t('apply.email')}
-                      </span>
-                    </label>
-                    <input
-                      type="email"
-                      className={getInputClass(!!errors.email)}
-                      placeholder={t('apply.emailPlaceholder')}
-                      {...register('email', {
-                        pattern: {
-                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                          message: 'Enter a valid email address'
-                        }
-                      })}
-                    />
-                    {errors.email && (
-                      <span className="form-error">{errors.email.message}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="form-row grid gap-5 md:grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.maritalStatus')}</label>
-                    <select className={getSelectClass(false)} {...register('maritalStatus')}>
-                      <option value="single">{t('apply.single')}</option>
-                      <option value="married">{t('apply.married')}</option>
-                      <option value="divorced">{t('apply.divorced')}</option>
-                      <option value="widowed">{t('apply.widowed')}</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="inline-flex items-center gap-2">
-                        <FaBriefcase className="text-[#16A34A]" />
-                        {t('apply.occupation')}
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      className={getInputClass(showOccupationError)}
-                      placeholder={t('apply.occupationPlaceholder')}
-                      {...register('occupation', {
-                        required: 'Occupation is required',
-                        validate: (value) =>
-                          value.trim().length > 0 || 'Occupation is required'
-                      })}
-                    />
-                  </div>
-                </div>
-
-                {applicationType === 'correction' && (
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.existingNidNumber')}</label>
-                    <input
-                      type="text"
-                      className={getInputClass(!!errors.existingNidNumber)}
-                      placeholder={t('apply.existingNidPlaceholder')}
-                      {...register('existingNidNumber', {
-                        required:
-                          applicationType === 'correction'
-                            ? 'Existing NID number is required'
-                            : false
-                      })}
-                    />
-                    {errors.existingNidNumber && (
-                      <span className="form-error">
-                        {errors.existingNidNumber.message}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {applicationType === 'correction' && (
-                  <div className="form-group">
-                    <label className="form-label">{t('apply.correctionReason')}</label>
-                    <textarea
-                      rows={3}
-                      className={getInputClass(!!errors.correctionReason)}
-                      placeholder={t('apply.correctionReasonPlaceholder')}
-                      {...register('correctionReason', {
-                        required:
-                          applicationType === 'correction'
-                            ? 'Correction reason is required'
-                            : false
-                      })}
-                    />
-                    {errors.correctionReason && (
-                      <span className="form-error">
-                        {errors.correctionReason.message}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn btn-primary" onClick={nextStep}>
-                  {t('apply.continue')}
-                </button>
-              </div>
+                </>
+              ) : null}
             </div>
           )}
 
@@ -1858,7 +2405,7 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">{t('apply.division')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.division')}</FieldLabel>
                     <select
                       className={getSelectClass(!!errors.presentAddress?.division)}
                       {...register('presentAddress.division', {
@@ -1884,7 +2431,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.district')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.district')}</FieldLabel>
                     <select
                       className={getSelectClass(!!errors.presentAddress?.district)}
                       {...register('presentAddress.district', {
@@ -1911,7 +2458,7 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">{t('apply.upazila')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.upazila')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(!!errors.presentAddress?.upazila)}
@@ -1928,7 +2475,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.unionWard')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.unionWard')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(false)}
@@ -1940,7 +2487,7 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">{t('apply.villageArea')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.villageArea')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(false)}
@@ -1950,7 +2497,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.postOffice')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.postOffice')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(false)}
@@ -1961,7 +2508,7 @@ const ApplicationForm = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{t('apply.postalCode')}</label>
+                  <FieldLabel icon={FaMapMarkerAlt}>{t('apply.postalCode')}</FieldLabel>
                   <input
                     type="text"
                     className={getInputClass(false)}
@@ -1989,7 +2536,7 @@ const ApplicationForm = () => {
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">{t('apply.division')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.division')}</FieldLabel>
                       <select
                         className={getSelectClass(!!errors.permanentAddress?.division)}
                         {...register('permanentAddress.division', {
@@ -2017,7 +2564,7 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">{t('apply.district')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.district')}</FieldLabel>
                       <select
                         className={getSelectClass(!!errors.permanentAddress?.district)}
                         {...register('permanentAddress.district', {
@@ -2046,7 +2593,7 @@ const ApplicationForm = () => {
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">{t('apply.upazila')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.upazila')}</FieldLabel>
                       <input
                         type="text"
                         className={getInputClass(!!errors.permanentAddress?.upazila)}
@@ -2065,7 +2612,7 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">{t('apply.unionWard')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.unionWard')}</FieldLabel>
                       <input
                         type="text"
                         className={getInputClass(false)}
@@ -2077,7 +2624,7 @@ const ApplicationForm = () => {
 
                   <div className="form-row grid gap-5 md:grid-cols-2">
                     <div className="form-group">
-                      <label className="form-label">{t('apply.villageArea')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.villageArea')}</FieldLabel>
                       <input
                         type="text"
                         className={getInputClass(false)}
@@ -2087,7 +2634,7 @@ const ApplicationForm = () => {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">{t('apply.postOffice')}</label>
+                      <FieldLabel icon={FaMapMarkerAlt}>{t('apply.postOffice')}</FieldLabel>
                       <input
                         type="text"
                         className={getInputClass(false)}
@@ -2098,7 +2645,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.postalCode')}</label>
+                    <FieldLabel icon={FaMapMarkerAlt}>{t('apply.postalCode')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(false)}
@@ -2114,10 +2661,13 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">{t('apply.fatherName')}</label>
+                    <FieldLabel icon={FaUser}>{t('apply.fatherName')}</FieldLabel>
                     <input
                       type="text"
-                      className={getInputClass(!!errors.fatherName)}
+                      readOnly={isApplicationFieldLocked('fatherName')}
+                      aria-readonly={isApplicationFieldLocked('fatherName')}
+                      className={`${getInputClass(!!errors.fatherName)} ${isApplicationFieldLocked('fatherName') ? 'locked-input' : ''
+                        }`}
                       placeholder={t('apply.enterFatherName')}
                       {...register('fatherName', {
                         required: "Father's name is required"
@@ -2129,7 +2679,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.fatherNidOptional')}</label>
+                    <FieldLabel icon={FaIdCard}>{t('apply.fatherNidOptional')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(!!errors.fatherNID)}
@@ -2153,10 +2703,13 @@ const ApplicationForm = () => {
 
                 <div className="form-row grid gap-5 md:grid-cols-2">
                   <div className="form-group">
-                    <label className="form-label">{t('apply.motherName')}</label>
+                    <FieldLabel icon={FaUser}>{t('apply.motherName')}</FieldLabel>
                     <input
                       type="text"
-                      className={getInputClass(!!errors.motherName)}
+                      readOnly={isApplicationFieldLocked('motherName')}
+                      aria-readonly={isApplicationFieldLocked('motherName')}
+                      className={`${getInputClass(!!errors.motherName)} ${isApplicationFieldLocked('motherName') ? 'locked-input' : ''
+                        }`}
                       placeholder={t('apply.enterMotherName')}
                       {...register('motherName', {
                         required: "Mother's name is required"
@@ -2168,7 +2721,7 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('apply.motherNidOptional')}</label>
+                    <FieldLabel icon={FaIdCard}>{t('apply.motherNidOptional')}</FieldLabel>
                     <input
                       type="text"
                       className={getInputClass(!!errors.motherNID)}
@@ -2191,7 +2744,7 @@ const ApplicationForm = () => {
                 <h3>{t('apply.spouseInfo')}</h3>
 
                 <div className="form-group">
-                  <label className="form-label">{t('apply.spouseName')}</label>
+                  <FieldLabel icon={FaUser}>{t('apply.spouseName')}</FieldLabel>
                   <input
                     type="text"
                     className={getInputClass(false)}
@@ -2221,100 +2774,129 @@ const ApplicationForm = () => {
                 {t('apply.step3Description')}
               </p>
 
+              {applicationType === 'correction' ? (
+                <div className="correction-photo-change-toggle">
+                  <label className="register-checkbox-label flex items-start gap-3 text-sm text-[#374151]">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-[#D1D5DB] text-[#16A34A] focus:ring-[#16A34A]"
+                      {...register('photoChangeRequested')}
+                    />
+                    <span>
+                      <strong>{correctionCopy.requestPhotoChange}</strong>
+                      <small>{correctionCopy.requestPhotoChangeHelp}</small>
+                    </span>
+                  </label>
+                </div>
+              ) : null}
+
               <div className="upload-section">
-                <div className="upload-card">
-                  <div className="upload-header">
-                    <FaCamera className="upload-icon" />
-                    <div>
-                      <h4>{t('apply.passportPhoto')}</h4>
-                      <p>{t('apply.passportPhotoHint')}</p>
+                {(applicationType === 'new' ||
+                  (applicationType === 'correction' && photoChangeRequested)) && (
+                    <div className="upload-card">
+                      <div className="upload-header">
+                        <FaCamera className="upload-icon" />
+                        <div>
+                          <h4>
+                            {applicationType === 'correction'
+                              ? correctionCopy.passportPhotoRequired
+                              : t('apply.passportPhoto')}
+                          </h4>
+                          <p>
+                            {applicationType === 'correction'
+                              ? correctionCopy.passportPhotoHint
+                              : t('apply.passportPhotoHint')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className="upload-area"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        {photoPreview ? (
+                          <div className="preview-container">
+                            <img src={photoPreview} alt="Preview" className="photo-preview" />
+                            <button
+                              type="button"
+                              className="change-btn"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                resetPhotoSelection();
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="upload-placeholder">
+                            <FaUpload />
+                            <span>Click to upload passport-size photo</span>
+                            <small>JPG, PNG (Max 2MB)</small>
+                          </div>
+                        )}
+                      </div>
+
+                      <input
+                        type="file"
+                        ref={photoInputRef}
+                        accept="image/jpeg,image/png"
+                        onChange={handlePhotoChange}
+                        style={{ display: 'none' }}
+                      />
                     </div>
-                  </div>
+                  )}
 
-                  <div
-                    className="upload-area"
-                    onClick={() => photoInputRef.current?.click()}
-                  >
-                    {photoPreview ? (
-                      <div className="preview-container">
-                        <img src={photoPreview} alt="Preview" className="photo-preview" />
-                        <button
-                          type="button"
-                          className="change-btn"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            resetPhotoSelection();
-                          }}
-                        >
-                          Change
-                        </button>
+                {applicationType === 'new' && (
+                  <div className="upload-card">
+                    <div className="upload-header">
+                      <FaSignature className="upload-icon" />
+                      <div>
+                        <h4>{t('apply.signature')}</h4>
+                        <p>{t('apply.signatureHint')}</p>
                       </div>
-                    ) : (
-                      <div className="upload-placeholder">
-                        <FaUpload />
-                        <span>Click to upload passport-size photo</span>
-                        <small>JPG, PNG (Max 2MB)</small>
-                      </div>
-                    )}
-                  </div>
-
-                  <input
-                    type="file"
-                    ref={photoInputRef}
-                    accept="image/jpeg,image/png"
-                    onChange={handlePhotoChange}
-                    style={{ display: 'none' }}
-                  />
-                </div>
-
-                <div className="upload-card">
-                  <div className="upload-header">
-                    <FaSignature className="upload-icon" />
-                    <div>
-                      <h4>{t('apply.signature')}</h4>
-                      <p>{t('apply.signatureHint')}</p>
                     </div>
-                  </div>
 
-                  <div
-                    className="upload-area signature-area"
-                    onClick={() => signatureInputRef.current?.click()}
-                  >
-                    {signaturePreview ? (
-                      <div className="preview-container">
-                        <img
-                          src={signaturePreview}
-                          alt="Signature"
-                          className="signature-preview"
-                        />
-                        <button
-                          type="button"
-                          className="change-btn"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            resetSignatureSelection();
-                          }}
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="upload-placeholder">
-                        <FaUpload />
-                        <span>Click to upload signature</span>
-                        <small>JPG, PNG (Max 1MB)</small>
-                      </div>
-                    )}
-                  </div>
+                    <div
+                      className="upload-area signature-area"
+                      onClick={() => signatureInputRef.current?.click()}
+                    >
+                      {signaturePreview ? (
+                        <div className="preview-container">
+                          <img
+                            src={signaturePreview}
+                            alt="Signature"
+                            className="signature-preview"
+                          />
+                          <button
+                            type="button"
+                            className="change-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              resetSignatureSelection();
+                            }}
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="upload-placeholder">
+                          <FaUpload />
+                          <span>Click to upload signature</span>
+                          <small>JPG, PNG (Max 1MB)</small>
+                        </div>
+                      )}
+                    </div>
 
-                  <input
-                    type="file"
-                    ref={signatureInputRef}
-                    accept="image/jpeg,image/png"
-                    onChange={handleSignatureChange}
-                    style={{ display: 'none' }}
-                  />
-                </div>
+                    <input
+                      type="file"
+                      ref={signatureInputRef}
+                      accept="image/jpeg,image/png"
+                      onChange={handleSignatureChange}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                )}
 
                 {applicationType === 'new' && (
                   <div className="upload-card">
@@ -2369,8 +2951,8 @@ const ApplicationForm = () => {
                     <div className="upload-header">
                       <FaFileAlt className="upload-icon" />
                       <div>
-                        <h4>{t('apply.correctionProof')}</h4>
-                        <p>{t('apply.correctionProofHint')}</p>
+                        <h4>{correctionCopy.supportingDocumentsTitle}</h4>
+                        <p>{correctionCopy.supportingDocumentsHint}</p>
                       </div>
                     </div>
 
@@ -2378,26 +2960,35 @@ const ApplicationForm = () => {
                       className="upload-area"
                       onClick={() => correctionProofInputRef.current?.click()}
                     >
-                      {correctionProofPreview ? (
-                        <div className="file-uploaded">
-                          <FaCheck className="success-icon" />
-                          <span>{correctionProofPreview}</span>
-                          <button
-                            type="button"
-                            className="remove-btn"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              resetCorrectionProofSelection();
-                            }}
-                          >
-                            Remove
-                          </button>
+                      {correctionProofPreviews.length > 0 ? (
+                        <div className="correction-proof-list">
+                          {correctionProofPreviews.map((fileName, index) => (
+                            <div className="file-uploaded" key={`${fileName}-${index}`}>
+                              <FaCheck className="success-icon" />
+                              <span>{fileName}</span>
+                              <button
+                                type="button"
+                                className="remove-btn"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeCorrectionProofSelection(index);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                          {correctionProofPreviews.length < CORRECTION_SUPPORTING_DOCUMENT_MAX && (
+                            <small className="correction-proof-add-more">
+                              {correctionCopy.supportingDocumentsAddMore}
+                            </small>
+                          )}
                         </div>
                       ) : (
                         <div className="upload-placeholder">
                           <FaUpload />
-                          <span>Click to upload correction proof</span>
-                          <small>JPG, PNG, PDF (Max 5MB)</small>
+                          <span>{correctionCopy.supportingDocumentsPlaceholder}</span>
+                          <small>{correctionCopy.supportingDocumentsSmall}</small>
                         </div>
                       )}
                     </div>
@@ -2406,6 +2997,7 @@ const ApplicationForm = () => {
                       type="file"
                       ref={correctionProofInputRef}
                       accept="image/jpeg,image/png,application/pdf"
+                      multiple
                       onChange={handleCorrectionProofChange}
                       style={{ display: 'none' }}
                     />
@@ -2418,10 +3010,20 @@ const ApplicationForm = () => {
                   <FaExclamationTriangle /> Important Note
                 </h4>
                 <ul>
-                  <li>Passport-size photo and signature preview will work normally</li>
-                  <li>{t('apply.faceVerificationNotePoint1')}</li>
-                  <li>Required documents will be uploaded after the application is created</li>
-                  <li>If any document upload fails after submission, the application will still be created and you can contact support</li>
+                  {applicationType === 'correction' ? (
+                    <>
+                      <li>{correctionCopy.supportingDocumentsHint}</li>
+                      <li>{correctionCopy.requestPhotoChangeHelp}</li>
+                      <li>{correctionCopy.noOcrOrFaceVerification}</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Passport-size photo and signature preview will work normally</li>
+                      <li>{t('apply.faceVerificationNotePoint1')}</li>
+                      <li>Required documents will be uploaded after the application is created</li>
+                      <li>If any document upload fails after submission, the application will still be created and you can contact support</li>
+                    </>
+                  )}
                 </ul>
               </div>
 
@@ -2500,8 +3102,8 @@ const ApplicationForm = () => {
                         {sameAddress
                           ? 'Same as present address'
                           : `${watch('permanentAddress.division')}, ${watch(
-                              'permanentAddress.district'
-                            )}, ${watch('permanentAddress.upazila')}`}
+                            'permanentAddress.district'
+                          )}, ${watch('permanentAddress.upazila')}`}
                       </p>
                     </div>
                   </div>
@@ -2528,27 +3130,41 @@ const ApplicationForm = () => {
                 <div className="review-card">
                   <h4>{t('apply.uploadedDocuments')}</h4>
                   <div className="documents-preview">
-                    <div className="doc-item">
-                      <span>Passport-size photo</span>
-                      {photoPreview ? (
-                        <img src={photoPreview} alt="Photo" className="doc-thumb" />
-                      ) : (
-                        <span className="doc-missing">Not uploaded</span>
-                      )}
-                    </div>
+                    {(applicationType === 'new' ||
+                      (applicationType === 'correction' && photoChangeRequested)) ? (
+                      <div className="doc-item">
+                        <span>
+                          {applicationType === 'correction'
+                            ? correctionCopy.passportPhotoRequired
+                            : t('apply.passportPhoto')}
+                        </span>
+                        {photoPreview ? (
+                          <img src={photoPreview} alt="Photo" className="doc-thumb" />
+                        ) : (
+                          <span className="doc-missing">Not uploaded</span>
+                        )}
+                      </div>
+                    ) : applicationType === 'correction' ? (
+                      <div className="doc-item">
+                        <span>{correctionCopy.passportPhotoOptional}</span>
+                        <span className="doc-missing">{correctionCopy.photoChangeNotRequested}</span>
+                      </div>
+                    ) : null}
 
-                    <div className="doc-item">
-                      <span>{t('apply.signature').replace(' *', '')}</span>
-                      {signaturePreview ? (
-                        <img
-                          src={signaturePreview}
-                          alt="Signature"
-                          className="doc-thumb signature-thumb"
-                        />
-                      ) : (
-                        <span className="doc-missing">Not uploaded</span>
-                      )}
-                    </div>
+                    {applicationType === 'new' && (
+                      <div className="doc-item">
+                        <span>{t('apply.signature').replace(' *', '')}</span>
+                        {signaturePreview ? (
+                          <img
+                            src={signaturePreview}
+                            alt="Signature"
+                            className="doc-thumb signature-thumb"
+                          />
+                        ) : (
+                          <span className="doc-missing">Not uploaded</span>
+                        )}
+                      </div>
+                    )}
 
                     {applicationType === 'new' && (
                       <div className="doc-item">
@@ -2565,10 +3181,10 @@ const ApplicationForm = () => {
 
                     {applicationType === 'correction' && (
                       <div className="doc-item">
-                        <span>Correction Proof</span>
-                        {correctionProofPreview ? (
+                        <span>{correctionCopy.supportingDocumentsTitle.replace(' *', '')}</span>
+                        {correctionProofPreviews.length > 0 ? (
                           <span className="doc-uploaded">
-                            <FaCheck /> {correctionProofPreview}
+                            <FaCheck /> {correctionProofPreviews.join(', ')}
                           </span>
                         ) : (
                           <span className="doc-missing">Not uploaded</span>
@@ -2638,11 +3254,10 @@ const ApplicationForm = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`btn btn-primary btn-lg ${
-                    isSubmitBlockedByActiveApplication || isSubmitBlockedByDeliveredNewNid
+                  className={`btn btn-primary btn-lg ${isSubmitBlockedByActiveApplication || isSubmitBlockedByDeliveredNewNid
                       ? 'submit-disabled-by-active-application'
                       : ''
-                  }`}
+                    }`}
                   disabled={
                     isSubmitting ||
                     isSubmitBlockedByNewNidEligibility ||
@@ -2653,8 +3268,8 @@ const ApplicationForm = () => {
                     isSubmitting
                       ? submitLockReason
                       : isSubmitBlockedByNewNidEligibility ||
-                          isSubmitBlockedByActiveApplication ||
-                          isSubmitBlockedByDeliveredNewNid
+                        isSubmitBlockedByActiveApplication ||
+                        isSubmitBlockedByDeliveredNewNid
                         ? submitBlockedReason
                         : undefined
                   }
@@ -2679,6 +3294,7 @@ const ApplicationForm = () => {
             </div>
           )}
         </form>
+
 
         {livenessSession && (
           <LivenessVerificationModal

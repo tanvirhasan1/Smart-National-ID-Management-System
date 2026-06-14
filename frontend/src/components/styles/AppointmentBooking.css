@@ -46,7 +46,7 @@
   margin: 0 0 0.35rem;
   color: var(--color-text-primary, #1F2937);
   font-size: clamp(1.7rem, 3vw, 2.35rem);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .appointment-booking__header-card p,
@@ -87,7 +87,7 @@
 .appointment-booking__application-card strong,
 .appointment-booking__summary-grid strong {
   color: var(--color-text-primary, #1F2937);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .appointment-booking__progress {
@@ -116,7 +116,7 @@
   justify-content: center;
   border-radius: 999px;
   background: #EEF2F7;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .appointment-booking__progress-item.is-active {
@@ -155,7 +155,7 @@
   margin: 0 0 0.35rem;
   color: var(--color-text-primary, #1F2937);
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .appointment-booking__section-title h3 svg,
@@ -306,7 +306,7 @@
 
 .appointment-booking__date-card em {
   margin-top: 0.55rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .appointment-booking__date-card.is-available {
@@ -383,7 +383,7 @@
   align-items: center;
   gap: 0.5rem;
   color: var(--color-brand, #16A34A);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .appointment-booking__slot-option strong {
@@ -401,7 +401,7 @@
 
 .appointment-booking__form-group label {
   color: #374151;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .appointment-booking__summary-grid {

@@ -16,7 +16,7 @@
 
 .application-form-page-wrapper .form-header h1 {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #1F2937;
   margin-bottom: 0.5rem;
 }
@@ -116,16 +116,21 @@
 /* Application Types */
 .application-form-page-wrapper .application-types {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  align-items: stretch; /* Makes every card fill the same row height */
+  grid-template-columns: repeat(2, minmax(220px, 280px));
+  justify-content: center;
+  justify-items: stretch;
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto 2rem;
+  align-items: stretch;
 }
 
 .application-form-page-wrapper .type-card {
   cursor: pointer;
   position: relative;
-  height: 100%; /* Keeps all three application cards equal inside the grid */
+  width: 100%;
+  height: 100%;
 }
 
 .application-form-page-wrapper .type-card input {
@@ -217,7 +222,7 @@
   background: #F3F4F6;
   color: #6B7280;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .application-form-page-wrapper .application-type-lock-note,
@@ -251,6 +256,16 @@
 
 .application-form-page-wrapper .application-eligibility-note.blocked strong {
   color: #991B1B;
+}
+
+.application-form-page-wrapper .application-eligibility-note.pending {
+  border-color: #FDE68A;
+  background: #FFFBEB;
+  color: #78350F;
+}
+
+.application-form-page-wrapper .application-eligibility-note.pending strong {
+  color: #92400E;
 }
 
 .application-form-page-wrapper .application-eligibility-note.resubmission {
@@ -319,9 +334,8 @@
 
 /* Info Sections */
 .application-form-page-wrapper .info-section {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .application-form-page-wrapper .info-section:last-of-type {
@@ -333,7 +347,7 @@
   font-size: 1.125rem;
   font-weight: 600;
   color: #374151;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 /* Upload Section */
@@ -493,6 +507,7 @@
 
 .application-form-page-wrapper .upload-guidelines li {
   margin-bottom: 0.25rem;
+  list-style-type: disc;
 }
 
 /* Review Section */
@@ -678,7 +693,7 @@
   margin: 0 0 0.18rem;
   color: #102A1C;
   font-size: 0.92rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -729,7 +744,6 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid #E5E7EB; /* Single clean divider above the buttons */
   box-shadow: none;
@@ -916,7 +930,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.85rem;
-  font-weight: 700;
+  font-weight: 500;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s ease, background-color 0.2s ease,
@@ -1057,7 +1071,231 @@
 }
 
 .application-form-page-wrapper .applicant-info-section + .form-actions {
-  margin-top: 2rem;
+  padding-top: 2rem;
   border-top: 1px solid #E5E7EB;
   box-shadow: none;
 }
+
+.correction-prefill-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.09), rgba(59, 130, 246, 0.07));
+  color: #14532d;
+}
+
+.correction-prefill-note strong {
+  font-size: 0.98rem;
+  color: #166534;
+}
+
+.correction-prefill-note span,
+.correction-prefill-note small {
+  color: #374151;
+}
+
+.correction-photo-change-toggle {
+  margin: 0 0 1rem;
+  border: 1px solid #D1FAE5;
+  border-radius: 1rem;
+  background: #F0FDF4;
+  padding: 1rem 1.15rem;
+}
+
+.correction-photo-change-toggle strong,
+.correction-photo-change-toggle small {
+  display: block;
+}
+
+.correction-photo-change-toggle strong {
+  color: #14532d;
+  font-size: 0.95rem;
+}
+
+.correction-photo-change-toggle small {
+  color: #4B5563;
+  line-height: 1.5;
+  margin-top: 0.2rem;
+}
+
+.correction-proof-list {
+  display: grid;
+  width: 100%;
+  gap: 0.6rem;
+}
+
+.correction-proof-list .file-uploaded {
+  justify-content: space-between;
+}
+
+.correction-proof-add-more {
+  display: block;
+  color: #16a34a;
+  font-weight: 600;
+  text-align: center;
+}
+
+.application-form-page-wrapper .type-lock-badge {
+  gap: 0.35rem;
+}
+
+.application-form-page-wrapper .locked-type:hover .type-content {
+  background-color: #F9FAFB;
+  border-color: #E5E7EB;
+}
+.application-form-page-wrapper .form-row {
+  align-items: start;
+}
+
+.application-form-page-wrapper .form-group {
+  margin-bottom: 1rem;
+}
+
+.application-form-page-wrapper .form-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.application-form-page-wrapper .form-label .form-label-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.application-form-page-wrapper .form-label .form-label-icon {
+  flex-shrink: 0;
+  color: #16A34A;
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.application-form-page-wrapper .form-label .form-label-text {
+  display: inline;
+}
+
+.application-form-page-wrapper .input-field,
+.application-form-page-wrapper .application-form-input,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-input,
+.application-form-page-wrapper .form-select,
+.application-form-page-wrapper .form-textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #D5DCE7;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  color: #0F172A;
+  padding: 0.82rem 1rem;
+  font-size: 0.94rem;
+  font-weight: 500;
+  line-height: 1.35;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.application-form-page-wrapper textarea.input-field,
+.application-form-page-wrapper textarea.application-form-input,
+.application-form-page-wrapper textarea.form-input,
+.application-form-page-wrapper textarea.form-textarea {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.application-form-page-wrapper select.input-field,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2364758B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1.1rem;
+  padding-right: 2.75rem;
+}
+
+.application-form-page-wrapper .input-field:focus,
+.application-form-page-wrapper .application-form-input:focus,
+.application-form-page-wrapper .application-form-select:focus,
+.application-form-page-wrapper .form-input:focus,
+.application-form-page-wrapper .form-select:focus,
+.application-form-page-wrapper .form-textarea:focus {
+  border-color: #16A34A;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.11);
+}
+
+.application-form-page-wrapper .input-field.error,
+.application-form-page-wrapper .application-form-input.error,
+.application-form-page-wrapper .application-form-select.error,
+.application-form-page-wrapper .form-input.error,
+.application-form-page-wrapper .form-select.error,
+.application-form-page-wrapper .form-textarea.error {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08);
+}
+
+.application-form-page-wrapper .locked-input,
+.application-form-page-wrapper .input-field[readonly],
+.application-form-page-wrapper .application-form-input[readonly],
+.application-form-page-wrapper .form-input[readonly],
+.application-form-page-wrapper select[aria-disabled='true'] {
+  background-color: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #334155;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper select.locked-input,
+.application-form-page-wrapper select[aria-disabled='true'] {
+  pointer-events: none;
+}
+
+.application-form-page-wrapper .form-error {
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #DC2626;
+}
+
+@media (max-width: 768px) {
+  .application-form-page-wrapper .input-field,
+  .application-form-page-wrapper .application-form-input,
+  .application-form-page-wrapper .application-form-select,
+  .application-form-page-wrapper .form-input,
+  .application-form-page-wrapper .form-select,
+  .application-form-page-wrapper .form-textarea {
+    min-height: 46px;
+    font-size: 0.9rem;
+  }
+}
+
+.application-form-page-wrapper .locked-input,
+.application-form-page-wrapper .input-field[readonly],
+.application-form-page-wrapper .application-form-input[readonly],
+.application-form-page-wrapper .form-input[readonly],
+.application-form-page-wrapper select[aria-disabled='true'] {
+  background-color: #F8FAFC;
+  border-color: #D8E0EA;
+  color: #334155;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .locked-input:focus,
+.application-form-page-wrapper .application-form-input[readonly]:focus,
+.application-form-page-wrapper .form-input[readonly]:focus,
+.application-form-page-wrapper select[aria-disabled='true']:focus {
+  border-color: #CBD5E1;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+}
+
+@media (max-width: 640px) {}

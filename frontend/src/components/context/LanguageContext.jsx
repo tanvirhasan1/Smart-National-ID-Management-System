@@ -47,7 +47,7 @@ const translations = {
       loggingIn: 'Logging in...',
       noAccount: "Don't have an account?",
       registerNow: 'Register Now',
-      success: 'Login successful!',
+      success: 'Login successful.',
       invalidCredentials: 'Invalid email or password. Please try again.'
     },
     forgotPasswordPage: {
@@ -73,15 +73,15 @@ const translations = {
       backToLogin: 'Back to Login',
       showPassword: 'Show password',
       hidePassword: 'Hide password',
-      enterEmail: 'Please enter your email address',
-      codeSentSuccess: 'Password reset code sent to your email',
-      sendFailed: 'Failed to send reset code',
-      enterCode: 'Please enter the 6-digit code',
-      passwordMin: 'Password must be at least 8 characters',
-      passwordsDoNotMatch: 'Passwords do not match',
+      enterEmail: 'Please enter your email address.',
+      codeSentSuccess: 'Password reset code sent.',
+      sendFailed: 'Reset code could not be sent.',
+      enterCode: 'Please enter the 6-digit code.',
+      passwordMin: 'Password must be at least 8 characters.',
+      passwordsDoNotMatch: 'Passwords do not match.',
       sessionExpired: 'Reset session expired. Please request a new code.',
-      resetSuccess: 'Password reset successful. Please login.',
-      resetFailed: 'Failed to reset password'
+      resetSuccess: 'Password updated successfully.',
+      resetFailed: 'Password could not be updated.'
     },
 
     register: {
@@ -95,7 +95,7 @@ const translations = {
       fullNameEnglish: 'Full Name (English) *',
       fullNameEnglishPlaceholder: 'Enter your full name',
       fullNameBangla: 'Full Name (Bangla) *',
-      fullNameBanglaPlaceholder: 'আপনার পুরো নাম লিখুন',
+      fullNameBanglaPlaceholder: 'Enter full name in Bangla',
       birthRegNumber: 'Birth Registration Number *',
       birthRegNumberPlaceholder: '17-digit Birth Registration Number',
       dateOfBirth: 'Date of Birth *',
@@ -109,8 +109,8 @@ const translations = {
       mobile: 'Mobile Number *',
       email: 'Email *',
       emailPlaceholder: 'email@example.com',
-      nextStep: 'Next Step →',
-      previous: '← Previous',
+      nextStep: 'Next Step',
+      previous: 'Previous',
       presentAddress: 'Present Address',
       permanentAddress: 'Permanent Address',
       division: 'Division *',
@@ -148,7 +148,7 @@ const translations = {
       showPassword: 'Show password',
       hidePassword: 'Hide password',
       verificationTokenMissing: 'Verification token not found. Please try again.',
-      registrationSuccess: 'Registration successful! Please verify your email.',
+      registrationSuccess: 'Registration successful. Please verify your email.',
       registrationFailed: 'Registration failed. Please try again.',
       fullNameRequired: 'Full name is required',
       fullNameMin: 'Name must be at least 3 characters',
@@ -168,7 +168,7 @@ const translations = {
       passwordRequired: 'Password is required',
       passwordMin: 'Password must be at least 6 characters',
       passwordPattern: 'Password must contain uppercase, lowercase and number',
-      confirmPasswordRequired: 'Please confirm your password',
+      confirmPasswordRequired: 'Please confirm your password.',
       passwordMismatch: 'Passwords do not match',
       agreeTermsRequired: 'You must agree to the terms and conditions'
     },
@@ -198,6 +198,78 @@ const translations = {
       phoneNumber: '+880 1000-000000',
       demoAddress: 'Demo Service Office, Dhaka, Bangladesh'
     },
+    support: {
+  title: 'Support Center',
+  subtitle: 'Get help with your Smart NID application and service issues.',
+  createNewTicket: 'Create New Ticket',
+  createTicket: 'Create Ticket',
+  myTickets: 'My Tickets',
+  activeSupport: 'Active Support',
+  noTicketsTitle: 'No support tickets yet',
+  noTicketsDescription: 'Create your first ticket if you need help.',
+  selectTicketTitle: 'Select a Ticket',
+  selectTicketDescription:
+    'Choose a ticket from the list to view full conversation and send replies.',
+  openFirstTicket: 'Open First Ticket',
+  loadingTickets: 'Loading support tickets...',
+  loadingDetails: 'Loading ticket details...',
+  category: 'Category',
+  subject: 'Subject',
+  created: 'Created',
+  conversation: 'Conversation',
+  you: 'You',
+  supportTeam: 'Support Team',
+  replyMessage: 'Reply Message',
+  replyPlaceholder: 'Type your message...',
+  sending: 'Sending...',
+  sendMessage: 'Send Message',
+  closedNote: 'This ticket is {status}. No new replies can be sent.',
+  modalTitle: 'Create Support Ticket',
+  modalSubtitle: 'Tell us about your issue and our team will help you.',
+  subjectLabel: 'Subject *',
+  subjectPlaceholder: 'Brief description of your issue',
+  categoryLabel: 'Category *',
+  selectCategory: 'Select category',
+  priorityLabel: 'Priority',
+  descriptionLabel: 'Description *',
+  descriptionPlaceholder: 'Describe your issue in detail...',
+  cancel: 'Cancel',
+  creating: 'Creating...',
+  statuses: {
+    open: 'Open',
+    in_progress: 'In Progress',
+    resolved: 'Resolved',
+    closed: 'Closed'
+  },
+  categories: {
+    application_issue: 'Application Issue',
+    appointment: 'Appointment',
+    payment: 'Payment',
+    delivery: 'Delivery',
+    technical: 'Technical Issue',
+    other: 'Other'
+  },
+  priorities: {
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+    urgent: 'Urgent'
+  },
+  validation: {
+    subjectRequired: 'Subject is required',
+    categoryRequired: 'Category is required',
+    descriptionRequired: 'Description is required',
+    descriptionMin: 'Description must be at least 20 characters'
+  },
+  toasts: {
+    loadFailed: 'Support tickets could not be loaded.',
+    detailsFailed: 'Ticket details could not be loaded.',
+    createSuccess: 'Support ticket created successfully.',
+    createFailed: 'Support ticket could not be created.',
+    messageSuccess: 'Message sent successfully.',
+    messageFailed: 'Message could not be sent.'
+  }
+},
     apply: {
       title: 'Smart NID Application',
       subtitle: 'Complete all steps to submit your application',
@@ -222,7 +294,7 @@ const translations = {
       reason: 'Reason',
       applicantInfo: 'Applicant Information',
       fullNameEnglish: 'Full Name (English) *',
-      fullNameBangla: 'Full Name (বাংলা)',
+      fullNameBangla: 'Full Name (Bangla)',
       dateOfBirth: 'Date of Birth *',
       gender: 'Gender *',
       birthRegistrationNumber: 'Birth Registration Number',
@@ -235,7 +307,7 @@ const translations = {
       correctionReason: 'Correction Reason *',
 
       enterFullNameEnglish: 'Enter full name in English',
-      enterFullNameBangla: 'পূর্ণ নাম লিখুন',
+      enterFullNameBangla: 'Enter full name in Bangla',
       selectGender: 'Select gender',
       male: 'Male',
       female: 'Female',
@@ -297,7 +369,7 @@ const translations = {
       faceVerificationNoteTitle: 'Face verification required',
       faceVerificationNotePoint1:
         'Face verification will start when you submit the application',
-      reviewApplication: 'Review Application →',
+      reviewApplication: 'Review Application',
 
       step4Title: 'Review & Submit',
       step4Description: 'Please review your information before submitting.',
@@ -318,16 +390,156 @@ const translations = {
         'I declare that the information provided is true and correct to the best of my knowledge.',
       mustAgree: 'You must agree to the declaration',
 
-      continue: 'Continue →',
-      previousButton: '← Previous',
+      continue: 'Continue',
+      previousButton: 'Previous',
       submitApplication: 'Submit Application',
       submitting: 'Submitting...',
       fillRequired: 'Please fill all required fields before continuing.',
-      uploadPhoto: 'Please upload your passport-size photo',
-      uploadSignature: 'Please upload your signature',
-      uploadBirthCertificate: 'Please upload your birth certificate',
-      uploadCorrectionProof: 'Please upload correction proof'
+      uploadPhoto: 'Please upload your passport-size photo.',
+      uploadSignature: 'Please upload your signature.',
+      uploadBirthCertificate: 'Please upload your birth certificate.',
+      uploadCorrectionProof: 'Please upload correction proof.'
+    },
+    tracker: {
+loadingApplications: 'Loading applications...',
+    headerTitle: 'Track Your Smart NID Application',
+    headerSubtitle: 'See every stage of your application journey in one place.',
+    currentPrefix: 'Current:',
+    syncing: 'Syncing...',
+    autoSyncedPrefix: 'Auto synced:',
+    myApplications: 'My Applications',
+    myApplicationsHint: 'Open any application to see full progress.',
+    noApplicationsFound: 'No applications found',
+    noApplicationsHint: 'You have not submitted any application yet.',
+    applyNow: 'Apply Now',
+    applicationPrefix: 'Application',
+    applicationType: 'Application Type',
+    currentStatus: 'Current Status',
+    submittedOn: 'Submitted On',
+    lastUpdated: 'Last Updated',
+    needActionTitle: 'Need to take action?',
+    needActionHint: 'Available options will appear here based on the current application status.',
+    contactSupport: 'Contact Support',
+    openDigitalNid: 'View Digital NID',
+    applyAgain: 'Apply Again',
+    correctionRequest: 'Correction Request',
+    officialRejectionReason: 'Official Rejection Reason',
+    applicationProgress: 'Application Progress',
+    applicationProgressHint: 'Official milestones are shown once in a compact timeline to avoid duplicate information.',
+    selectApplication: 'Select an Application',
+    selectApplicationHint: 'Choose an application from the left side to view details.',
+    correctionRequestProgress: 'Correction Request Progress',
+    correctionRequestHint: 'This section appears only because you submitted a correction request.',
+    baseApplication: 'Base Application',
+    changedFields: 'Changed Fields',
+    correctionRejectionReason: 'Correction Rejection Reason',
+    previousCorrectionRequests: 'Previous Correction Requests',
+    submittedPrefix: 'Submitted:',
+    updatedPrefix: 'Updated:',
+    statusTime: 'Status Time',
+    stepPrefix: 'Step',
+    finalRejectedTitle: 'Final Review Result: Rejected',
+    finalRejectedDescription: 'The application stopped after the review stage. It did not move to approval, printing, dispatch, or delivery.',
+    finalCancelledTitle: 'Final Review Result: Cancelled',
+    finalCancelledDescription: 'This application is no longer active and will not move to the next stages.',
+    notAvailable: 'N/A',
+    statusBadges: { current: 'Current', completed: 'Completed', pending: 'Pending' },
+    statuses: {
+      draft: 'Draft', submitted: 'Submitted', under_review: 'Under Review', approved: 'Approved',
+      printed: 'Printed', dispatched: 'Dispatched', delivered: 'Delivered', rejected: 'Rejected',
+      cancelled: 'Cancelled', new: 'NEW', correction: 'CORRECTION'
+    },
+    timeline: {
+      submitted: { label: 'Submitted', description: 'Your application has been received successfully.', currentText: 'Submitted now' },
+      waitingReview: { label: 'Waiting for Admin Review', description: 'Your application is queued for admin checking.', pendingText: 'Waiting for review' },
+      decisionPending: { label: 'Decision Pending', description: 'Approval or rejection decision has not been made yet.', pendingText: 'Not decided yet' },
+      adminReview: { label: 'Admin Review', description: 'Admin is checking your submitted information and documents.', currentText: 'In review' },
+      decisionWaiting: { label: 'Decision Pending', description: 'Final approval or rejection decision is still pending.', pendingText: 'Waiting for decision' },
+      reviewedRejected: { label: 'Reviewed & Rejected', description: 'Admin reviewed the application and rejected it.', badgeText: 'Rejected' },
+      applicationClosed: { label: 'Application Closed', description: 'This application will not move to printing or delivery.', badgeText: 'Closed', pendingText: 'No next stage' },
+      cancelled: { label: 'Application Cancelled', description: 'This application is no longer active.', badgeText: 'Cancelled' },
+      processClosed: { label: 'Process Closed', description: 'No approval, printing, or delivery stage will run for this application.', badgeText: 'Closed', pendingText: 'No next stage' },
+      reviewedApproved: { label: 'Reviewed & Approved', description: 'Admin reviewed your information and approved the application.' },
+      cardPrinted: { label: 'Card Printed', description: 'Your Smart NID card has been printed. Digital NID and Correction are now available.' },
+      deliveryPending: { label: 'Delivery Pending', description: 'Delivery update has not been added yet.', pendingText: 'Waiting for delivery' },
+      printedCompleted: { label: 'Card Printed', description: 'Card printing has been completed.' },
+      outForDelivery: { label: 'Out for Delivery', description: 'Your Smart NID card has been dispatched for delivery.', currentText: 'On the way' },
+      outForDeliveryCompleted: { label: 'Out for Delivery', description: 'Your Smart NID card was dispatched for delivery.' },
+      delivered: { label: 'Delivered', description: 'Your Smart NID card has been delivered successfully.', badgeText: 'Completed' }
+    },
+    correctionTimeline: {
+      submitted: { label: 'Submitted', description: 'Your correction request has been received.' },
+      reviewedApproved: { label: 'Reviewed & Approved', description: 'Admin reviewed your old and requested information, then approved the correction.' },
+      changesApplied: { label: 'Changes Applied', description: 'Your approved changes have been applied to your NID record.', badgeText: 'Completed' },
+      reviewedRejected: { label: 'Reviewed & Rejected', description: 'Admin reviewed the request and rejected it. Check the reason below.' },
+      closed: { label: 'Closed', description: 'This correction request is now closed.', badgeText: 'Closed' },
+      adminReview: { label: 'Admin Review', description: 'Admin is comparing your old and requested information side by side.' },
+      waitingReview: { label: 'Waiting for Admin Review', description: 'Your request is queued for admin review. You will see the decision here.' },
+      decisionPending: { label: 'Decision Pending', description: 'The final admin decision has not been made yet.' }
+    },
+    primary: {
+      none: { title: 'No application selected', description: 'Select an application from the left side to see the full status timeline.' },
+      processing: { title: 'Your application is currently under process', description: 'The authority is reviewing your submitted information and supporting documents.' },
+      printed: { title: 'Your Smart NID card has been printed', description: 'Printing is complete. Digital NID and Correction are available while delivery continues.' },
+      dispatched: { title: 'Your Smart NID card has been dispatched', description: 'Your card is now moving through delivery. Keep checking this tracker for the next update.' },
+      delivered: { title: 'Your Smart NID card has been delivered', description: 'Delivery is complete. You can now keep the digital version for quick access if available.' },
+      rejected: { title: 'Your application has been rejected', description: 'Please read the official rejection reason below. Fix the issue before you apply again.' },
+      cancelled: { title: 'This application was cancelled', description: 'This application is no longer active. You can create a new application when needed.' },
+      default: { title: 'Follow your latest application update', description: 'Open the timeline below to see the current stage of your application.' }
+    },
+    correctionPrimary: {
+      submitted: { title: 'Correction request submitted', description: 'Your correction is waiting for admin review.' },
+      under_review: { title: 'Correction is under review', description: 'Admin is comparing previous and requested information.' },
+      approved: { title: 'Correction approved', description: 'Your requested correction has been approved and applied.' },
+      rejected: { title: 'Correction rejected', description: 'Please check the rejection reason before applying again.' },
+      default: { title: 'Correction update available', description: 'Track the latest correction status here.' }
+    },
+    timelineTime: { waitingNext: 'Waiting for next update', inProgress: 'In progress', completed: 'Completed' },
+    lifecycle: {
+    stages: {
+      appointment_required: {
+        label: 'Biometric appointment required',
+        description:
+          'Book and complete your biometric appointment before the card can enter printing.',
+        currentText: 'Appointment needed'
+      },
+      appointment_booked: {
+        label: 'Biometric appointment scheduled',
+        description: 'Attend your appointment on the scheduled date and time.',
+        currentText: 'Scheduled'
+      },
+      waiting_for_printing: {
+        label: 'Waiting for card printing',
+        description:
+          'Your biometric verification is complete. Your card will be prepared for printing.',
+        currentText: 'Waiting for printing'
+      }
+    },
+    primary: {
+      approvedRequired: {
+        title: 'Your application has been approved',
+        description:
+          'Your review is complete. Book and complete your biometric appointment before printing can begin.'
+      },
+      approvedBooked: {
+        title: 'Biometric appointment scheduled',
+        description: 'Attend your appointment on the scheduled date and time.'
+      },
+      approvedCompleted: {
+        title: 'Waiting for card printing',
+        description:
+          'Your biometric verification is complete. Your card will be prepared for printing.'
+      }
+    },
+    action: {
+      bookBiometric: 'Book Biometric Appointment',
+      noActionWaiting:
+        'No action is needed now. Your card is waiting for printing.',
+      noBookingNeeded:
+        'Your biometric appointment is already scheduled. No new booking is needed.'
     }
+  }
+  }
   },
 
   bn: {
@@ -364,7 +576,7 @@ const translations = {
       loggingIn: 'লগইন হচ্ছে...',
       noAccount: 'অ্যাকাউন্ট নেই?',
       registerNow: 'রেজিস্টার করুন',
-      success: 'লগইন সফল হয়েছে!',
+      success: 'লগইন সফল হয়েছে।',
       invalidCredentials: 'ইমেইল বা পাসওয়ার্ড সঠিক নয়। আবার চেষ্টা করুন।'
     },
     forgotPasswordPage: {
@@ -390,15 +602,15 @@ const translations = {
       backToLogin: 'লগইনে ফিরুন',
       showPassword: 'পাসওয়ার্ড দেখান',
       hidePassword: 'পাসওয়ার্ড লুকান',
-      enterEmail: 'আপনার ইমেইল ঠিকানা লিখুন',
-      codeSentSuccess: 'পাসওয়ার্ড রিসেট কোড আপনার ইমেইলে পাঠানো হয়েছে',
-      sendFailed: 'রিসেট কোড পাঠানো যায়নি',
-      enterCode: '৬ সংখ্যার কোড লিখুন',
-      passwordMin: 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে',
-      passwordsDoNotMatch: 'পাসওয়ার্ড মিলছে না',
+      enterEmail: 'আপনার ইমেইল ঠিকানা লিখুন।',
+      codeSentSuccess: 'পাসওয়ার্ড রিসেট কোড পাঠানো হয়েছে।',
+      sendFailed: 'রিসেট কোড পাঠানো যায়নি।',
+      enterCode: '৬ সংখ্যার কোড লিখুন।',
+      passwordMin: 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।',
+      passwordsDoNotMatch: 'পাসওয়ার্ড মিলছে না।',
       sessionExpired: 'রিসেট সেশন শেষ হয়েছে। নতুন কোড অনুরোধ করুন।',
-      resetSuccess: 'পাসওয়ার্ড সফলভাবে রিসেট হয়েছে। অনুগ্রহ করে লগইন করুন।',
-      resetFailed: 'পাসওয়ার্ড রিসেট করা যায়নি'
+      resetSuccess: 'পাসওয়ার্ড আপডেট হয়েছে।',
+      resetFailed: 'পাসওয়ার্ড আপডেট করা যায়নি।'
     },
 
     register: {
@@ -465,7 +677,7 @@ const translations = {
       showPassword: 'পাসওয়ার্ড দেখান',
       hidePassword: 'পাসওয়ার্ড লুকান',
       verificationTokenMissing: 'ভেরিফিকেশন টোকেন পাওয়া যায়নি। আবার চেষ্টা করুন।',
-      registrationSuccess: 'রেজিস্ট্রেশন সফল হয়েছে! অনুগ্রহ করে ইমেইল যাচাই করুন।',
+      registrationSuccess: 'রেজিস্ট্রেশন সফল হয়েছে। অনুগ্রহ করে ইমেইল যাচাই করুন।',
       registrationFailed: 'রেজিস্ট্রেশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
       fullNameRequired: 'পূর্ণ নাম আবশ্যক',
       fullNameMin: 'নাম কমপক্ষে ৩ অক্ষরের হতে হবে',
@@ -485,7 +697,7 @@ const translations = {
       passwordRequired: 'পাসওয়ার্ড আবশ্যক',
       passwordMin: 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে',
       passwordPattern: 'পাসওয়ার্ডে বড় হাতের, ছোট হাতের অক্ষর এবং একটি সংখ্যা থাকতে হবে',
-      confirmPasswordRequired: 'পাসওয়ার্ড নিশ্চিত করুন',
+      confirmPasswordRequired: 'পাসওয়ার্ড নিশ্চিত করুন।',
       passwordMismatch: 'পাসওয়ার্ড মিলছে না',
       agreeTermsRequired: 'শর্তাবলিতে সম্মতি দিতে হবে'
     },
@@ -515,6 +727,79 @@ const translations = {
       phoneNumber: '+৮৮০ ১০০০-০০০০০০',
       demoAddress: 'ডেমো সার্ভিস অফিস, ঢাকা, বাংলাদেশ'
     },
+
+    support: {
+  title: 'সাপোর্ট সেন্টার',
+  subtitle: 'আপনার স্মার্ট এনআইডি আবেদন ও সেবা সংক্রান্ত সমস্যার জন্য সহায়তা নিন।',
+  createNewTicket: 'নতুন টিকিট তৈরি করুন',
+  createTicket: 'টিকিট তৈরি করুন',
+  myTickets: 'আমার টিকিট',
+  activeSupport: 'সক্রিয় সাপোর্ট',
+  noTicketsTitle: 'এখনো কোনো সাপোর্ট টিকিট নেই',
+  noTicketsDescription: 'সহায়তা প্রয়োজন হলে আপনার প্রথম টিকিট তৈরি করুন।',
+  selectTicketTitle: 'একটি টিকিট নির্বাচন করুন',
+  selectTicketDescription:
+    'সম্পূর্ণ কথোপকথন দেখতে এবং উত্তর পাঠাতে তালিকা থেকে একটি টিকিট নির্বাচন করুন।',
+  openFirstTicket: 'প্রথম টিকিট খুলুন',
+  loadingTickets: 'সাপোর্ট টিকিট লোড হচ্ছে...',
+  loadingDetails: 'টিকিটের বিস্তারিত লোড হচ্ছে...',
+  category: 'ক্যাটাগরি',
+  subject: 'বিষয়',
+  created: 'তৈরি হয়েছে',
+  conversation: 'কথোপকথন',
+  you: 'আপনি',
+  supportTeam: 'সাপোর্ট টিম',
+  replyMessage: 'উত্তর বার্তা',
+  replyPlaceholder: 'আপনার বার্তা লিখুন...',
+  sending: 'পাঠানো হচ্ছে...',
+  sendMessage: 'বার্তা পাঠান',
+  closedNote: 'এই টিকিটটি {status}। নতুন উত্তর পাঠানো যাবে না।',
+  modalTitle: 'সাপোর্ট টিকিট তৈরি করুন',
+  modalSubtitle: 'আপনার সমস্যাটি লিখুন, আমাদের টিম আপনাকে সহায়তা করবে।',
+  subjectLabel: 'বিষয় *',
+  subjectPlaceholder: 'আপনার সমস্যার সংক্ষিপ্ত বিবরণ',
+  categoryLabel: 'ক্যাটাগরি *',
+  selectCategory: 'ক্যাটাগরি নির্বাচন করুন',
+  priorityLabel: 'অগ্রাধিকার',
+  descriptionLabel: 'বিস্তারিত বিবরণ *',
+  descriptionPlaceholder: 'আপনার সমস্যাটি বিস্তারিত লিখুন...',
+  cancel: 'বাতিল',
+  creating: 'তৈরি হচ্ছে...',
+  statuses: {
+    open: 'খোলা',
+    in_progress: 'চলমান',
+    resolved: 'সমাধান হয়েছে',
+    closed: 'বন্ধ'
+  },
+  categories: {
+    application_issue: 'আবেদন সংক্রান্ত সমস্যা',
+    appointment: 'অ্যাপয়েন্টমেন্ট',
+    payment: 'পেমেন্ট',
+    delivery: 'ডেলিভারি',
+    technical: 'টেকনিক্যাল সমস্যা',
+    other: 'অন্যান্য'
+  },
+  priorities: {
+    low: 'কম',
+    medium: 'মাঝারি',
+    high: 'উচ্চ',
+    urgent: 'জরুরি'
+  },
+  validation: {
+    subjectRequired: 'বিষয় লিখতে হবে',
+    categoryRequired: 'ক্যাটাগরি নির্বাচন করতে হবে',
+    descriptionRequired: 'বিস্তারিত বিবরণ লিখতে হবে',
+    descriptionMin: 'বিস্তারিত বিবরণ কমপক্ষে ২০ অক্ষরের হতে হবে'
+  },
+  toasts: {
+    loadFailed: 'সাপোর্ট টিকিট লোড করা যায়নি।',
+    detailsFailed: 'টিকিটের বিস্তারিত লোড করা যায়নি।',
+    createSuccess: 'সাপোর্ট টিকিট সফলভাবে তৈরি হয়েছে।',
+    createFailed: 'সাপোর্ট টিকিট তৈরি করা যায়নি।',
+    messageSuccess: 'বার্তা সফলভাবে পাঠানো হয়েছে।',
+    messageFailed: 'বার্তা পাঠানো যায়নি।'
+  }
+},
     apply: {
       title: 'স্মার্ট এনআইডি আবেদন',
       subtitle: 'আবেদন জমা দিতে সব ধাপ সম্পন্ন করুন',
@@ -639,11 +924,151 @@ const translations = {
       submitApplication: 'আবেদন জমা দিন',
       submitting: 'জমা হচ্ছে...',
       fillRequired: 'চালিয়ে যেতে প্রয়োজনীয় তথ্যগুলো পূরণ করুন।',
-      uploadPhoto: 'অনুগ্রহ করে আপনার পাসপোর্ট সাইজ ছবি আপলোড করুন',
-      uploadSignature: 'অনুগ্রহ করে আপনার স্বাক্ষর আপলোড করুন',
-      uploadBirthCertificate: 'অনুগ্রহ করে জন্ম সনদ আপলোড করুন',
-      uploadCorrectionProof: 'অনুগ্রহ করে সংশোধনের প্রমাণ আপলোড করুন'
+      uploadPhoto: 'পাসপোর্ট সাইজ ছবি আপলোড করুন।',
+      uploadSignature: 'স্বাক্ষর আপলোড করুন।',
+      uploadBirthCertificate: 'জন্মনিবন্ধন সনদ আপলোড করুন।',
+      uploadCorrectionProof: 'সংশোধনের প্রমাণ আপলোড করুন।'
+    },
+    tracker: {
+loadingApplications: 'আবেদনসমূহ লোড হচ্ছে...',
+    headerTitle: 'আপনার স্মার্ট NID আবেদন ট্র্যাক করুন',
+    headerSubtitle: 'আপনার আবেদনের প্রতিটি ধাপ এক জায়গায় দেখুন।',
+    currentPrefix: 'বর্তমান:',
+    syncing: 'সিঙ্ক হচ্ছে...',
+    autoSyncedPrefix: 'সর্বশেষ সিঙ্ক:',
+    myApplications: 'আমার আবেদনসমূহ',
+    myApplicationsHint: 'সম্পূর্ণ অগ্রগতি দেখতে একটি আবেদন খুলুন।',
+    noApplicationsFound: 'কোনো আবেদন পাওয়া যায়নি',
+    noApplicationsHint: 'আপনি এখনো কোনো আবেদন জমা দেননি।',
+    applyNow: 'এখন আবেদন করুন',
+    applicationPrefix: 'আবেদন',
+    applicationType: 'আবেদনের ধরন',
+    currentStatus: 'বর্তমান অবস্থা',
+    submittedOn: 'জমা দেওয়ার সময়',
+    lastUpdated: 'সর্বশেষ আপডেট',
+    needActionTitle: 'কোনো পদক্ষেপ প্রয়োজন?',
+    needActionHint: 'বর্তমান আবেদনের অবস্থার ভিত্তিতে এখানে অপশন দেখাবে।',
+    contactSupport: 'সাপোর্টে যোগাযোগ',
+    openDigitalNid: 'ডিজিটাল NID দেখুন',
+    applyAgain: 'আবার আবেদন করুন',
+    correctionRequest: 'সংশোধন আবেদন',
+    officialRejectionReason: 'অফিসিয়াল প্রত্যাখ্যানের কারণ',
+    applicationProgress: 'আবেদনের অগ্রগতি',
+    applicationProgressHint: 'ডুপ্লিকেট তথ্য এড়াতে অফিসিয়াল ধাপগুলো একটি সংক্ষিপ্ত টাইমলাইনে দেখানো হয়েছে।',
+    selectApplication: 'একটি আবেদন নির্বাচন করুন',
+    selectApplicationHint: 'বিস্তারিত দেখতে বাম পাশ থেকে একটি আবেদন নির্বাচন করুন।',
+    correctionRequestProgress: 'সংশোধন আবেদনের অগ্রগতি',
+    correctionRequestHint: 'আপনি সংশোধন আবেদন জমা দিয়েছেন বলেই এই অংশটি দেখানো হচ্ছে।',
+    baseApplication: 'মূল আবেদন',
+    changedFields: 'পরিবর্তিত ফিল্ড',
+    correctionRejectionReason: 'সংশোধন প্রত্যাখ্যানের কারণ',
+    previousCorrectionRequests: 'আগের সংশোধন আবেদনসমূহ',
+    submittedPrefix: 'জমা:',
+    updatedPrefix: 'আপডেট:',
+    statusTime: 'স্ট্যাটাস সময়',
+    stepPrefix: 'ধাপ',
+    finalRejectedTitle: 'চূড়ান্ত রিভিউ ফলাফল: প্রত্যাখ্যাত',
+    finalRejectedDescription: 'রিভিউ ধাপের পর আবেদনটি বন্ধ হয়েছে। এটি অনুমোদন, প্রিন্টিং, ডিসপ্যাচ বা ডেলিভারি ধাপে যায়নি।',
+    finalCancelledTitle: 'চূড়ান্ত রিভিউ ফলাফল: বাতিল',
+    finalCancelledDescription: 'এই আবেদনটি আর সক্রিয় নয় এবং পরবর্তী ধাপে যাবে না।',
+    notAvailable: 'প্রযোজ্য নয়',
+    statusBadges: { current: 'চলমান', completed: 'সম্পন্ন', pending: 'অপেক্ষমাণ' },
+    statuses: {
+      draft: 'ড্রাফট', submitted: 'জমা হয়েছে', under_review: 'রিভিউ চলছে', approved: 'অনুমোদিত',
+      printed: 'প্রিন্টেড', dispatched: 'ডিসপ্যাচড', delivered: 'ডেলিভার্ড', rejected: 'প্রত্যাখ্যাত',
+      cancelled: 'বাতিল করা হয়েছে', new: 'নতুন', correction: 'সংশোধন'
+    },
+    timeline: {
+      submitted: { label: 'জমা হয়েছে', description: 'আপনার আবেদন সফলভাবে গ্রহণ করা হয়েছে।', currentText: 'এখন জমা হয়েছে' },
+      waitingReview: { label: 'অ্যাডমিন রিভিউয়ের অপেক্ষায়', description: 'আপনার আবেদন অ্যাডমিন যাচাইয়ের জন্য অপেক্ষমাণ আছে।', pendingText: 'রিভিউয়ের অপেক্ষায়' },
+      decisionPending: { label: 'সিদ্ধান্ত অপেক্ষমাণ', description: 'অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত এখনো নেওয়া হয়নি।', pendingText: 'সিদ্ধান্ত হয়নি' },
+      adminReview: { label: 'অ্যাডমিন রিভিউ', description: 'অ্যাডমিন আপনার জমা দেওয়া তথ্য ও ডকুমেন্ট যাচাই করছেন।', currentText: 'রিভিউ চলছে' },
+      decisionWaiting: { label: 'সিদ্ধান্ত অপেক্ষমাণ', description: 'চূড়ান্ত অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত এখনো অপেক্ষমাণ।', pendingText: 'সিদ্ধান্তের অপেক্ষায়' },
+      reviewedRejected: { label: 'রিভিউ শেষে প্রত্যাখ্যাত', description: 'অ্যাডমিন আবেদনটি রিভিউ করে প্রত্যাখ্যান করেছেন।', badgeText: 'প্রত্যাখ্যাত' },
+      applicationClosed: { label: 'আবেদন বন্ধ', description: 'এই আবেদনটি প্রিন্টিং বা ডেলিভারি ধাপে যাবে না।', badgeText: 'বন্ধ', pendingText: 'পরবর্তী ধাপ নেই' },
+      cancelled: { label: 'আবেদন বাতিল', description: 'এই আবেদনটি আর সক্রিয় নেই।', badgeText: 'বাতিল' },
+      processClosed: { label: 'প্রক্রিয়া বন্ধ', description: 'এই আবেদনের জন্য অনুমোদন, প্রিন্টিং বা ডেলিভারি ধাপ চলবে না।', badgeText: 'বন্ধ', pendingText: 'পরবর্তী ধাপ নেই' },
+      reviewedApproved: { label: 'রিভিউ শেষে অনুমোদিত', description: 'অ্যাডমিন আপনার তথ্য যাচাই করে আবেদনটি অনুমোদন করেছেন।' },
+      cardPrinted: { label: 'কার্ড প্রিন্টেড', description: 'আপনার স্মার্ট NID কার্ড প্রিন্ট হয়েছে। এখন ডিজিটাল NID ও সংশোধন সুবিধা পাওয়া যাবে।' },
+      deliveryPending: { label: 'ডেলিভারি অপেক্ষমাণ', description: 'ডেলিভারি আপডেট এখনো যোগ করা হয়নি।', pendingText: 'ডেলিভারির অপেক্ষায়' },
+      printedCompleted: { label: 'কার্ড প্রিন্টেড', description: 'কার্ড প্রিন্টিং সম্পন্ন হয়েছে।' },
+      outForDelivery: { label: 'ডেলিভারির পথে', description: 'আপনার স্মার্ট NID কার্ড ডেলিভারির জন্য পাঠানো হয়েছে।', currentText: 'পথে আছে' },
+      outForDeliveryCompleted: { label: 'ডেলিভারির পথে', description: 'আপনার স্মার্ট NID কার্ড ডেলিভারির জন্য পাঠানো হয়েছিল।' },
+      delivered: { label: 'ডেলিভার্ড', description: 'আপনার স্মার্ট NID কার্ড সফলভাবে ডেলিভারি হয়েছে।', badgeText: 'সম্পন্ন' }
+    },
+    correctionTimeline: {
+      submitted: { label: 'জমা হয়েছে', description: 'আপনার সংশোধন আবেদন গ্রহণ করা হয়েছে।' },
+      reviewedApproved: { label: 'রিভিউ শেষে অনুমোদিত', description: 'অ্যাডমিন পুরোনো ও নতুন তথ্য যাচাই করে সংশোধন অনুমোদন করেছেন।' },
+      changesApplied: { label: 'পরিবর্তন প্রয়োগ হয়েছে', description: 'আপনার অনুমোদিত পরিবর্তন NID রেকর্ডে প্রয়োগ করা হয়েছে।', badgeText: 'সম্পন্ন' },
+      reviewedRejected: { label: 'রিভিউ শেষে প্রত্যাখ্যাত', description: 'অ্যাডমিন আবেদনটি রিভিউ করে প্রত্যাখ্যান করেছেন। নিচে কারণ দেখুন।' },
+      closed: { label: 'বন্ধ', description: 'এই সংশোধন আবেদনটি এখন বন্ধ।', badgeText: 'বন্ধ' },
+      adminReview: { label: 'অ্যাডমিন রিভিউ', description: 'অ্যাডমিন আপনার পুরোনো ও নতুন তথ্য পাশাপাশি যাচাই করছেন।' },
+      waitingReview: { label: 'অ্যাডমিন রিভিউয়ের অপেক্ষায়', description: 'আপনার আবেদন অ্যাডমিন রিভিউয়ের জন্য অপেক্ষমাণ। সিদ্ধান্ত এখানে দেখাবে।' },
+      decisionPending: { label: 'সিদ্ধান্ত অপেক্ষমাণ', description: 'চূড়ান্ত অ্যাডমিন সিদ্ধান্ত এখনো নেওয়া হয়নি।' }
+    },
+    primary: {
+      none: { title: 'কোনো আবেদন নির্বাচন করা হয়নি', description: 'সম্পূর্ণ স্ট্যাটাস টাইমলাইন দেখতে বাম পাশ থেকে একটি আবেদন নির্বাচন করুন।' },
+      processing: { title: 'আপনার আবেদন বর্তমানে প্রক্রিয়াধীন', description: 'কর্তৃপক্ষ আপনার জমা দেওয়া তথ্য ও সহায়ক ডকুমেন্ট যাচাই করছে।' },
+      printed: { title: 'আপনার স্মার্ট NID কার্ড প্রিন্ট হয়েছে', description: 'প্রিন্টিং সম্পন্ন হয়েছে। ডেলিভারি চলাকালীন ডিজিটাল NID ও সংশোধন সুবিধা পাওয়া যাবে।' },
+      dispatched: { title: 'আপনার স্মার্ট NID কার্ড ডিসপ্যাচ হয়েছে', description: 'আপনার কার্ড এখন ডেলিভারি প্রক্রিয়ায় আছে। পরবর্তী আপডেটের জন্য এই ট্র্যাকার দেখুন।' },
+      delivered: { title: 'আপনার স্মার্ট NID কার্ড ডেলিভারি হয়েছে', description: 'ডেলিভারি সম্পন্ন হয়েছে। প্রয়োজন হলে দ্রুত ব্যবহারের জন্য ডিজিটাল কপি রাখতে পারেন।' },
+      rejected: { title: 'আপনার আবেদন প্রত্যাখ্যাত হয়েছে', description: 'নিচে অফিসিয়াল প্রত্যাখ্যানের কারণ দেখুন। আবার আবেদন করার আগে সমস্যাটি ঠিক করুন।' },
+      cancelled: { title: 'এই আবেদনটি বাতিল করা হয়েছে', description: 'এই আবেদনটি আর সক্রিয় নয়। প্রয়োজন হলে নতুন আবেদন তৈরি করতে পারবেন।' },
+      default: { title: 'আপনার সর্বশেষ আবেদন আপডেট অনুসরণ করুন', description: 'আবেদনের বর্তমান ধাপ দেখতে নিচের টাইমলাইন দেখুন।' }
+    },
+    correctionPrimary: {
+      submitted: { title: 'সংশোধন আবেদন জমা হয়েছে', description: 'আপনার সংশোধন আবেদন অ্যাডমিন রিভিউয়ের অপেক্ষায় আছে।' },
+      under_review: { title: 'সংশোধন রিভিউ চলছে', description: 'অ্যাডমিন আগের ও অনুরোধকৃত তথ্য তুলনা করছেন।' },
+      approved: { title: 'সংশোধন অনুমোদিত', description: 'আপনার অনুরোধকৃত সংশোধন অনুমোদিত ও প্রয়োগ হয়েছে।' },
+      rejected: { title: 'সংশোধন প্রত্যাখ্যাত', description: 'আবার আবেদন করার আগে প্রত্যাখ্যানের কারণ দেখে নিন।' },
+      default: { title: 'সংশোধন আপডেট পাওয়া গেছে', description: 'সর্বশেষ সংশোধন স্ট্যাটাস এখানে ট্র্যাক করুন।' }
+    },
+    timelineTime: { waitingNext: 'পরবর্তী আপডেটের অপেক্ষায়', inProgress: 'চলমান', completed: 'সম্পন্ন' },
+    lifecycle: {
+    stages: {
+      appointment_required: {
+        label: 'বায়োমেট্রিক অ্যাপয়েন্টমেন্ট প্রয়োজন',
+        description:
+          'কার্ড প্রিন্টিংয়ের আগে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক ও সম্পন্ন করতে হবে।',
+        currentText: 'অ্যাপয়েন্টমেন্ট প্রয়োজন'
+      },
+      appointment_booked: {
+        label: 'বায়োমেট্রিক অ্যাপয়েন্টমেন্ট নির্ধারিত',
+        description: 'নির্ধারিত তারিখ ও সময়ে অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন।',
+        currentText: 'নির্ধারিত'
+      },
+      waiting_for_printing: {
+        label: 'কার্ড প্রিন্টিংয়ের অপেক্ষায়',
+        description:
+          'আপনার বায়োমেট্রিক যাচাই সম্পন্ন হয়েছে। আপনার কার্ড প্রিন্টিংয়ের জন্য প্রস্তুত করা হবে।',
+        currentText: 'প্রিন্টিংয়ের অপেক্ষায়'
+      }
+    },
+    primary: {
+      approvedRequired: {
+        title: 'আপনার আবেদন অনুমোদিত হয়েছে',
+        description:
+          'রিভিউ সম্পন্ন হয়েছে। প্রিন্টিং শুরু করার আগে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক ও সম্পন্ন করুন।'
+      },
+      approvedBooked: {
+        title: 'বায়োমেট্রিক অ্যাপয়েন্টমেন্ট নির্ধারিত',
+        description: 'নির্ধারিত তারিখ ও সময়ে অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন।'
+      },
+      approvedCompleted: {
+        title: 'কার্ড প্রিন্টিংয়ের অপেক্ষায়',
+        description:
+          'আপনার বায়োমেট্রিক যাচাই সম্পন্ন হয়েছে। আপনার কার্ড প্রিন্টিংয়ের জন্য প্রস্তুত করা হবে।'
+      }
+    },
+    action: {
+      bookBiometric: 'বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করুন',
+      noActionWaiting:
+        'এখন কোনো পদক্ষেপ প্রয়োজন নেই। আপনার কার্ড প্রিন্টিংয়ের অপেক্ষায় রয়েছে।',
+      noBookingNeeded:
+        'আপনার বায়োমেট্রিক অ্যাপয়েন্টমেন্ট নির্ধারিত আছে। নতুন বুকিং প্রয়োজন নেই।'
     }
+  }
+  }
   }
 };
 
@@ -687,15 +1112,30 @@ export const LanguageProvider = ({ children }) => {
     [language]
   );
 
+  const getTranslation = useCallback(
+    (key) => {
+      const translatedValue =
+        getNestedValue(translations[language], key) ??
+        getNestedValue(translations.en, key) ??
+        null;
+
+      return translatedValue && typeof translatedValue === 'object'
+        ? translatedValue
+        : {};
+    },
+    [language]
+  );
+
   const value = useMemo(
     () => ({
       language,
       setLanguage,
       languageOptions,
       t,
+      getTranslation,
       isBangla: language === 'bn'
     }),
-    [language, setLanguage, t]
+    [language, setLanguage, t, getTranslation]
   );
 
   return (

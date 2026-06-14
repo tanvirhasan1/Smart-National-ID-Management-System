@@ -12,7 +12,8 @@ import {
   FaBars,
   FaTimes,
   FaUserShield,
-  FaUserCog
+  FaUserCog,
+  FaEdit
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { ADMIN_MENU_ACCESS, getRoleLabel, getRoleScopeText, inferMainAdmin } from '../utils/roles';
@@ -51,6 +52,12 @@ const AdminLayout = ({ children }) => {
       label: 'Applications',
       icon: FaFileAlt,
       roles: ADMIN_MENU_ACCESS.applications
+    },
+    {
+      path: '/admin/corrections',
+      label: 'Corrections',
+      icon: FaEdit,
+      roles: ADMIN_MENU_ACCESS.corrections
     },
     {
       path: '/admin/appointments',

@@ -2,21 +2,43 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   FaArrowLeft,
-  FaCalendarAlt,
   FaDownload,
-  FaEnvelope,
-  FaMapMarkerAlt,
-  FaPhoneAlt,
   FaShieldAlt,
   FaSpinner,
-  FaTint,
   FaUser,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
+import { useLanguage } from '../context/LanguageContext';
+import { canViewDigitalNid } from '../../utils/applicationLifecycle';
 import '../styles/DigitalNID.css';
 
 const NA = 'N/A';
+
+const DIGITAL_NID_COPY = {
+  en: {
+    backToDashboard: 'Back to Dashboard',
+    title: 'Digital Smart NID',
+    subtitle: 'Secure digital version generated after card printing.',
+    demoNote: 'Demo digital NID for academic use.',
+    downloadPrint: 'Download / Print',
+    loading: 'Loading Digital NID...',
+    unavailableTitle: 'Digital NID Not Available',
+    noData: 'No digital NID data found.',
+    verified: 'Verified',
+  },
+  bn: {
+    backToDashboard: 'ড্যাশবোর্ডে ফিরে যান',
+    title: 'ডিজিটাল স্মার্ট এনআইডি',
+    subtitle: 'কার্ড প্রিন্টের পর তৈরি নিরাপদ ডিজিটাল সংস্করণ।',
+    demoNote: 'শিক্ষামূলক ব্যবহারের জন্য ডেমো ডিজিটাল এনআইডি।',
+    downloadPrint: 'ডাউনলোড / প্রিন্ট',
+    loading: 'ডিজিটাল এনআইডি লোড হচ্ছে...',
+    unavailableTitle: 'ডিজিটাল এনআইডি পাওয়া যায়নি',
+    noData: 'ডিজিটাল এনআইডির তথ্য পাওয়া যায়নি।',
+    verified: 'যাচাইকৃত',
+  },
+};
 
 const pick = (...values) => {
   const value = values.find(
@@ -97,22 +119,11 @@ const imageUrl = (path) => {
   return `${base}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
 };
 
-const requestWithFallback = async (requests) => {
-  let lastError;
-
-  for (const request of requests) {
-    try {
-      return await request();
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
-};
-
 const DigitalNID = () => {
   const { id } = useParams();
+  const { language } = useLanguage();
+  const languageKey = language === 'bn' ? 'bn' : 'en';
+  const copy = DIGITAL_NID_COPY[languageKey];
 
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -128,11 +139,9 @@ const DigitalNID = () => {
         setPhotoError(false);
         setSignatureError(false);
 
-        const response = await requestWithFallback([
-          () => api.get(`/applications/${id}`),
-          () => api.get(`/applications/my/${id}`),
-          () => api.get('/users/profile'),
-        ]);
+        const response = await api.get(`/applications/${id}`, {
+          params: { purpose: 'digital_nid' },
+        });
 
         const payload =
           response?.data?.application ||
@@ -160,9 +169,16 @@ const DigitalNID = () => {
             ? { ...payload, _citizenProfile: citizenProfile }
             : payload || citizenProfile;
 
+        if (!canViewDigitalNid(mergedPayload?.status)) {
+          throw new Error('Digital NID will be available after your card is printed.');
+        }
+
         setRecord(mergedPayload);
       } catch (error) {
-        const message = error?.response?.data?.message || 'Digital NID could not be loaded.';
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          'Digital NID could not be loaded.';
         setErrorMessage(message);
         toast.error(message);
       } finally {
@@ -401,8 +417,6 @@ const DigitalNID = () => {
     ];
   }, [data.nidNumber, data.name, data.dob]);
 
-
-
   const handleDownloadPrint = () => {
     const previousTitle = document.title;
     const safeName = String(data.name || 'Citizen')
@@ -420,46 +434,13 @@ const DigitalNID = () => {
     }, 80);
   };
 
-  const sideDetails = [
-    {
-      icon: <FaUser />,
-      label: 'Full Name',
-      value: data.name,
-    },
-    {
-      icon: <FaCalendarAlt />,
-      label: 'Date of Birth',
-      value: formatDate(data.dob),
-    },
-    {
-      icon: <FaTint />,
-      label: 'Blood Group',
-      value: data.blood,
-    },
-    {
-      icon: <FaPhoneAlt />,
-      label: 'Mobile',
-      value: data.phone,
-    },
-    {
-      icon: <FaEnvelope />,
-      label: 'Email',
-      value: data.email,
-    },
-    {
-      icon: <FaMapMarkerAlt />,
-      label: 'Present Address',
-      value: data.address,
-    },
-  ];
-
   if (loading) {
     return (
       <div className="digital-nid-page-wrapper">
         <div className="digital-nid-container digital-nid-container--narrow">
           <div className="digital-nid-state-card">
             <FaSpinner className="digital-nid-spinner" />
-            <p>Loading Digital NID...</p>
+            <p>{copy.loading}</p>
           </div>
         </div>
       </div>
@@ -471,12 +452,12 @@ const DigitalNID = () => {
       <div className="digital-nid-page-wrapper">
         <div className="digital-nid-container digital-nid-container--narrow">
           <div className="digital-nid-state-card">
-            <h2>Digital NID Not Available</h2>
-            <p>{errorMessage || 'No digital NID data found.'}</p>
+            <h2>{copy.unavailableTitle}</h2>
+            <p>{errorMessage || copy.noData}</p>
 
             <Link to="/dashboard" className="digital-nid-primary-btn">
               <FaArrowLeft />
-              Back to Dashboard
+              {copy.backToDashboard}
             </Link>
           </div>
         </div>
@@ -490,7 +471,7 @@ const DigitalNID = () => {
         <div className="digital-nid-topbar">
           <Link to="/dashboard" className="digital-nid-back-link">
             <FaArrowLeft />
-            Back to Dashboard
+            {copy.backToDashboard}
           </Link>
 
           <button
@@ -499,7 +480,7 @@ const DigitalNID = () => {
             className="digital-nid-download-button"
           >
             <FaDownload />
-            Download / Print
+            {copy.downloadPrint}
           </button>
         </div>
 
@@ -507,13 +488,14 @@ const DigitalNID = () => {
           <section className="digital-nid-main-panel">
             <div className="digital-nid-header-block">
               <div>
-                <h1>Digital Smart NID</h1>
-                <p>Secure digital version generated from approved application data.</p>
+                <h1>{copy.title}</h1>
+                <p>{copy.subtitle}</p>
+                <small>{copy.demoNote}</small>
               </div>
 
               <span className="digital-nid-verified-badge">
                 <FaShieldAlt />
-                Verified
+                {copy.verified}
               </span>
             </div>
 
@@ -656,35 +638,6 @@ const DigitalNID = () => {
               </article>
             </div>
           </section>
-
-          <aside className="digital-nid-side-panel">
-            <div className="digital-nid-info-card">
-              <h3>Holder Information</h3>
-
-              <div className="digital-nid-detail-list">
-                {sideDetails.map((item) => (
-                  <div className="digital-nid-detail-item" key={item.label}>
-                    {item.icon}
-
-                    <div>
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="digital-nid-note-card">
-              <h3>Important Note</h3>
-
-              <ul>
-                <li>This is a Smart NID academic prototype design.</li>
-                <li>Data comes from approved application information.</li>
-                <li>Use print/download only for demo presentation purposes.</li>
-              </ul>
-            </div>
-          </aside>
         </div>
       </div>
     </div>
