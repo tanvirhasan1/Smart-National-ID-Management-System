@@ -99,7 +99,7 @@
   color: #047857;
   padding: 0.45rem 0.8rem;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .login-title-text {
@@ -619,7 +619,7 @@ html[lang='bn'] .login-title-text {
   font-size: clamp(1.45rem, 2.2vw, 1.72rem);
   line-height: 1.15;
   letter-spacing: -0.025em;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 html[lang='bn'] .login-subtitle-text {
@@ -736,7 +736,7 @@ html[lang='bn'] .login-register-link {
 .login-title-text {
   font-size: clamp(1.85rem, 3vw, 2rem) !important;
   line-height: 1.15 !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   letter-spacing: -0.035em !important;
 }
 
@@ -793,7 +793,7 @@ html[lang='bn'] .login-card-panel {
 html[lang='bn'] .login-title-text {
   font-size: clamp(1.7rem, 2.65vw, 1.95rem) !important;
   line-height: 1.18 !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 html[lang='bn'] .login-subtitle-text {

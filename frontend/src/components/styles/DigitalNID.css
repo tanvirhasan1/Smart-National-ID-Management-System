@@ -1,6 +1,6 @@
 .digital-nid-page-wrapper {
   min-height: calc(100vh - 140px);
-  padding: 48px 20px 64px;
+  padding: 40px 18px 56px;
   background:
     radial-gradient(circle at 14% 12%, rgba(16, 185, 129, 0.14), transparent 32%),
     radial-gradient(circle at 86% 18%, rgba(34, 197, 94, 0.16), transparent 34%),
@@ -8,7 +8,7 @@
 }
 
 .digital-nid-container {
-  width: min(100%, 1320px);
+  width: min(100%, 940px);
   margin: 0 auto;
 }
 
@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .digital-nid-back-link,
@@ -35,7 +35,7 @@
   border-radius: 12px;
   padding: 0 22px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   transition: 0.2s ease;
 }
@@ -68,24 +68,22 @@
 }
 
 .digital-nid-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
-  gap: 28px;
-  align-items: start;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .digital-nid-main-panel,
-.digital-nid-info-card,
-.digital-nid-note-card,
 .digital-nid-state-card {
   border: 1px solid rgba(226, 232, 240, 0.92);
   background: rgba(255, 255, 255, 0.96);
-  border-radius: 24px;
+  border-radius: 20px;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
 }
 
 .digital-nid-main-panel {
-  padding: 28px;
+  width: min(100%, 820px);
+  padding: 24px;
 }
 
 .digital-nid-header-block {
@@ -93,23 +91,33 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding-bottom: 24px;
-  margin-bottom: 26px;
+  padding-bottom: 18px;
+  margin-bottom: 20px;
   border-bottom: 1px solid #e5e7eb;
 }
 
 .digital-nid-header-block h1 {
   margin: 0;
   color: #1f2937;
-  font-size: clamp(26px, 3vw, 34px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: clamp(24px, 2.6vw, 30px);
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .digital-nid-header-block p {
-  margin: 8px 0 0;
+  margin: 7px 0 0;
   color: #64748b;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.digital-nid-header-block small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
 }
 
 .digital-nid-verified-badge {
@@ -123,13 +131,16 @@
   color: #166534;
   padding: 10px 16px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .nid-card-stack {
   display: grid;
   justify-items: center;
   gap: 12px;
+  width: 760px;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .bd-nid-card {
@@ -302,8 +313,8 @@
   margin-top: -2px;
   color: #111827;
   font-size: 26px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .bd-nid-english-title {
@@ -312,14 +323,14 @@
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 .bd-nid-government-head h2 {
   margin-top: 4px;
   color: #be123c;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .bd-nid-front-body {
@@ -362,7 +373,7 @@
   justify-content: center;
   gap: 8px;
   color: #047857;
-  font-weight: 800;
+  font-weight: 600;
   background: #f8fafc;
 }
 
@@ -427,14 +438,14 @@
 .bd-nid-number-row strong {
   color: #111827;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.14;
 }
 
 .bd-nid-field--bangla strong {
   color: #111827;
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.08;
 }
 
@@ -458,7 +469,7 @@
 .bd-nid-number-row strong {
   font-size: 23px;
   font-weight: 500;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 .bd-nid-number-row--nid {
@@ -468,7 +479,7 @@
 .bd-nid-number-row--nid strong {
   font-size: 26px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .bd-nid-chip-area {
@@ -611,76 +622,13 @@
   font-family: 'OCR B', 'Courier New', monospace;
   font-size: clamp(20px, 3.05vw, 31px);
   font-weight: 600;
-  letter-spacing: 0.055em;
+  letter-spacing: 0;
   line-height: 1.18;
   overflow-wrap: anywhere;
 }
 
 .bd-nid-mrz-block p {
   margin: 0;
-}
-
-.digital-nid-side-panel {
-  display: grid;
-  gap: 24px;
-}
-
-.digital-nid-info-card,
-.digital-nid-note-card {
-  padding: 26px;
-}
-
-.digital-nid-info-card h3,
-.digital-nid-note-card h3 {
-  margin: 0 0 18px;
-  color: #1f2937;
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.digital-nid-detail-list {
-  display: grid;
-  gap: 18px;
-}
-
-.digital-nid-detail-item {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-
-.digital-nid-detail-item > svg {
-  margin-top: 4px;
-  color: #16a34a;
-  font-size: 18px;
-}
-
-.digital-nid-detail-item span {
-  display: block;
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.digital-nid-detail-item strong {
-  display: block;
-  margin-top: 3px;
-  color: #1f2937;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.digital-nid-note-card ul {
-  margin: 0;
-  padding-left: 20px;
-  color: #64748b;
-  font-size: 15px;
-  line-height: 1.9;
 }
 
 .digital-nid-state-card {
@@ -695,7 +643,7 @@
   margin: 0;
   color: #1f2937;
   font-size: 28px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .digital-nid-state-card p {
@@ -714,13 +662,12 @@
   to { transform: rotate(360deg); }
 }
 
-@media (max-width: 1120px) {
-  .digital-nid-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .digital-nid-side-panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (min-width: 821px) {
+  .nid-card-stack {
+    transform: scale(0.92);
+    transform-origin: top center;
+    margin-top: -4px;
+    margin-bottom: -74px;
   }
 }
 
@@ -740,9 +687,7 @@
     width: 100%;
   }
 
-  .digital-nid-main-panel,
-  .digital-nid-info-card,
-  .digital-nid-note-card {
+  .digital-nid-main-panel {
     padding: 18px;
     border-radius: 20px;
   }
@@ -891,10 +836,6 @@
     margin-top: 5.4%;
     font-size: clamp(12px, 4.25vw, 31px);
   }
-
-  .digital-nid-side-panel {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media print {
@@ -935,7 +876,6 @@
   footer,
   .footer,
   .digital-nid-topbar,
-  .digital-nid-side-panel,
   .digital-nid-header-block,
   .digital-nid-download-button,
   .digital-nid-back-link {

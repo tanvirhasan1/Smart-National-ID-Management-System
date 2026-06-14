@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fa';
 import api from '../api/axios';
 import Loader from '../common/Loader';
+import { useLanguage } from '../context/LanguageContext';
 import {
   formatDate,
   formatDateTime,
@@ -40,7 +41,8 @@ const SupportTicket = () => {
     reset,
     formState: { errors }
   } = useForm();
-
+  const { getTranslation } = useLanguage();
+  const copy = getTranslation('support');
   // Load all tickets on first render
   useEffect(() => {
     fetchTickets();
@@ -72,7 +74,7 @@ const SupportTicket = () => {
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast.error(
-        error?.response?.data?.message || 'Failed to load support tickets'
+        error?.response?.data?.message || copy.toasts?.loadFailed
       );
     } finally {
       setLoading(false);
@@ -89,7 +91,7 @@ const SupportTicket = () => {
     } catch (error) {
       console.error('Error fetching ticket details:', error);
       toast.error(
-        error?.response?.data?.message || 'Failed to load ticket details'
+        error?.response?.data?.message || copy.toasts?.detailsFailed
       );
     } finally {
       setDetailsLoading(false);
@@ -104,7 +106,7 @@ const SupportTicket = () => {
       const response = await api.post('/support/tickets', data);
       const createdTicket = response?.data?.data;
 
-      toast.success('Support ticket created successfully');
+      toast.success(copy.toasts?.createSuccess);
       setShowCreateModal(false);
       reset();
 
@@ -116,8 +118,8 @@ const SupportTicket = () => {
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          'Failed to create ticket'
+        error?.response?.data?.errors?.[0]?.msg ||
+        copy.toasts?.createFailed
       );
     } finally {
       setIsSubmitting(false);
@@ -161,9 +163,9 @@ const SupportTicket = () => {
       currentTickets.map((ticket) =>
         ticket._id === ticketId
           ? {
-              ...ticket,
-              updatedAt: now
-            }
+            ...ticket,
+            updatedAt: now
+          }
           : ticket
       )
     );
@@ -188,10 +190,10 @@ const SupportTicket = () => {
           currentTickets.map((ticket) =>
             ticket._id === ticketId
               ? {
-                  ...ticket,
-                  status: serverTicket.status || ticket.status,
-                  updatedAt: serverTicket.updatedAt || ticket.updatedAt
-                }
+                ...ticket,
+                status: serverTicket.status || ticket.status,
+                updatedAt: serverTicket.updatedAt || ticket.updatedAt
+              }
               : ticket
           )
         );
@@ -209,7 +211,7 @@ const SupportTicket = () => {
         });
       }
 
-      toast.success('Message sent successfully');
+      toast.success(copy.toasts?.messageSuccess);
     } catch (error) {
       setSelectedTicket(previousTicket);
       setNewMessage(messageText);
@@ -217,17 +219,17 @@ const SupportTicket = () => {
         currentTickets.map((ticket) =>
           ticket._id === ticketId
             ? {
-                ...ticket,
-                updatedAt: previousTicket?.updatedAt || ticket.updatedAt
-              }
+              ...ticket,
+              updatedAt: previousTicket?.updatedAt || ticket.updatedAt
+            }
             : ticket
         )
       );
 
       toast.error(
         error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          'Failed to send message'
+        error?.response?.data?.errors?.[0]?.msg ||
+        copy.toasts?.messageFailed
       );
     } finally {
       setSendingMessage(false);
@@ -248,11 +250,26 @@ const SupportTicket = () => {
     }
   };
 
+  const getTranslatedStatus = (status) =>
+    copy.statuses?.[status] || formatStatus(status);
+
+  const getTranslatedCategory = (category) =>
+    copy.categories?.[category] || formatStatus(category);
+
+  const getTranslatedPriority = (priority) =>
+    copy.priorities?.[priority] || formatStatus(priority);
+
+  const renderTemplate = (template = '', variables = {}) =>
+    Object.entries(variables).reduce(
+      (text, [key, value]) => text.replaceAll(`{${key}}`, value),
+      template
+    );
+
   // Loading state
   if (loading) {
     return (
       <div className="support-loading-wrapper flex min-h-[60vh] items-center justify-center">
-        <Loader size="large" text="Loading support tickets..." />
+        <Loader size="large" text={copy.loadingTickets} />
       </div>
     );
   }
@@ -263,11 +280,11 @@ const SupportTicket = () => {
         {/* Page header */}
         <div className="support-header-panel mb-8 flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] md:flex-row md:items-center md:justify-between">
           <div className="support-header-content">
-            <h1 className="support-page-title mb-1 text-[1.9rem] font-bold text-[#1F2937]">
-              Support Center
+            <h1 className="support-page-title mb-1 text-[1.9rem] font-semibold text-[#1F2937]">
+              {copy.title}
             </h1>
             <p className="support-page-subtitle text-[#6B7280]">
-              Get help with your Smart NID application and service issues.
+              {copy.subtitle}
             </p>
           </div>
 
@@ -277,7 +294,7 @@ const SupportTicket = () => {
             onClick={() => setShowCreateModal(true)}
           >
             <FaPlus />
-            <span>Create New Ticket</span>
+            <span>{copy.createNewTicket}</span>
           </button>
         </div>
 
@@ -287,10 +304,10 @@ const SupportTicket = () => {
           <div className="support-sidebar-panel rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
             <div className="support-sidebar-header mb-5 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-[#1F2937]">
-                My Tickets ({tickets.length})
+                {copy.myTickets} ({tickets.length})
               </h3>
               <span className="rounded-full bg-[#F0FDF4] px-3 py-1 text-xs font-medium text-[#16A34A]">
-                Active Support
+                {copy.activeSupport}
               </span>
             </div>
 
@@ -298,10 +315,10 @@ const SupportTicket = () => {
               <div className="support-empty-state rounded-xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 py-10 text-center">
                 <FaTicketAlt className="mx-auto mb-4 text-4xl text-[#D1D5DB]" />
                 <h4 className="mb-2 text-lg font-semibold text-[#374151]">
-                  No support tickets yet
+                  {copy.noTicketsTitle}
                 </h4>
                 <p className="mb-5 text-sm text-[#6B7280]">
-                  Create your first ticket if you need help.
+                  {copy.noTicketsDescription}
                 </p>
                 <button
                   type="button"
@@ -309,7 +326,7 @@ const SupportTicket = () => {
                   onClick={() => setShowCreateModal(true)}
                 >
                   <FaPlus />
-                  <span>Create Ticket</span>
+                  <span>{copy.createTicket}</span>
                 </button>
               </div>
             ) : (
@@ -318,11 +335,10 @@ const SupportTicket = () => {
                   <button
                     key={ticket._id}
                     type="button"
-                    className={`support-ticket-card text-left rounded-xl border p-4 transition ${
-                      selectedTicket?._id === ticket._id
-                        ? 'border-[#16A34A] bg-[#F0FDF4]'
-                        : 'border-[#E5E7EB] bg-white hover:border-[#16A34A]'
-                    }`}
+                    className={`support-ticket-card text-left rounded-xl border p-4 transition ${selectedTicket?._id === ticket._id
+                      ? 'border-[#16A34A] bg-[#F0FDF4]'
+                      : 'border-[#E5E7EB] bg-white hover:border-[#16A34A]'
+                      }`}
                     onClick={() => handleSelectTicket(ticket._id)}
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
@@ -340,7 +356,7 @@ const SupportTicket = () => {
                       <span
                         className={`badge badge-sm badge-${getStatusColor(ticket.status)}`}
                       >
-                        {formatStatus(ticket.status)}
+                        {getTranslatedStatus(ticket.status)}
                       </span>
                     </div>
 
@@ -357,38 +373,38 @@ const SupportTicket = () => {
           <div className="support-details-panel rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-6">
             {detailsLoading ? (
               <div className="flex min-h-[320px] items-center justify-center">
-                <Loader size="medium" text="Loading ticket details..." />
+                <Loader size="medium" text={copy.loadingDetails} />
               </div>
             ) : selectedTicket ? (
               <>
                 <div className="support-details-header mb-6 border-b border-[#E5E7EB] pb-5">
                   <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h2 className="mb-1 text-2xl font-bold text-[#1F2937]">
+                      <h2 className="mb-1 text-2xl font-semibold text-[#1F2937]">
                         #{selectedTicket.ticketNumber}
                       </h2>
                       <p className="text-sm text-[#6B7280]">
-                        Category: {formatStatus(selectedTicket.category)}
+                        {copy.category}: {getTranslatedCategory(selectedTicket.category)}
                       </p>
                     </div>
 
                     <span
                       className={`badge badge-${getStatusColor(selectedTicket.status)}`}
                     >
-                      {formatStatus(selectedTicket.status)}
+                      {getTranslatedStatus(selectedTicket.status)}
                     </span>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">Subject</p>
+                      <p className="mb-1 text-sm text-[#6B7280]">{copy.subject}</p>
                       <p className="font-semibold text-[#1F2937]">
                         {selectedTicket.subject}
                       </p>
                     </div>
 
                     <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">Created</p>
+                      <p className="mb-1 text-sm text-[#6B7280]">{copy.created}</p>
                       <p className="font-semibold text-[#1F2937]">
                         {formatDateTime(selectedTicket.createdAt)}
                       </p>
@@ -398,7 +414,7 @@ const SupportTicket = () => {
 
                 <div className="support-conversation-section">
                   <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                    Conversation
+                    {copy.conversation}
                   </h3>
 
                   <div className="support-messages-list mb-6 flex flex-col gap-4">
@@ -424,19 +440,17 @@ const SupportTicket = () => {
                       return (
                         <div
                           key={`${response.createdAt}-${index}`}
-                          className={`support-message-item max-w-[85%] rounded-2xl px-4 py-4 ${
-                            isAdmin
-                              ? 'support-message-admin ml-auto bg-[#EFF6FF]'
-                              : 'support-message-user bg-[#F0FDF4]'
-                          }`}
+                          className={`support-message-item max-w-[85%] rounded-2xl px-4 py-4 ${isAdmin
+                            ? 'support-message-admin ml-auto bg-[#EFF6FF]'
+                            : 'support-message-user bg-[#F0FDF4]'
+                            }`}
                         >
                           <div className="mb-2 flex items-center justify-between gap-3">
                             <span
-                              className={`text-sm font-semibold ${
-                                isAdmin ? 'text-sky-600' : 'text-[#16A34A]'
-                              }`}
+                              className={`text-sm font-semibold ${isAdmin ? 'text-sky-600' : 'text-[#16A34A]'
+                                }`}
                             >
-                              {isAdmin ? 'Support Team' : 'You'}
+                              {isAdmin ? copy.supportTeam : copy.you}
                             </span>
                             <span className="text-xs text-[#6B7280]">
                               {formatDateTime(response.createdAt)}
@@ -456,13 +470,13 @@ const SupportTicket = () => {
                       onSubmit={handleSendMessage}
                     >
                       <label className="mb-2 block text-sm font-medium text-[#374151]">
-                        Reply Message
+                        {copy.replyMessage}
                       </label>
                       <textarea
                         rows={4}
                         value={newMessage}
                         onChange={(event) => setNewMessage(event.target.value)}
-                        placeholder="Type your message..."
+                        placeholder={copy.replyPlaceholder}
                         className="support-reply-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
                       />
                       <div className="mt-4 flex justify-end">
@@ -474,12 +488,12 @@ const SupportTicket = () => {
                           {sendingMessage ? (
                             <>
                               <FaSpinner className="animate-spin" />
-                              <span>Sending...</span>
+                              <span>{copy.sending}</span>
                             </>
                           ) : (
                             <>
                               <FaPaperPlane />
-                              <span>Send Message</span>
+                              <span>{copy.sendMessage}</span>
                             </>
                           )}
                         </button>
@@ -488,7 +502,9 @@ const SupportTicket = () => {
                   ) : (
                     <div className="support-closed-note rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] px-5 py-5 text-center">
                       <p className="text-sm text-[#6B7280]">
-                        This ticket is {formatStatus(selectedTicket.status)}. No new replies can be sent.
+                        {renderTemplate(copy.closedNote, {
+                          status: getTranslatedStatus(selectedTicket.status)
+                        })}
                       </p>
                     </div>
                   )}
@@ -498,10 +514,10 @@ const SupportTicket = () => {
               <div className="support-no-selection flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-6 text-center">
                 <FaComments className="mb-4 text-5xl text-[#D1D5DB]" />
                 <h3 className="mb-2 text-xl font-semibold text-[#374151]">
-                  Select a Ticket
+                  {copy.selectTicketTitle}
                 </h3>
                 <p className="mb-5 max-w-[420px] text-[#6B7280]">
-                  Choose a ticket from the list to view full conversation and send replies.
+                  {copy.selectTicketDescription}
                 </p>
                 {tickets.length > 0 && (
                   <button
@@ -509,7 +525,7 @@ const SupportTicket = () => {
                     className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
                     onClick={() => handleSelectTicket(tickets[0]._id)}
                   >
-                    <span>Open First Ticket</span>
+                    <span>{copy.openFirstTicket}</span>
                     <FaArrowRight />
                   </button>
                 )}
@@ -535,11 +551,11 @@ const SupportTicket = () => {
                     <FaTicketAlt className="text-lg" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold leading-tight text-[#1F2937]">
-                      Create Support Ticket
+                    <h3 className="text-2xl font-semibold leading-tight text-[#1F2937]">
+                      {copy.modalTitle}
                     </h3>
                     <p className="mt-1 text-sm leading-6 text-[#6B7280]">
-                      Tell us about your issue and our team will help you.
+                      {copy.modalSubtitle}
                     </p>
                   </div>
                 </div>
@@ -557,17 +573,16 @@ const SupportTicket = () => {
                 <div className="support-modal-body max-h-[calc(100dvh-220px)] space-y-5 overflow-y-auto px-6 py-6">
                   <div className="form-group">
                     <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      Subject *
+                      {copy.subjectLabel}
                     </label>
                     <input
                       type="text"
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
-                        errors.subject
-                          ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                          : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                      }`}
-                      placeholder="Brief description of your issue"
-                      {...register('subject', { required: 'Subject is required' })}
+                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${errors.subject
+                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
+                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+                        }`}
+                      placeholder={copy.subjectPlaceholder}
+                      {...register('subject', { required: copy.validation?.subjectRequired })}
                     />
                     {errors.subject && (
                       <span className="mt-2 block text-sm text-red-600">
@@ -578,23 +593,22 @@ const SupportTicket = () => {
 
                   <div className="form-group">
                     <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      Category *
+                      {copy.categoryLabel}
                     </label>
                     <select
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${
-                        errors.category
-                          ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                          : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                      }`}
-                      {...register('category', { required: 'Category is required' })}
+                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${errors.category
+                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
+                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+                        }`}
+                      {...register('category', { required: copy.validation?.categoryRequired })}
                     >
-                      <option value="">Select category</option>
-                      <option value="application_issue">Application Issue</option>
-                      <option value="appointment">Appointment</option>
-                      <option value="payment">Payment</option>
-                      <option value="delivery">Delivery</option>
-                      <option value="technical">Technical Issue</option>
-                      <option value="other">Other</option>
+                      <option value="">{copy.selectCategory}</option>
+                      <option value="application_issue">{copy.categories?.application_issue}</option>
+                      <option value="appointment">{copy.categories?.appointment}</option>
+                      <option value="payment">{copy.categories?.payment}</option>
+                      <option value="delivery">{copy.categories?.delivery}</option>
+                      <option value="technical">{copy.categories?.technical}</option>
+                      <option value="other">{copy.categories?.other}</option>
                     </select>
                     {errors.category && (
                       <span className="mt-2 block text-sm text-red-600">
@@ -605,37 +619,36 @@ const SupportTicket = () => {
 
                   <div className="form-group">
                     <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      Priority
+                      {copy.priorityLabel}
                     </label>
                     <select
                       className="w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
                       {...register('priority')}
                       defaultValue="medium"
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
+                      <option value="low">{copy.priorities?.low}</option>
+                      <option value="medium">{copy.priorities?.medium}</option>
+                      <option value="high">{copy.priorities?.high}</option>
+                      <option value="urgent">{copy.priorities?.urgent}</option>
                     </select>
                   </div>
 
                   <div className="form-group">
                     <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      Description *
+                      {copy.descriptionLabel}
                     </label>
                     <textarea
                       rows={5}
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${
-                        errors.description
-                          ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                          : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                      }`}
-                      placeholder="Describe your issue in detail..."
+                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${errors.description
+                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
+                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
+                        }`}
+                      placeholder={copy.descriptionPlaceholder}
                       {...register('description', {
-                        required: 'Description is required',
+                        required: copy.validation?.descriptionRequired,
                         minLength: {
                           value: 20,
-                          message: 'Description must be at least 20 characters'
+                          message: copy.validation?.descriptionMin
                         }
                       })}
                     />
@@ -653,7 +666,7 @@ const SupportTicket = () => {
                     className="inline-flex items-center justify-center rounded-xl border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:bg-[#F9FAFB] hover:text-[#111827]"
                     onClick={() => setShowCreateModal(false)}
                   >
-                    Cancel
+                    {copy.cancel}
                   </button>
                   <button
                     type="submit"
@@ -663,10 +676,10 @@ const SupportTicket = () => {
                     {isSubmitting ? (
                       <>
                         <FaSpinner className="animate-spin" />
-                        <span>Creating...</span>
+                        <span>{copy.creating}</span>
                       </>
                     ) : (
-                      'Create Ticket'
+                      copy.createTicket
                     )}
                   </button>
                 </div>

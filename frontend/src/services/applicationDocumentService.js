@@ -73,6 +73,46 @@ export const uploadCitizenApplicationDocument = async ({
   return response?.data;
 };
 
+
+export const uploadCitizenCorrectionDocument = async ({
+  correctionId,
+  documentType,
+  file,
+  onUploadProgress
+}) => {
+  if (!correctionId) {
+    throw new Error('Correction ID is required');
+  }
+
+  validateCitizenDocumentFile(file, documentType === 'verificationDocument' ? 'correctionProof' : documentType);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post(
+    `/corrections/${correctionId}/documents/${documentType}`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        if (!onUploadProgress || !progressEvent.total) {
+          return;
+        }
+
+        const progressPercent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
+
+        onUploadProgress(progressPercent);
+      }
+    }
+  );
+
+  return response?.data;
+};
+
 export const verifyBirthCertificateDocument = async ({ file, claimedFields }) => {
   validateCitizenDocumentFile(file, 'birthCertificate');
 
@@ -113,7 +153,8 @@ export const getCitizenDocumentLabel = (documentType) => {
     case 'birthCertificate':
       return 'Birth Certificate';
     case 'correctionProof':
-      return 'Correction Proof';
+    case 'verificationDocument':
+      return 'Supporting document';
     default:
       return 'Document';
   }

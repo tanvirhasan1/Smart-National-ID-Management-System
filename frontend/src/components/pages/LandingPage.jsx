@@ -513,7 +513,7 @@ const LandingPage = () => {
                   className="hero-image h-[320px] sm:h-[390px] lg:h-[460px] w-full object-cover object-center"
                 />
 
-                <div className="hero-status-card hero-status-top hidden md:flex absolute top-6 right-6 max-w-[280px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
+                {/* <div className="hero-status-card hero-status-top hidden md:flex absolute top-6 right-6 max-w-[280px] items-start gap-3 rounded-2xl bg-white/95 px-4 py-4 shadow-xl backdrop-blur">
                   <div className="status-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <FaShieldAlt />
                   </div>
@@ -539,7 +539,7 @@ const LandingPage = () => {
                       {copy.hero.trackEveryStageText}
                     </p>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

@@ -29,6 +29,7 @@ import ApplicationForm from './citizen/ApplicationForm';
 import MobileLivenessPage from './citizen/MobileLivenessPage';
 import AppointmentBooking from './citizen/AppointmentBooking';
 import ApplicationTracker from './citizen/ApplicationTracker';
+import ApplicationDetails from './citizen/ApplicationDetails';
 import DigitalNID from './citizen/DigitalNID';
 import DeliveryPayment from './citizen/DeliveryPayment';
 import SupportTicket from './citizen/SupportTicket';
@@ -36,11 +37,16 @@ import SupportTicket from './citizen/SupportTicket';
 // Admin pages
 import AdminDashboard from './admin/AdminDashboard';
 import AdminUsers from './admin/AdminUsers';
+import AdminUserDetails from './admin/AdminUserDetails';
 import ApplicationReview from './admin/ApplicationReview';
 import ApplicationReviewDetails from './admin/ApplicationReviewDetails';
+import CorrectionReview from './admin/CorrectionReview';
+import CorrectionReviewDetails from './admin/CorrectionReviewDetails';
 import AppointmentManagement from './admin/AppointmentManagement';
 import PrintingQueue from './admin/PrintingQueue';
+import PrintingDetails from './admin/PrintingDetails';
 import DeliveryTracking from './admin/DeliveryTracking';
+import DeliveryDetails from './admin/DeliveryDetails';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
 import { USER_ROLES, ADMIN_MENU_ACCESS, INTERNAL_USER_ROLES } from './utils/roles';
@@ -159,6 +165,15 @@ const AppShell = () => {
           />
 
           <Route
+            path="/application-details/:id"
+            element={
+              <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
+                <ApplicationDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/digital-nid/:id"
             element={
               <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
@@ -206,6 +221,15 @@ const AppShell = () => {
           />
 
           <Route
+            path="/admin/users/:id"
+            element={
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <AdminUserDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/applications"
             element={
               <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
@@ -219,6 +243,24 @@ const AppShell = () => {
             element={
               <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <ApplicationReviewDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/corrections"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_MENU_ACCESS.corrections}>
+                <CorrectionReview />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/corrections/review/:id"
+            element={
+              <ProtectedRoute allowedRoles={ADMIN_MENU_ACCESS.corrections}>
+                <CorrectionReviewDetails />
               </ProtectedRoute>
             }
           />
@@ -242,10 +284,28 @@ const AppShell = () => {
           />
 
           <Route
+            path="/admin/printing/:id"
+            element={
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <PrintingDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/delivery"
             element={
               <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <DeliveryTracking />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/delivery/:id"
+            element={
+              <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <DeliveryDetails />
               </ProtectedRoute>
             }
           />

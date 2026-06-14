@@ -73,15 +73,7 @@
 }
 
 .dashboard-welcome-panel::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -180px;
-  width: 380px;
-  height: 380px;
-  border-radius: 999px;
-  pointer-events: none;
-  background: rgba(255, 255, 255, 0.10);
+  display: none;
 }
 
 .dashboard-welcome-content {
@@ -227,6 +219,54 @@
   opacity: 1;
 }
 
+.dashboard-update-card .dashboard-side-panel-description {
+  display: block !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+}
+
+.dashboard-appointment-details {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+}
+
+.dashboard-appointment-detail-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+}
+
+.dashboard-appointment-detail-row dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dashboard-appointment-detail-row dd {
+  color: #111827;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-appointment-details-empty {
+  margin-top: 18px !important;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 12px;
+}
+
 /* Section header */
 
 .dashboard-section-header {
@@ -244,7 +284,7 @@
   background: var(--dash-green-soft);
   color: var(--dash-green-dark);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .dashboard-section-title h2 {
@@ -313,14 +353,14 @@
 /* Recent application */
 
 .dashboard-recent-section {
-  margin-top: 56px;
+  margin-top: 32px;
 }
 
 .dashboard-view-all-link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 800;
+  font-weight: 500;
   color: var(--dash-green);
   transition:
     color 160ms ease,
@@ -370,7 +410,7 @@
   justify-content: center;
   gap: 9px;
   border-radius: 14px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
   transition:
     transform 170ms ease,
@@ -418,7 +458,7 @@
   border-radius: 999px;
   padding: 7px 13px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -860,7 +900,7 @@
 .dashboard-view-all-link,
 .dashboard-update-card a,
 .dashboard-action-card span {
-  font-weight: 700 !important;
+  font-weight: 500 !important;
 }
 
 .btn,
@@ -1074,7 +1114,7 @@
   padding: 0.32rem 0.72rem;
   color: #64748b;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.1;
 }
 
@@ -1088,7 +1128,7 @@
   padding: 0.55rem 0.8rem !important;
   color: #dc2626 !important;
   font-size: 0.86rem !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   line-height: 1.45 !important;
 }
 
@@ -1105,7 +1145,7 @@
   min-height: 42px;
   border-radius: 999px !important;
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .dashboard-application-actions .btn-outline {
@@ -1376,20 +1416,6 @@ html[lang='bn'] .dashboard-application-reason {
   line-height: 1.45 !important;
 }
 
-.dashboard-latest-updates {
-  border-radius: 20px !important;
-  border-color: #e8eef5 !important;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
-  padding: 1.05rem !important;
-}
-
-.dashboard-latest-update-item {
-  border: 1px solid #eef2f7;
-  border-radius: 16px !important;
-  background: #f8fafc !important;
-  padding: 0.95rem 1rem !important;
-}
-
 .dashboard-rejection-note {
   border-radius: 18px !important;
   box-shadow: 0 12px 28px rgba(220, 38, 38, 0.08);
@@ -1453,8 +1479,8 @@ html[lang='bn'] .dashboard-application-reason {
   margin: 0;
   color: #0f172a;
   font-size: clamp(1.35rem, 2vw, 1.8rem);
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .dashboard-recent-table-header p {
@@ -1470,7 +1496,7 @@ html[lang='bn'] .dashboard-application-reason {
   gap: 0.55rem;
   color: #2563eb;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
   transition: color 160ms ease, transform 160ms ease;
@@ -1498,7 +1524,7 @@ html[lang='bn'] .dashboard-application-reason {
   background: #fbfcfe;
   color: #475569;
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 500;
   text-align: left;
   white-space: nowrap;
 }
@@ -1518,8 +1544,8 @@ html[lang='bn'] .dashboard-application-reason {
 .dashboard-recent-table tbody td {
   padding: 1.6rem 1.25rem;
   color: #1e293b;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 400;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -1576,8 +1602,8 @@ html[lang='bn'] .dashboard-application-reason {
   margin: 0;
   color: #0f172a;
   font-size: 0.98rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -1589,7 +1615,7 @@ html[lang='bn'] .dashboard-application-reason {
   align-items: center;
   gap: 0.45rem;
   border-radius: 10px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -1669,7 +1695,7 @@ html[lang='bn'] .dashboard-application-reason {
   color: #2563eb;
   padding: 0.65rem 1rem;
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 500;
   text-decoration: none;
   transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }

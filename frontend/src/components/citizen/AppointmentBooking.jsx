@@ -94,7 +94,7 @@ const AppointmentBooking = () => {
       setCenters(centersResponse?.data?.centers || []);
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || 'Failed to load appointment booking page'
+        error?.response?.data?.message || 'Appointment booking page could not be loaded.'
       );
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ const AppointmentBooking = () => {
       setSelectedSlot(null);
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || 'Failed to load appointment availability'
+        error?.response?.data?.message || 'Appointment availability could not be loaded.'
       );
     } finally {
       setAvailabilityLoading(false);
@@ -157,7 +157,7 @@ const AppointmentBooking = () => {
 
   const handleContinueToConfirm = () => {
     if (!selectedCenter || !selectedDay?.isBookable || !selectedDate || !selectedSlot) {
-      toast.error('Please select an available date and time slot');
+      toast.error('Please select an available date and time slot.');
       return;
     }
 
@@ -166,7 +166,7 @@ const AppointmentBooking = () => {
 
   const handleBookingConfirm = async () => {
     if (!applicationId || !selectedCenter || !selectedDate || !selectedSlot) {
-      toast.error('Please complete all booking information');
+      toast.error('Please complete all booking information.');
       return;
     }
 
@@ -182,10 +182,10 @@ const AppointmentBooking = () => {
       });
 
       setAppointment(response?.data?.appointment || null);
-      toast.success('Appointment booked successfully!');
+      toast.success('Appointment booked successfully.');
     } catch (error) {
       const statusCode = error?.response?.status;
-      const message = error?.response?.data?.message || 'Failed to book appointment';
+      const message = error?.response?.data?.message || 'Appointment could not be booked.';
 
       toast.error(message);
 
@@ -624,7 +624,7 @@ const AppointmentBooking = () => {
             <div className="appointment-booking__success-icon">
               <FaCheckCircle />
             </div>
-            <h1>Appointment Booked Successfully</h1>
+            <h1>Appointment booked successfully</h1>
             <p>Your biometric appointment has been scheduled. Please arrive on time with required documents.</p>
 
             <div className="appointment-booking__summary-grid">

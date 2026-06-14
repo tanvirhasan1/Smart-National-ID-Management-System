@@ -10,6 +10,7 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaTruck,
+  FaPrint,
   FaArrowRight,
   FaSyncAlt,
   FaEye,
@@ -20,7 +21,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../api/axios';
 import Loader from '../common/Loader';
-import { formatDate, formatStatus, getStatusColor } from '../utils/helpers';
+import { formatStatus } from '../utils/helpers';
+import {
+  canApplyCorrection,
+  isAppointmentBookingActionAvailable
+} from '../../utils/applicationLifecycle';
 import '../styles/Dashboard.css';
 
 const formatDashboardDateTime = (value, language = 'en') => {
@@ -40,6 +45,251 @@ const formatDashboardDateTime = (value, language = 'en') => {
     minute: '2-digit'
   }).format(date);
 };
+
+const DEFAULT_APPOINTMENT_DETAILS = {
+  date: 'Date',
+  time: 'Time',
+  center: 'Center',
+  notAvailable: 'Not available',
+  empty: 'Appointment details will appear here once available.'
+};
+
+const DEFAULT_APPLICATION_TYPE_LABELS = {
+  new: 'New NID',
+  correction: 'Correction',
+  reissue: 'Reissue'
+};
+
+const DEFAULT_STAGE_LABELS = {
+  submitted: 'Submitted',
+  under_review: 'Under review',
+  correction_required: 'Correction required',
+  appointment_required: 'Appointment required',
+  appointment_booked: 'Appointment booked',
+  waiting_for_printing: 'Waiting for printing',
+  printed: 'Card printed',
+  dispatched: 'Delivery in progress',
+  delivered: 'Delivered',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled'
+};
+
+const DASHBOARD_SIDE_CARD_COPY = {
+  en: {
+    appointmentDetails: DEFAULT_APPOINTMENT_DETAILS,
+    appointmentRequired: {
+      title: 'Appointment required',
+      description: 'Book your biometric appointment to continue the NID process.',
+      actionLabel: 'Book appointment'
+    },
+    appointmentBooked: {
+      title: 'Appointment booked',
+      description: 'Your biometric appointment is scheduled.'
+    },
+    whatHappensNext: {
+      title: 'What happens next',
+      description:
+        'Attend your biometric appointment. After verification is completed, your application will move to card printing.'
+    },
+    waitingForPrinting: {
+      title: 'Waiting for card printing',
+      description:
+        'Your biometric verification is complete. Your card will be prepared for printing.'
+    },
+    cardPrinted: {
+      title: 'Card printed',
+      description: 'Your NID card has been printed. Digital NID is now available.',
+      actionLabel: 'View Digital NID'
+    },
+    deliveryRequest: {
+      title: 'Delivery request',
+      description:
+        'Your card is printed. Complete the delivery request to receive it at your address.',
+      actionLabel: 'Pay delivery fee'
+    },
+    deliveryRequested: {
+      title: 'Delivery requested',
+      description:
+        'Your delivery request has been received. Dispatch updates will appear soon.'
+    },
+    deliveryInProgress: {
+      title: 'Delivery in progress',
+      description:
+        'Your NID card has been dispatched. Track delivery updates from the status page.',
+      actionLabel: 'View full status'
+    },
+    cardDelivered: {
+      title: 'Card delivered',
+      description: 'Your NID card has been delivered.',
+      actionLabel: 'View Digital NID'
+    },
+    review: {
+      title: 'Application under review',
+      description:
+        'Your application is being reviewed. You will be notified when the next step is available.'
+    },
+    rejected: {
+      title: 'Application rejected',
+      description: 'Please review the reason and submit a new application if required.'
+    },
+    cancelled: {
+      title: 'Application cancelled',
+      description: 'This application is no longer active.'
+    }
+  },
+  bn: {
+    appointmentDetails: {
+      date: 'তারিখ',
+      time: 'সময়',
+      center: 'কেন্দ্র',
+      notAvailable: 'পাওয়া যায়নি',
+      empty: 'তথ্য পাওয়া গেলে অ্যাপয়েন্টমেন্টের বিস্তারিত এখানে দেখানো হবে।'
+    },
+    appointmentRequired: {
+      title: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
+      description: 'এনআইডি প্রক্রিয়া চালিয়ে যেতে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করুন।',
+      actionLabel: 'অ্যাপয়েন্টমেন্ট বুক করুন'
+    },
+    appointmentBooked: {
+      title: 'অ্যাপয়েন্টমেন্ট বুক হয়েছে',
+      description: 'আপনার বায়োমেট্রিক অ্যাপয়েন্টমেন্ট নির্ধারিত হয়েছে।'
+    },
+    whatHappensNext: {
+      title: 'পরবর্তী ধাপ',
+      description:
+        'বায়োমেট্রিক অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন। যাচাই সম্পন্ন হলে আপনার আবেদন কার্ড প্রিন্টিং ধাপে যাবে।'
+    },
+    waitingForPrinting: {
+      title: 'কার্ড প্রিন্টিংয়ের অপেক্ষায়',
+      description:
+        'আপনার বায়োমেট্রিক যাচাই সম্পন্ন হয়েছে। আপনার কার্ড প্রিন্টিংয়ের জন্য প্রস্তুত করা হবে।'
+    },
+    cardPrinted: {
+      title: 'কার্ড প্রিন্ট সম্পন্ন',
+      description: 'আপনার এনআইডি কার্ড প্রিন্ট সম্পন্ন হয়েছে। ডিজিটাল এনআইডি এখন উপলব্ধ।',
+      actionLabel: 'ডিজিটাল এনআইডি দেখুন'
+    },
+    deliveryRequest: {
+      title: 'ডেলিভারি অনুরোধ',
+      description:
+        'আপনার কার্ড প্রিন্ট সম্পন্ন হয়েছে। ঠিকানায় কার্ড পেতে ডেলিভারি অনুরোধ সম্পন্ন করুন।',
+      actionLabel: 'ডেলিভারি ফি পরিশোধ করুন'
+    },
+    deliveryRequested: {
+      title: 'ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে',
+      description:
+        'আপনার ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে। পাঠানোর আপডেট শিগগিরই দেখানো হবে।'
+    },
+    deliveryInProgress: {
+      title: 'ডেলিভারি চলমান',
+      description:
+        'আপনার এনআইডি কার্ড পাঠানো হয়েছে। স্ট্যাটাস পেজ থেকে ডেলিভারি আপডেট দেখুন।',
+      actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
+    },
+    cardDelivered: {
+      title: 'কার্ড বিতরণ সম্পন্ন',
+      description: 'আপনার এনআইডি কার্ড বিতরণ সম্পন্ন হয়েছে।',
+      actionLabel: 'ডিজিটাল এনআইডি দেখুন'
+    },
+    review: {
+      title: 'আবেদন পর্যালোচনাধীন',
+      description:
+        'আপনার আবেদন পর্যালোচনা করা হচ্ছে। পরবর্তী ধাপ উপলব্ধ হলে আপনাকে জানানো হবে।'
+    },
+    rejected: {
+      title: 'আবেদন বাতিল হয়েছে',
+      description: 'কারণটি পর্যালোচনা করুন এবং প্রয়োজন হলে নতুন আবেদন জমা দিন।'
+    },
+    cancelled: {
+      title: 'আবেদন বাতিল করা হয়েছে',
+      description: 'এই আবেদনটি আর সক্রিয় নয়।'
+    }
+  }
+};
+
+const formatAppointmentDate = (appointment, language = 'en') => {
+  const rawDate =
+    appointment?.appointmentDate ||
+    appointment?.appointmentDateKey ||
+    appointment?.date ||
+    appointment?.scheduledAt;
+
+  if (!rawDate) return '';
+
+  const date =
+    typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+      ? new Date(`${rawDate}T00:00:00`)
+      : new Date(rawDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(language === 'bn' ? 'bn-BD' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(date);
+};
+
+const getAppointmentTime = (appointment) => {
+  if (!appointment) return '';
+
+  if (appointment.timeSlot) return appointment.timeSlot;
+  if (appointment.slotTime) return appointment.slotTime;
+  if (appointment.slotLabel) return appointment.slotLabel;
+  if (appointment.slot?.label) return appointment.slot.label;
+
+  const start = appointment.timeSlotStart || appointment.startTime;
+  const end = appointment.timeSlotEnd || appointment.endTime;
+
+  if (start && end) return `${start} - ${end}`;
+  return start || end || '';
+};
+
+const getAppointmentCenterName = (appointment) =>
+  appointment?.centerName ||
+  appointment?.center?.name ||
+  appointment?.appointmentCenter?.name ||
+  appointment?.centerId?.name ||
+  '';
+
+const getAppointmentApplicationId = (appointment) => {
+  const appointmentApplication = appointment?.application;
+
+  if (!appointmentApplication) return '';
+  if (typeof appointmentApplication === 'object') {
+    return appointmentApplication._id || appointmentApplication.id || '';
+  }
+
+  return appointmentApplication;
+};
+
+const doesAppointmentBelongToApplication = (appointment, application) => {
+  if (!appointment || !application) return false;
+
+  const appointmentApplicationId = getAppointmentApplicationId(appointment);
+  if (!appointmentApplicationId) return false;
+
+  return String(appointmentApplicationId) === String(application._id || application.id);
+};
+
+const getApplicationAppointment = (application, eligibility, dashboardSummary) => {
+  const activeAppointment = eligibility?.activeAppointment;
+  if (doesAppointmentBelongToApplication(activeAppointment, application)) {
+    return activeAppointment;
+  }
+
+  const latestAppointment = dashboardSummary?.latest?.appointment;
+  if (doesAppointmentBelongToApplication(latestAppointment, application)) {
+    return latestAppointment;
+  }
+
+  return null;
+};
+
+const getAppointmentStatus = (appointment) =>
+  String(appointment?.status || '').toLowerCase();
 
 const getSafeTime = (value) => {
   if (!value) return 0;
@@ -62,13 +312,6 @@ const NEW_NID_BLOCKING_STATUSES = new Set([
   'delivered'
 ]);
 
-const CORRECTION_ALLOWED_STATUSES = new Set([
-  'approved',
-  'printed',
-  'dispatched',
-  'delivered'
-]);
-
 const isNewNidApplication = (application = {}) =>
   String(application.applicationType || 'new').toLowerCase() === 'new';
 
@@ -76,8 +319,11 @@ const isNewNidApplication = (application = {}) =>
 const isDeliveryPaymentCompleted = (application) =>
   ['paid', 'waived'].includes(application?.deliveryInfo?.paymentStatus);
 
+const isDeliveryRequestSubmitted = (application) =>
+  Boolean(application?.deliveryInfo?.requested) || isDeliveryPaymentCompleted(application);
+
 const needsDeliveryPayment = (application) =>
-  application?.status === 'printed' && !isDeliveryPaymentCompleted(application);
+  application?.status === 'printed' && !isDeliveryRequestSubmitted(application);
 
 
 const dashboardCopy = {
@@ -95,6 +341,8 @@ const dashboardCopy = {
     startApplication: 'Start Application',
     activeApplication: 'Active Application',
     currentStatus: 'Current Status',
+    applicationType: 'Application Type',
+    currentStage: 'Current Stage',
     nextStep: 'Next Step',
     applicationId: 'Application ID',
     submittedOn: 'Submitted On',
@@ -115,6 +363,7 @@ const dashboardCopy = {
     gettingStartedText:
       'A quick overview of what to prepare before submitting your first application.',
     viewAll: 'View All',
+    viewFullStatus: 'View full status',
     noApplicationsYet: 'No applications yet',
     noApplicationsText:
       'You have not submitted any Smart NID application yet. Prepare the required information, then start the process from the apply page.',
@@ -123,6 +372,28 @@ const dashboardCopy = {
     open: 'Open',
     viewDetails: 'View Details',
     digitalNid: 'Digital NID',
+    heroStatusLabels: {
+      appointmentNeeded: 'Appointment needed',
+      appointmentBooked: 'Appointment booked',
+      waitingForPrinting: 'Waiting for printing',
+      digitalNidAvailable: 'Digital NID available',
+      deliveryInProgress: 'Delivery in progress',
+      delivered: 'Delivered'
+    },
+    nextStepLabels: {
+      review: 'Wait for review',
+      appointmentRequired: 'Book appointment',
+      appointmentBooked: 'Attend appointment',
+      waitingForPrinting: 'No action needed',
+      requestDelivery: 'Request delivery',
+      waitForDispatch: 'Wait for dispatch',
+      trackDelivery: 'Track delivery',
+      viewDigitalNid: 'View Digital NID',
+      noActionNeeded: 'No action needed',
+      reviewStatus: 'Review status',
+      applyAgain: 'Review and apply again',
+      contactSupport: 'Contact support'
+    },
     deliveryPayment: {
       payFee: 'Pay Delivery Fee',
       payShort: 'Pay Delivery',
@@ -135,6 +406,7 @@ const dashboardCopy = {
     submitted: 'Submitted',
     updated: 'Updated',
     status: 'Status',
+    reviewStatus: 'Review Status',
     action: 'Action',
     reason: 'Reason',
     na: 'N/A',
@@ -150,6 +422,16 @@ const dashboardCopy = {
       delivered: 'Delivered',
       cancelled: 'Cancelled'
     },
+    recentReviewStatusLabels: {
+      submitted: 'Submitted',
+      under_review: 'Under review',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      cancelled: 'Cancelled'
+    },
+    applicationTypeLabels: DEFAULT_APPLICATION_TYPE_LABELS,
+    stageLabels: DEFAULT_STAGE_LABELS,
+    appointmentDetails: DEFAULT_APPOINTMENT_DETAILS,
     highlights: [
       {
         title: 'Prepare your documents',
@@ -181,7 +463,7 @@ const dashboardCopy = {
         title: 'Your application has been submitted',
         description:
           'Your application is waiting for official review. You can track the full status while the authority starts verification.',
-        actionLabel: 'Track full status',
+        actionLabel: 'View full status',
         secondaryActionLabel: 'Contact support'
       },
       review: {
@@ -189,7 +471,7 @@ const dashboardCopy = {
         title: 'Your application is under verification',
         description:
           'Your submitted information and supporting documents are being reviewed by the authority.',
-        actionLabel: 'Track full status',
+        actionLabel: 'View full status',
         secondaryActionLabel: 'Contact support'
       },
       correctionRequired: {
@@ -207,7 +489,7 @@ const dashboardCopy = {
           'Your application is approved and your appointment progress is now the most important update.',
         descriptionNoBooking:
           'Your application is approved. Please book your biometric appointment as the next step.',
-        actionBooked: 'Track full status',
+        actionBooked: 'View full status',
         actionNoBooking: 'Book appointment',
         secondaryActionLabel: 'View full status'
       },
@@ -216,46 +498,46 @@ const dashboardCopy = {
         title: 'Your Smart NID has been printed',
         description:
           'Printing is complete. The next official delivery update will appear here automatically.',
-        actionLabel: 'Track full status',
-        secondaryActionLabel: 'View Digital NID'
+        actionLabel: 'View full status',
+        secondaryActionLabel: ''
       },
       dispatched: {
         badge: 'Dispatched',
         title: 'Your Smart NID is on the way',
         description:
           'Your card has already been dispatched and is now moving through delivery.',
-        actionLabel: 'Track full status',
-        secondaryActionLabel: 'View Digital NID'
+        actionLabel: 'View full status',
+        secondaryActionLabel: ''
       },
       delivered: {
         badge: 'Delivered',
         title: 'Your Smart NID has been delivered',
         description:
           'Delivery is complete. You can now keep the digital copy for quick reference if available.',
-        actionLabel: 'View Digital NID',
-        secondaryActionLabel: 'Track full status'
+        actionLabel: 'View full status',
+        secondaryActionLabel: ''
       },
       rejected: {
         badge: 'Rejected',
         title: 'Your application needs correction',
         description:
           'Your application was rejected during review. Please read the official reason below and take the next action.',
-        actionLabel: 'Contact support',
-        secondaryActionLabel: 'View full status'
+        actionLabel: 'View full status',
+        secondaryActionLabel: ''
       },
       cancelled: {
         badge: 'Cancelled',
         title: 'Your previous application was cancelled',
         description:
           'This application is no longer active. You can start a new application whenever you are ready.',
-        actionLabel: 'Apply again',
-        secondaryActionLabel: 'Contact support'
+        actionLabel: 'View full status',
+        secondaryActionLabel: ''
       },
       default: {
         title: 'Follow your latest NID update',
         description:
           'Your latest application status is available here. Open the tracker for full details.',
-        actionLabel: 'Track full status',
+        actionLabel: 'View full status',
         secondaryActionLabel: 'Contact support'
       }
     },
@@ -321,10 +603,14 @@ const dashboardCopy = {
         actionLabel: 'View full status'
       },
       appointmentBooked: {
-        title: 'Appointment Booked',
+        title: 'Appointment booked',
         description:
-          'Your biometric appointment is already booked. Open the tracker to review the latest appointment information.',
-        actionLabel: 'Track appointment'
+          'Your biometric appointment is scheduled.'
+      },
+      appointmentCompleted: {
+        title: 'Appointment completed',
+        description:
+          'Your biometric appointment is complete. The application is waiting for printing.'
       },
       appointmentNeeded: {
         title: 'Appointment Needed',
@@ -413,8 +699,8 @@ const dashboardCopy = {
       applyTitle: 'Apply for NID',
       correctionTitle: 'Correction',
       applyWithApp: 'Submit a new Smart NID application',
-      correctionWithApp: 'Request changes to your approved Smart NID information',
-      applyLocked: 'Available after the current application is rejected/cancelled, or use Correction after approval',
+      correctionWithApp: 'Request changes to your printed Smart NID information',
+      applyLocked: 'Available after the current application is rejected/cancelled, or use Correction after printing',
       applyNoApp: 'Start your first Smart NID application',
       trackTitle: 'Track Application',
       trackWithApp: 'Check your application status',
@@ -486,6 +772,7 @@ const dashboardCopy = {
     gettingStartedText:
       'প্রথম আবেদন জমা দেওয়ার আগে কী প্রস্তুত রাখতে হবে তার সংক্ষিপ্ত ধারণা।',
     viewAll: 'সব দেখুন',
+    viewFullStatus: 'পূর্ণ স্ট্যাটাস দেখুন',
     noApplicationsYet: 'এখনও কোনো আবেদন নেই',
     noApplicationsText:
       'আপনি এখনও কোনো স্মার্ট এনআইডি আবেদন জমা দেননি। প্রয়োজনীয় তথ্য প্রস্তুত করে আবেদন পেজ থেকে প্রক্রিয়া শুরু করুন।',
@@ -494,6 +781,28 @@ const dashboardCopy = {
     open: 'খুলুন',
     viewDetails: 'বিস্তারিত দেখুন',
     digitalNid: 'ডিজিটাল এনআইডি',
+    heroStatusLabels: {
+      appointmentNeeded: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
+      appointmentBooked: 'অ্যাপয়েন্টমেন্ট বুক হয়েছে',
+      waitingForPrinting: 'প্রিন্টিংয়ের অপেক্ষায়',
+      digitalNidAvailable: 'ডিজিটাল এনআইডি উপলব্ধ',
+      deliveryInProgress: 'ডেলিভারি চলমান',
+      delivered: 'বিতরণ সম্পন্ন'
+    },
+    nextStepLabels: {
+      review: 'রিভিউর জন্য অপেক্ষা করুন',
+      appointmentRequired: 'অ্যাপয়েন্টমেন্ট বুক করুন',
+      appointmentBooked: 'অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন',
+      waitingForPrinting: 'এখন কোনো পদক্ষেপ প্রয়োজন নেই',
+      requestDelivery: 'ডেলিভারি অনুরোধ করুন',
+      waitForDispatch: 'পাঠানোর অপেক্ষায়',
+      trackDelivery: 'ডেলিভারি ট্র্যাক করুন',
+      viewDigitalNid: 'ডিজিটাল এনআইডি দেখুন',
+      noActionNeeded: 'এখন কোনো পদক্ষেপ প্রয়োজন নেই',
+      reviewStatus: 'স্ট্যাটাস দেখুন',
+      applyAgain: 'পর্যালোচনা করে আবার আবেদন করুন',
+      contactSupport: 'সাপোর্টে যোগাযোগ করুন'
+    },
     deliveryPayment: {
       payFee: 'ডেলিভারি ফি দিন',
       payShort: 'ডেলিভারি পেমেন্ট',
@@ -506,6 +815,7 @@ const dashboardCopy = {
     submitted: 'জমা',
     updated: 'আপডেট',
     status: 'স্ট্যাটাস',
+    reviewStatus: 'পর্যালোচনা স্ট্যাটাস',
     action: 'অ্যাকশন',
     reason: 'কারণ',
     na: 'প্রযোজ্য নয়',
@@ -520,6 +830,13 @@ const dashboardCopy = {
       dispatched: 'পাঠানো হয়েছে',
       delivered: 'ডেলিভারড',
       cancelled: 'বাতিল হয়েছে'
+    },
+    recentReviewStatusLabels: {
+      submitted: 'জমা হয়েছে',
+      under_review: 'পর্যালোচনাধীন',
+      approved: 'অনুমোদিত',
+      rejected: 'বাতিল হয়েছে',
+      cancelled: 'বাতিল করা হয়েছে'
     },
     highlights: [
       {
@@ -820,6 +1137,42 @@ const CitizenDashboard = () => {
   const translateStatus = (status) =>
     copy.statusLabels[status] || formatStatus(status);
 
+  const getRecentReviewStatusKey = (application = {}) => {
+    const status = String(application.status || '').toLowerCase();
+    const applicationType = String(application.applicationType || 'new').toLowerCase();
+    const isCorrectionRequest = applicationType === 'correction';
+
+    if (status === 'submitted') {
+      return isCorrectionRequest ? 'under_review' : 'submitted';
+    }
+
+    if (['under_review', 'correction_required'].includes(status)) {
+      return 'under_review';
+    }
+
+    if (['approved', 'printed', 'dispatched', 'delivered'].includes(status)) {
+      return 'approved';
+    }
+
+    if (status === 'rejected') {
+      return 'rejected';
+    }
+
+    if (['cancelled', 'canceled'].includes(status)) {
+      return 'cancelled';
+    }
+
+    return status || 'submitted';
+  };
+
+  const getRecentReviewStatusLabel = (application) => {
+    const reviewStatusKey = getRecentReviewStatusKey(application);
+    return (
+      copy.recentReviewStatusLabels?.[reviewStatusKey] ||
+      translateStatus(reviewStatusKey)
+    );
+  };
+
   const displayName =
     language === 'bn'
       ? user?.fullNameBangla || user?.fullName || copy.citizen
@@ -857,6 +1210,7 @@ const CitizenDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [eligibility, setEligibility] = useState(null);
 
   const fetchDashboardData = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -866,13 +1220,15 @@ const CitizenDashboard = () => {
         setLoading(true);
       }
 
-      const [summaryResponse, applicationsResponse] = await Promise.all([
+      const [summaryResponse, applicationsResponse, eligibilityResponse] = await Promise.all([
         api.get('/users/dashboard/summary'),
-        api.get('/applications/my')
+        api.get('/applications/my'),
+        api.get('/applications/eligibility')
       ]);
 
       const summaryData = summaryResponse?.data?.data || {};
       const applicationList = applicationsResponse?.data?.applications || [];
+      const eligibilityData = eligibilityResponse?.data?.data || null;
 
       setDashboardSummary({
         applications: summaryData.applications || {
@@ -901,6 +1257,7 @@ const CitizenDashboard = () => {
       });
 
       setApplications(applicationList);
+      setEligibility(eligibilityData);
       setLastSyncedAt(new Date());
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -1024,10 +1381,6 @@ const CitizenDashboard = () => {
     }
   };
 
-  const approvedApplication = applications.find((app) =>
-    ['approved', 'printed', 'dispatched', 'delivered'].includes(app.status)
-  );
-
   const sortedApplications = useMemo(() => {
     return [...applications].sort((a, b) => {
       const firstTime = getSafeTime(a?.updatedAt || a?.createdAt);
@@ -1043,6 +1396,11 @@ const CitizenDashboard = () => {
       null
     );
   }, [sortedApplications]);
+
+  const currentAppointment = useMemo(
+    () => getApplicationAppointment(currentApplication, eligibility, dashboardSummary),
+    [currentApplication, eligibility, dashboardSummary]
+  );
 
   const activeApplication = useMemo(() => {
     return (
@@ -1062,27 +1420,172 @@ const CitizenDashboard = () => {
   const approvedOrIssuedNewNidApplication = useMemo(() => {
     return (
       sortedApplications.find(
-        (app) => isNewNidApplication(app) && CORRECTION_ALLOWED_STATUSES.has(app?.status)
+        (app) =>
+          isNewNidApplication(app) &&
+          (
+            eligibility?.correctionEligibleApplicationId
+              ? String(app?._id) === String(eligibility.correctionEligibleApplicationId)
+              : canApplyCorrection(app?.status)
+          )
       ) || null
     );
-  }, [sortedApplications]);
+  }, [eligibility, sortedApplications]);
 
-  const canStartApplication = !newNidBlockingApplication;
-  const canRequestCorrection = Boolean(approvedOrIssuedNewNidApplication);
-  const shouldShowDisabledNewNidAction = Boolean(newNidBlockingApplication && !canRequestCorrection);
+  const appointmentNewNidApplication = useMemo(() => {
+    if (eligibility?.appointmentApplicationId) {
+      const matchedApplication = sortedApplications.find(
+        (app) => String(app?._id) === String(eligibility.appointmentApplicationId)
+      );
 
-  const latestStatusHistory = useMemo(() => {
-    if (!currentApplication?.statusHistory?.length) {
-      return [];
+      if (matchedApplication) {
+        return matchedApplication;
+      }
     }
 
-    return [...currentApplication.statusHistory]
-      .sort((a, b) => getSafeTime(b?.changedAt) - getSafeTime(a?.changedAt))
-      .slice(0, 3);
-  }, [currentApplication]);
+    return (
+      sortedApplications.find(
+        (app) => isNewNidApplication(app) && app?.status === 'approved'
+      ) || null
+    );
+  }, [eligibility, sortedApplications]);
+
+  const canStartApplication = !newNidBlockingApplication;
+  const canRequestCorrection = Boolean(
+    eligibility?.correctionEligible && approvedOrIssuedNewNidApplication
+  );
+  const currentAppointmentStatus = getAppointmentStatus(currentAppointment);
+  const shouldShowAppointmentAction = Boolean(
+    appointmentNewNidApplication &&
+      !canRequestCorrection &&
+      !canStartApplication &&
+      isAppointmentBookingActionAvailable(appointmentNewNidApplication, currentAppointment)
+  );
+  const appointmentActionTo = `/book-appointment/${appointmentNewNidApplication?._id}`;
+  const appointmentActionLabel =
+    copy.heroStatusLabels?.appointmentNeeded || 'Appointment needed';
 
   const hasApplications = applications.length > 0;
   const displayedRecentApplications = applications.slice(0, 3);
+  const sideCardCopy = DASHBOARD_SIDE_CARD_COPY[language === 'bn' ? 'bn' : 'en'];
+  const appointmentDetailsCopy = sideCardCopy.appointmentDetails || DEFAULT_APPOINTMENT_DETAILS;
+  const applicationTypeLabels = copy.applicationTypeLabels || DEFAULT_APPLICATION_TYPE_LABELS;
+  const stageLabels = copy.stageLabels || DEFAULT_STAGE_LABELS;
+
+  const getApplicationTypeLabel = (application) => {
+    const applicationType = String(application?.applicationType || 'new').toLowerCase();
+    return applicationTypeLabels[applicationType] || formatStatus(applicationType);
+  };
+
+  const getCurrentStageLabel = (application, appointment) => {
+    if (!application) return copy.na;
+
+    switch (application.status) {
+      case 'submitted':
+        return stageLabels.submitted;
+      case 'under_review':
+        return stageLabels.under_review;
+      case 'correction_required':
+        return stageLabels.correction_required;
+      case 'approved': {
+        const appointmentStatus = getAppointmentStatus(appointment);
+
+        if (appointmentStatus === 'completed') {
+          return stageLabels.waiting_for_printing;
+        }
+
+        if (appointmentStatus === 'booked') {
+          return stageLabels.appointment_booked;
+        }
+
+        return stageLabels.appointment_required;
+      }
+      case 'printed':
+        return stageLabels.printed;
+      case 'dispatched':
+        return stageLabels.dispatched;
+      case 'delivered':
+        return stageLabels.delivered;
+      case 'rejected':
+        return stageLabels.rejected;
+      case 'cancelled':
+        return stageLabels.cancelled;
+      default:
+        return translateStatus(application.status);
+    }
+  };
+
+  const getNextStepLabel = (application, appointment) => {
+    if (!application) return copy.na;
+
+    const nextStepLabels = copy.nextStepLabels || {};
+
+    switch (application.status) {
+      case 'submitted':
+      case 'under_review':
+        return nextStepLabels.review || 'Wait for review';
+
+      case 'correction_required':
+        return nextStepLabels.contactSupport || 'Contact support';
+
+      case 'approved': {
+        const appointmentStatus = getAppointmentStatus(appointment);
+
+        if (appointmentStatus === 'completed') {
+          return nextStepLabels.waitingForPrinting || 'No action needed';
+        }
+
+        if (['booked', 'scheduled'].includes(appointmentStatus)) {
+          return nextStepLabels.appointmentBooked || 'Attend appointment';
+        }
+
+        return nextStepLabels.appointmentRequired || 'Book appointment';
+      }
+
+      case 'printed':
+        return needsDeliveryPayment(application)
+          ? nextStepLabels.requestDelivery || 'Request delivery'
+          : nextStepLabels.waitForDispatch || 'Wait for dispatch';
+
+      case 'dispatched':
+        return nextStepLabels.trackDelivery || 'Track delivery';
+
+      case 'delivered':
+        return nextStepLabels.noActionNeeded || 'No action needed';
+
+      case 'rejected':
+      case 'cancelled':
+      case 'canceled':
+        return nextStepLabels.reviewStatus || 'Review status';
+
+      default:
+        return nextStepLabels.noActionNeeded || 'No action needed';
+    }
+  };
+
+  const getAppointmentDetailRows = (appointment) => {
+    const date = formatAppointmentDate(appointment, language);
+    const time = getAppointmentTime(appointment);
+    const center = getAppointmentCenterName(appointment);
+
+    if (!date && !time && !center) {
+      return [];
+    }
+
+    return [
+      {
+        label: appointmentDetailsCopy.date,
+        value: date || appointmentDetailsCopy.notAvailable
+      },
+      {
+        label: appointmentDetailsCopy.time,
+        value: time || appointmentDetailsCopy.notAvailable
+      },
+      {
+        label: appointmentDetailsCopy.center,
+        value: center || appointmentDetailsCopy.notAvailable
+      }
+    ];
+  };
 
   const noApplicationHighlights = [
     {
@@ -1109,8 +1612,8 @@ const CitizenDashboard = () => {
         description: state.description,
         actionLabel: state.actionLabel,
         actionTo: '/apply',
-        secondaryActionLabel: state.secondaryActionLabel,
-        secondaryActionTo: '/support',
+        secondaryActionLabel: '',
+        secondaryActionTo: '',
         icon: <FaIdCard />
       };
     }
@@ -1163,22 +1666,18 @@ const CitizenDashboard = () => {
 
       case 'approved': {
         const state = copy.primary.approved;
-        const hasBookedAppointment = dashboardSummary.appointments.booked > 0;
+        const hasAppointmentProgress = ['booked', 'completed'].includes(currentAppointmentStatus);
 
         return {
           badge: state.badge,
           badgeClass: 'bg-emerald-100 text-emerald-700',
           title: state.title,
-          description: hasBookedAppointment
+          description: hasAppointmentProgress
             ? state.descriptionBooked
             : state.descriptionNoBooking,
-          actionLabel: hasBookedAppointment
-            ? state.actionBooked
-            : state.actionNoBooking,
-          actionTo: hasBookedAppointment
-            ? `/track-application?id=${application._id}`
-            : `/book-appointment/${application._id}`,
-          secondaryActionLabel: state.secondaryActionLabel,
+          actionLabel: state.actionBooked,
+          actionTo: `/track-application?id=${application._id}`,
+          secondaryActionLabel: '',
           secondaryActionTo: `/track-application?id=${application._id}`,
           icon: <FaCheckCircle />
         };
@@ -1186,24 +1685,17 @@ const CitizenDashboard = () => {
 
       case 'printed': {
         const state = copy.primary.printed;
-        const deliveryPaymentNeeded = needsDeliveryPayment(application);
 
         return {
           badge: state.badge,
           badgeClass: 'bg-sky-100 text-sky-700',
           title: state.title,
-          description: deliveryPaymentNeeded
-            ? 'Printing is complete. Please complete the delivery payment to request home delivery.'
-            : copy.deliveryPayment.waitingDispatch,
-          actionLabel: deliveryPaymentNeeded
-            ? copy.deliveryPayment.payFee
-            : state.actionLabel,
-          actionTo: deliveryPaymentNeeded
-            ? `/delivery-payment/${application._id}`
-            : `/track-application?id=${application._id}`,
-          secondaryActionLabel: state.secondaryActionLabel,
+          description: state.description,
+          actionLabel: state.actionLabel,
+          actionTo: `/track-application?id=${application._id}`,
+          secondaryActionLabel: '',
           secondaryActionTo: `/digital-nid/${application._id}`,
-          icon: deliveryPaymentNeeded ? <FaMoneyBillWave /> : <FaIdCard />
+          icon: <FaPrint />
         };
       }
 
@@ -1291,12 +1783,14 @@ const CitizenDashboard = () => {
       return [
         {
           ...panel.beforeApply,
-          actionTo: '/apply',
+          actionLabel: '',
+          actionTo: '',
           icon: <FaIdCard />
         },
         {
           ...panel.processWorks,
-          actionTo: '/support',
+          actionLabel: '',
+          actionTo: '',
           icon: <FaSearch />
         }
       ];
@@ -1320,14 +1814,8 @@ const CitizenDashboard = () => {
     if (application.status === 'rejected') {
       return [
         {
-          ...panel.rejectedAction,
-          actionTo: '/apply',
+          ...sideCardCopy.rejected,
           icon: <FaExclamationTriangle />
-        },
-        {
-          ...panel.rejectedHelp,
-          actionTo: '/support',
-          icon: <FaHeadset />
         }
       ];
     }
@@ -1335,14 +1823,8 @@ const CitizenDashboard = () => {
     if (application.status === 'cancelled') {
       return [
         {
-          ...panel.cancelledAction,
-          actionTo: '/apply',
+          ...sideCardCopy.cancelled,
           icon: <FaIdCard />
-        },
-        {
-          ...panel.cancelledHelp,
-          actionTo: '/support',
-          icon: <FaHeadset />
         }
       ];
     }
@@ -1350,58 +1832,61 @@ const CitizenDashboard = () => {
     if (['submitted', 'under_review'].includes(application.status)) {
       return [
         {
-          ...panel.reviewProgress,
-          actionTo: `/track-application?id=${application._id}`,
+          ...sideCardCopy.review,
           icon: <FaClock />
-        },
-        {
-          ...panel.nextAfterReview,
-          actionTo: `/track-application?id=${application._id}`,
-          icon: <FaSearch />
         }
       ];
     }
 
     if (application.status === 'approved') {
+      const appointmentDetailRows = getAppointmentDetailRows(currentAppointment);
+
+      if (currentAppointmentStatus === 'completed') {
+        return [
+          {
+            ...sideCardCopy.waitingForPrinting,
+            icon: <FaClock />
+          }
+        ];
+      }
+
       return [
-        dashboardSummary.appointments.booked > 0
+        currentAppointmentStatus === 'booked'
           ? {
-            ...panel.appointmentBooked,
-            actionTo: `/track-application?id=${application._id}`,
+            ...sideCardCopy.appointmentBooked,
+            details: appointmentDetailRows,
+            emptyDetailsText: appointmentDetailsCopy.empty,
             icon: <FaCalendarAlt />
           }
           : {
-            ...panel.appointmentNeeded,
+            ...sideCardCopy.appointmentRequired,
             actionTo: `/book-appointment/${application._id}`,
             icon: <FaCalendarAlt />
           },
-        {
-          ...panel.deliveryNotStarted,
-          actionTo: `/track-application?id=${application._id}`,
-          icon: <FaTruck />
-        }
-      ];
+        currentAppointmentStatus === 'booked'
+          ? {
+            ...sideCardCopy.whatHappensNext,
+            icon: <FaCheckCircle />
+          }
+          : null
+      ].filter(Boolean);
     }
 
     if (application.status === 'printed') {
       const deliveryPaymentNeeded = needsDeliveryPayment(application);
 
       return [
-        deliveryPaymentNeeded
-          ? {
-            ...panel.deliveryPaymentRequired,
-            actionTo: `/delivery-payment/${application._id}`,
-            icon: <FaMoneyBillWave />
-          }
-          : {
-            ...panel.deliveryPaymentDone,
-            actionTo: `/track-application?id=${application._id}`,
-            icon: <FaCheckCircle />
-          },
         {
-          ...panel.deliveryQueue,
-          actionTo: `/track-application?id=${application._id}`,
-          icon: <FaTruck />
+          ...sideCardCopy.cardPrinted,
+          actionTo: `/digital-nid/${application._id}`,
+          icon: <FaIdCard />
+        },
+        {
+          ...(deliveryPaymentNeeded
+            ? sideCardCopy.deliveryRequest
+            : sideCardCopy.deliveryRequested),
+          actionTo: deliveryPaymentNeeded ? `/delivery-payment/${application._id}` : '',
+          icon: deliveryPaymentNeeded ? <FaMoneyBillWave /> : <FaTruck />
         }
       ];
     }
@@ -1409,14 +1894,9 @@ const CitizenDashboard = () => {
     if (application.status === 'dispatched') {
       return [
         {
-          ...panel.outForDelivery,
+          ...sideCardCopy.deliveryInProgress,
           actionTo: `/track-application?id=${application._id}`,
           icon: <FaTruck />
-        },
-        {
-          ...panel.digitalCopyAvailable,
-          actionTo: `/digital-nid/${application._id}`,
-          icon: <FaDownload />
         }
       ];
     }
@@ -1424,14 +1904,9 @@ const CitizenDashboard = () => {
     if (application.status === 'delivered') {
       return [
         {
-          ...panel.deliveryCompleted,
-          actionTo: `/track-application?id=${application._id}`,
-          icon: <FaCheckCircle />
-        },
-        {
-          ...panel.digitalCopyReady,
+          ...sideCardCopy.cardDelivered,
           actionTo: `/digital-nid/${application._id}`,
-          icon: <FaDownload />
+          icon: <FaCheckCircle />
         }
       ];
     }
@@ -1450,90 +1925,23 @@ const CitizenDashboard = () => {
     ];
   };
 
-  const primaryApplicationState = getPrimaryApplicationState(currentApplication);
+  const rawPrimaryApplicationState = getPrimaryApplicationState(currentApplication);
+  const primaryApplicationState = currentApplication
+    ? {
+      ...rawPrimaryApplicationState,
+      actionLabel: copy.viewFullStatus || 'View full status',
+      actionTo: `/track-application?id=${currentApplication._id}`,
+      secondaryActionLabel: '',
+      secondaryActionTo: ''
+    }
+    : rawPrimaryApplicationState;
   const sidePanels = getSidePanels(currentApplication);
   const dashboardStatusTheme = getDashboardStatusTheme(currentApplication);
-
-  const applicationAction = canStartApplication
-    ? {
-      to: '/apply',
-      title: copy.quickActionItems.applyTitle,
-      description: hasApplications
-        ? copy.quickActionItems.applyWithApp
-        : copy.quickActionItems.applyNoApp,
-      icon: <FaIdCard />,
-      cardClass:
-        'border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70',
-      iconClass: 'bg-emerald-100 text-emerald-600'
-    }
-    : canRequestCorrection
-      ? {
-        to: '/apply?type=correction',
-        title: copy.quickActionItems.correctionTitle || 'Correction',
-        description: copy.quickActionItems.correctionWithApp || 'Request changes to your approved Smart NID information',
-        icon: <FaIdCard />,
-        cardClass:
-          'border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70',
-        iconClass: 'bg-emerald-100 text-emerald-600'
-      }
-      : shouldShowDisabledNewNidAction
-        ? {
-          title: copy.quickActionItems.applyTitle,
-          description: copy.quickActionItems.applyLocked,
-          icon: <FaIdCard />,
-          disabled: true,
-          cardClass:
-            'dashboard-action-card-disabled border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70',
-          iconClass: 'bg-emerald-100 text-emerald-600'
-        }
-        : null;
-
-  const quickActions = [
-    ...(applicationAction ? [applicationAction] : []),
-    {
-      to: '/track-application',
-      title: copy.quickActionItems.trackTitle,
-      description: hasApplications
-        ? copy.quickActionItems.trackWithApp
-        : copy.quickActionItems.trackNoApp,
-      icon: <FaSearch />,
-      cardClass: 'border-sky-100 bg-gradient-to-br from-white to-sky-50/70',
-      iconClass: 'bg-sky-100 text-sky-600'
-    },
-    {
-      to: '/support',
-      title: copy.quickActionItems.supportTitle,
-      description: copy.quickActionItems.supportDescription,
-      icon: <FaHeadset />,
-      cardClass:
-        'border-violet-100 bg-gradient-to-br from-white to-violet-50/70',
-      iconClass: 'bg-violet-100 text-violet-600'
-    }
-  ];
-
-  if (needsDeliveryPayment(currentApplication)) {
-    quickActions.splice(applicationAction ? 2 : 1, 0, {
-      to: `/delivery-payment/${currentApplication._id}`,
-      title: copy.deliveryPayment.quickTitle,
-      description: copy.deliveryPayment.quickDescription,
-      icon: <FaMoneyBillWave />,
-      cardClass:
-        'border-sky-100 bg-gradient-to-br from-white to-sky-50/70',
-      iconClass: 'bg-sky-100 text-sky-600'
-    });
-  }
-
-  if (approvedApplication) {
-    quickActions.splice(applicationAction ? 2 : 1, 0, {
-      to: `/digital-nid/${approvedApplication._id}`,
-      title: copy.quickActionItems.digitalTitle,
-      description: copy.quickActionItems.digitalDescription,
-      icon: <FaDownload />,
-      cardClass:
-        'border-amber-100 bg-gradient-to-br from-white to-amber-50/70',
-      iconClass: 'bg-amber-100 text-amber-600'
-    });
-  }
+  const shouldShowPrimarySecondaryAction = Boolean(
+    primaryApplicationState.secondaryActionLabel &&
+      primaryApplicationState.secondaryActionTo &&
+      primaryApplicationState.secondaryActionTo !== primaryApplicationState.actionTo
+  );
 
   if (loading) {
     return (
@@ -1549,7 +1957,7 @@ const CitizenDashboard = () => {
         {/* Welcome Section */}
         <section className="dashboard-welcome-panel mb-8 flex flex-col justify-between gap-5 rounded-2xl bg-[linear-gradient(135deg,#16A34A_0%,#15803D_100%)] px-6 py-6 text-white md:flex-row md:items-center md:px-8">
           <div className="dashboard-welcome-content">
-            <h1 className="dashboard-welcome-title mb-1 text-[1.75rem] font-bold">
+            <h1 className="dashboard-welcome-title mb-1 text-[1.75rem] font-semibold">
               {copy.welcomePrefix}, {displayName}!
             </h1>
             <p className="dashboard-welcome-subtitle mt-3 text-lg text-white/90">
@@ -1572,26 +1980,19 @@ const CitizenDashboard = () => {
             </div>
           </div>
 
-          {(canStartApplication || canRequestCorrection || shouldShowDisabledNewNidAction) && (
+          {(canStartApplication || shouldShowAppointmentAction) && (
             <div className="dashboard-welcome-actions">
-              {shouldShowDisabledNewNidAction ? (
-                <div
-                  className="dashboard-apply-button dashboard-apply-button-disabled inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#16A34A]"
-                  aria-disabled="true"
-                  title={copy.newNidLocked}
-                >
-                  <FaIdCard />
-                  <span>{copy.applyForNewNid}</span>
-                </div>
-              ) : (
-                <Link
-                  to={canStartApplication ? '/apply' : '/apply?type=correction'}
-                  className="dashboard-apply-button inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#16A34A] transition hover:bg-[#F0FDF4]"
-                >
-                  <FaIdCard />
-                  <span>{canStartApplication ? (hasApplications ? copy.applyForNewNid : copy.startApplication) : copy.applyForCorrection}</span>
-                </Link>
-              )}
+              <Link
+                to={canStartApplication ? '/apply' : appointmentActionTo}
+                className="dashboard-apply-button inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#16A34A] transition hover:bg-[#F0FDF4]"
+              >
+                {shouldShowAppointmentAction ? <FaCalendarAlt /> : <FaIdCard />}
+                <span>
+                  {canStartApplication
+                    ? (hasApplications ? copy.applyForNewNid : copy.startApplication)
+                    : appointmentActionLabel}
+                </span>
+              </Link>
             </div>
           )}
         </section>
@@ -1634,34 +2035,31 @@ const CitizenDashboard = () => {
                       #{currentApplication.applicationId || copy.na}
                     </p>
                   </div>
+
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      {copy.applicationType || 'Application Type'}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      {getApplicationTypeLabel(currentApplication)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
+                      {copy.currentStage || 'Current Stage'}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#111827]">
+                      {getCurrentStageLabel(currentApplication, currentAppointment)}
+                    </p>
+                  </div>
+
                   <div className={`rounded-xl px-4 py-3 ${dashboardStatusTheme.statusBoxClass}`}>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.currentStatus}
+                      {copy.nextStep || 'Next Step'}
                     </p>
                     <p className={`mt-1 text-sm font-semibold ${dashboardStatusTheme.statusTextClass}`}>
-                      {translateStatus(currentApplication.status)}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.submittedOn}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#111827]">
-                      {currentApplication.createdAt
-                        ? formatDashboardDate(currentApplication.createdAt)
-                        : copy.na}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.lastUpdated}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#111827]">
-                      {currentApplication.updatedAt
-                        ? formatDashboardDate(currentApplication.updatedAt)
-                        : copy.na}
+                      {getNextStepLabel(currentApplication, currentAppointment)}
                     </p>
                   </div>
                 </div>
@@ -1678,41 +2076,6 @@ const CitizenDashboard = () => {
                     </p>
                   </div>
                 )}
-
-              {latestStatusHistory.length > 0 && (
-                <div className="dashboard-latest-updates mt-5 rounded-xl border border-[#E5E7EB] bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                    {copy.latestUpdates}
-                  </p>
-
-                  <div className="mt-3 flex flex-col gap-3">
-                    {latestStatusHistory.map((historyItem, index) => (
-                      <div
-                        key={`${historyItem.toStatus}-${historyItem.changedAt}-${index}`}
-                        className="dashboard-latest-update-item rounded-lg bg-[#F9FAFB] px-3 py-3"
-                      >
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-sm font-semibold text-[#111827]">
-                            {translateStatus(historyItem.toStatus)}
-                          </p>
-
-                          <p className="text-xs text-[#6B7280]">
-                            {historyItem.changedAt
-                              ? formatDashboardDate(historyItem.changedAt)
-                              : copy.na}
-                          </p>
-                        </div>
-
-                        {historyItem.note && (
-                          <p className="mt-1 text-sm text-[#6B7280]">
-                            {historyItem.note}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {!currentApplication && (
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -1746,7 +2109,7 @@ const CitizenDashboard = () => {
                   <FaArrowRight />
                 </Link>
 
-                {primaryApplicationState.secondaryActionLabel && (
+                {shouldShowPrimarySecondaryAction && (
                   <Link
                     to={primaryApplicationState.secondaryActionTo}
                     className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:border-[#16A34A] hover:text-[#16A34A]"
@@ -1773,93 +2136,37 @@ const CitizenDashboard = () => {
                     </h3>
                   </div>
 
-                  <p className="text-sm leading-7 text-[#6B7280]">
+                  <p className="dashboard-side-panel-description text-sm leading-7 text-[#6B7280]">
                     {panel.description}
                   </p>
 
-                  <Link
-                    to={panel.actionTo}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#059669]"
-                  >
-                    <span>{panel.actionLabel}</span>
-                    <FaArrowRight />
-                  </Link>
+                  {panel.details?.length > 0 ? (
+                    <dl className="dashboard-appointment-details">
+                      {panel.details.map((detail) => (
+                        <div key={detail.label} className="dashboard-appointment-detail-row">
+                          <dt>{detail.label}</dt>
+                          <dd>{detail.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : panel.emptyDetailsText ? (
+                    <p className="dashboard-appointment-details-empty">
+                      {panel.emptyDetailsText}
+                    </p>
+                  ) : null}
+
+                  {panel.actionTo && panel.actionLabel && (
+                    <Link
+                      to={panel.actionTo}
+                      className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#059669]"
+                    >
+                      <span>{panel.actionLabel}</span>
+                      <FaArrowRight />
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* Quick Actions */}
-        <section className="dashboard-actions-section mb-10">
-          <div className="mb-5">
-            <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              {copy.quickActions}
-            </span>
-
-            <h2 className="mt-3 text-[1.35rem] font-semibold text-[#1F2937]">
-              {hasApplications ? copy.continueJourney : copy.startFromHere}
-            </h2>
-
-            <p className="mt-1 text-sm text-[#6B7280]">
-              {hasApplications
-                ? copy.quickActionsWithApps
-                : copy.quickActionsNoApps}
-            </p>
-          </div>
-
-          <div
-            className={`dashboard-actions-grid grid gap-5 sm:grid-cols-2 ${quickActions.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'
-              }`}
-          >
-            {quickActions.map((action) => {
-              const actionContent = (
-                <>
-                  <div className="dashboard-action-heading">
-                    <div
-                      className={`dashboard-action-icon flex h-[56px] w-[56px] items-center justify-center rounded-2xl text-xl ${action.iconClass}`}
-                    >
-                      {action.icon}
-                    </div>
-
-                    <h4 className="dashboard-action-title text-[1.05rem] font-semibold text-[#1F2937]">
-                      {action.title}
-                    </h4>
-                  </div>
-
-                  <p className="text-sm leading-6 text-[#6B7280]">
-                    {action.description}
-                  </p>
-
-                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#16A34A]">
-                    {copy.open} <FaArrowRight />
-                  </span>
-                </>
-              );
-
-              if (action.disabled) {
-                return (
-                  <div
-                    key={action.title}
-                    className={`dashboard-action-card relative overflow-hidden rounded-2xl border p-6 ${action.cardClass}`}
-                    aria-disabled="true"
-                    title={copy.newNidLocked}
-                  >
-                    {actionContent}
-                  </div>
-                );
-              }
-
-              return (
-                <Link
-                  key={action.title}
-                  to={action.to}
-                  className={`dashboard-action-card relative overflow-hidden rounded-2xl border p-6 transition hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${action.cardClass}`}
-                >
-                  {actionContent}
-                </Link>
-              );
-            })}
           </div>
         </section>
 
@@ -1885,7 +2192,7 @@ const CitizenDashboard = () => {
                       <FaIdCard />
                     </div>
 
-                    <h3 className="text-xl font-bold text-[#111827]">
+                    <h3 className="text-xl font-semibold text-[#111827]">
                       {copy.noApplicationsYet}
                     </h3>
 
@@ -1894,14 +2201,6 @@ const CitizenDashboard = () => {
                     </p>
 
                     <div className="mt-5 flex flex-wrap gap-3">
-                      <Link
-                        to="/apply"
-                        className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D]"
-                      >
-                        <span>{copy.applyNow}</span>
-                        <FaArrowRight />
-                      </Link>
-
                       <Link
                         to="/support"
                         className="inline-flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:border-[#16A34A] hover:text-[#16A34A]"
@@ -1916,7 +2215,7 @@ const CitizenDashboard = () => {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                         Step 1
                       </p>
-                      <h4 className="mt-2 text-sm font-bold text-[#111827]">
+                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
                         Prepare documents
                       </h4>
                       <p className="mt-1 text-sm leading-6 text-[#5B6475]">
@@ -1928,7 +2227,7 @@ const CitizenDashboard = () => {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">
                         Step 2
                       </p>
-                      <h4 className="mt-2 text-sm font-bold text-[#111827]">
+                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
                         Submit application
                       </h4>
                       <p className="mt-1 text-sm leading-6 text-[#5B6475]">
@@ -1940,7 +2239,7 @@ const CitizenDashboard = () => {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
                         Step 3
                       </p>
-                      <h4 className="mt-2 text-sm font-bold text-[#111827]">
+                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
                         Wait for review
                       </h4>
                       <p className="mt-1 text-sm leading-6 text-[#5B6475]">
@@ -1952,7 +2251,7 @@ const CitizenDashboard = () => {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700">
                         Step 4
                       </p>
-                      <h4 className="mt-2 text-sm font-bold text-[#111827]">
+                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
                         Track updates
                       </h4>
                       <p className="mt-1 text-sm leading-6 text-[#5B6475]">
@@ -1985,86 +2284,69 @@ const CitizenDashboard = () => {
                       <th>{copy.type}</th>
                       <th>{copy.submitted}</th>
                       <th>{copy.updated}</th>
-                      <th>{copy.status}</th>
+                      <th>{copy.reviewStatus || 'Review Status'}</th>
                       <th>{copy.action}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedRecentApplications.map((app) => (
-                      <tr key={app._id}>
-                        <td className="dashboard-recent-application-cell">
-                          <div className="dashboard-recent-application-info">
-                            <span
-                              className={`dashboard-recent-file-icon status-${app.status || 'default'}`}
-                            >
-                              <FaRegFileAlt />
-                            </span>
+                    {displayedRecentApplications.map((app) => {
+                      const reviewStatusKey = getRecentReviewStatusKey(app);
+                      const reviewStatusLabel = getRecentReviewStatusLabel(app);
 
-                            <div>
-                              <h4>#{app.applicationId}</h4>
+                      return (
+                        <tr key={app._id}>
+                          <td className="dashboard-recent-application-cell">
+                            <div className="dashboard-recent-application-info">
+                              <span
+                                className={`dashboard-recent-file-icon status-${app.status || 'default'}`}
+                              >
+                                <FaRegFileAlt />
+                              </span>
 
-                              {app.status === 'rejected' && app.rejectionReason && (
-                                <p className="dashboard-recent-reason">
-                                  <FaExclamationTriangle />
-                                  <span>{copy.reason}: {app.rejectionReason}</span>
-                                </p>
-                              )}
+                              <div>
+                                <h4>#{app.applicationId}</h4>
+
+                                {app.status === 'rejected' && app.rejectionReason && (
+                                  <p className="dashboard-recent-reason">
+                                    <FaExclamationTriangle />
+                                    <span>{copy.reason}: {app.rejectionReason}</span>
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td>
-                          <span className="dashboard-recent-type-pill">
-                            {(app.applicationType || copy.na).toUpperCase()}
-                          </span>
-                        </td>
+                          <td>
+                            <span className="dashboard-recent-type-pill">
+                              {(app.applicationType || copy.na).toUpperCase()}
+                            </span>
+                          </td>
 
-                        <td>{app.createdAt ? formatDashboardDate(app.createdAt) : copy.na}</td>
+                          <td>{app.createdAt ? formatDashboardDate(app.createdAt) : copy.na}</td>
 
-                        <td>{app.updatedAt ? formatDashboardDate(app.updatedAt) : copy.na}</td>
+                          <td>{app.updatedAt ? formatDashboardDate(app.updatedAt) : copy.na}</td>
 
-                        <td>
-                          <span className={`dashboard-recent-status-pill status-${app.status || 'default'}`}>
-                            <span className="dashboard-recent-status-dot" />
-                            {translateStatus(app.status)}
-                          </span>
-                        </td>
+                          <td>
+                            <span className={`dashboard-recent-status-pill status-${reviewStatusKey || 'default'}`}>
+                              <span className="dashboard-recent-status-dot" />
+                              {reviewStatusLabel}
+                            </span>
+                          </td>
 
-                        <td>
-                          <div className="dashboard-recent-action-group">
-                            <Link
-                              to={`/track-application?id=${app._id}`}
-                              className="dashboard-recent-action-btn"
-                            >
-                              <FaEye />
-                              <span>{copy.viewDetails}</span>
-                            </Link>
-
-                            {needsDeliveryPayment(app) && (
+                          <td>
+                            <div className="dashboard-recent-action-group">
                               <Link
-                                to={`/delivery-payment/${app._id}`}
-                                className="dashboard-recent-action-btn dashboard-recent-action-btn-payment"
+                                to={`/application-details/${app._id}`}
+                                className="dashboard-recent-action-btn"
                               >
-                                <FaMoneyBillWave />
-                                <span>{copy.deliveryPayment.payShort}</span>
+                                <FaEye />
+                                <span>{copy.viewDetails}</span>
                               </Link>
-                            )}
-
-                            {['approved', 'printed', 'dispatched', 'delivered'].includes(
-                              app.status
-                            ) && (
-                              <Link
-                                to={`/digital-nid/${app._id}`}
-                                className="dashboard-recent-action-btn dashboard-recent-action-btn-primary"
-                              >
-                                <FaIdCard />
-                                <span>{copy.digitalNid}</span>
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2078,4 +2360,3 @@ const CitizenDashboard = () => {
 };
 
 export default CitizenDashboard;
-
