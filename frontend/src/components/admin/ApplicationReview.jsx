@@ -94,10 +94,15 @@ const getStatusTone = (status = '') => {
 };
 
 const getApplicantName = (item) =>
-  item?.fullNameEnglish || item?.applicant?.fullName || 'N/A';
+  item?.fullNameEnglish ||
+  item?.fullNameBangla ||
+  item?.applicant?.fullName ||
+  item?.applicant?.name ||
+  item?.applicant?.email ||
+  'Unknown Citizen';
 
 const getApplicantPhone = (item) =>
-  item?.phone || item?.applicant?.phone || 'N/A';
+  item?.phone || item?.applicant?.phone || item?.applicant?.email || 'N/A';
 
 const maskPhone = (phone = '') => {
   const value = String(phone || '');
@@ -397,7 +402,7 @@ export default function ApplicationReview() {
         <div className="gov-queue-header-card">
           <div>
             <h1>Application Queue</h1>
-            <p>Review, verify and process Smart NID applications from a single administrative queue.</p>
+            <p>Review, verify and process Smart NID applications from one administrative queue.</p>
           </div>
         </div>
 
@@ -470,7 +475,7 @@ export default function ApplicationReview() {
             <div>
               <h3>Applications</h3>
               <p>
-                {queueMeta?.hasMore ? `${queue.length}+ loaded` : `${queue.length} results`}
+                {queueMeta?.hasMore ? `${queue.length}+ loaded` : `${queue.length}`}
                 {queueMeta?.totalMatching ? ` of ${queueMeta.totalMatching} matched` : ''}
               </p>
             </div>

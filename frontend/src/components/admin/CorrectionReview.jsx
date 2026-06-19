@@ -5,6 +5,7 @@ import {
   FaCheckCircle,
   FaClipboardList,
   FaExchangeAlt,
+  FaEye,
   FaHourglassHalf,
   FaInbox,
   FaSearch,
@@ -13,10 +14,10 @@ import {
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
-import '../styles/ApplicationReview.css';
+import '../styles/CorrectionReview.css';
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'All Status' },
+  { value: '', label: 'All Statuses' },
   { value: 'submitted', label: 'Submitted' },
   { value: 'under_review', label: 'Under Review' },
   { value: 'approved', label: 'Approved' },
@@ -49,13 +50,38 @@ const getStatusTone = (status = '') => {
   return 'neutral';
 };
 
-const getApplicantName = (item) =>
-  item?.requestedData?.fullNameEnglish || item?.applicant?.fullName || 'N/A';
+const getApplicantName = (item) => {
+  const requestedData = item?.requestedData || {};
+  const applicant = item?.applicant || {};
+
+  return (
+    requestedData.fullNameEnglish ||
+    requestedData.fullNameBangla ||
+    applicant.fullName ||
+    applicant.name ||
+    applicant.email ||
+    'Unknown Citizen'
+  );
+};
+
+const getApplicantContact = (item) => {
+  const requestedData = item?.requestedData || {};
+  const applicant = item?.applicant || {};
+
+  return requestedData.phone || applicant.phone || applicant.email || 'No contact data';
+};
 
 const getVerificationImageCount = (item) =>
   Array.isArray(item?.documents?.verificationDocuments)
     ? item.documents.verificationDocuments.length
     : 0;
+
+const getChangeLabel = (item) => {
+  const changedFields = item?.changedFields || [];
+  if (!changedFields.length) return 'No field listed';
+  if (changedFields.length === 1) return changedFields[0]?.label || '1 field changed';
+  return `${changedFields[0]?.label || 'Field'} + ${changedFields.length - 1} more`;
+};
 
 export default function CorrectionReview() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,58 +154,63 @@ export default function CorrectionReview() {
     updateQuery({ search: searchInput.trim() });
   };
 
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearchParams(new URLSearchParams());
+  };
+
   const statsCards = [
     {
       title: 'Total Corrections',
       value: stats?.totalCorrections || 0,
-      tone: 'neutral',
       icon: FaClipboardList,
       caption: 'All correction requests'
     },
     {
       title: 'Submitted',
       value: stats?.submittedCorrections || 0,
-      tone: 'blue',
       icon: FaInbox,
       caption: 'New requests'
     },
     {
       title: 'Under Review',
       value: stats?.underReviewCorrections || 0,
-      tone: 'yellow',
       icon: FaHourglassHalf,
       caption: 'Needs admin decision'
     },
     {
       title: 'Approved',
       value: stats?.approvedCorrections || 0,
-      tone: 'green',
       icon: FaCheckCircle,
       caption: 'Applied to NID data'
+    },
+    {
+      title: 'Rejected',
+      value: stats?.rejectedCorrections || 0,
+      icon: FaTimesCircle,
+      caption: 'Closed requests'
     }
   ];
 
   return (
     <AdminLayout>
-      <div className="gov-queue-page">
-        <div className="gov-queue-header-card">
+      <div className="admin-corrections-page">
+        <div className="admin-corrections-page-header">
           <div>
             <h1>Correction Requests</h1>
             <p>Review citizen correction requests with clear old vs new information comparison.</p>
           </div>
         </div>
 
-        <div className="gov-queue-stats-grid">
+        <div className="admin-corrections-stats-grid">
           {statsCards.map((card) => {
             const Icon = card.icon;
             return (
-              <div key={card.title} className={`gov-queue-stat-card ${card.tone}`}>
-                <div className="gov-queue-stat-icon">
-                  <Icon />
-                </div>
+              <div key={card.title} className="admin-corrections-stat">
+                <Icon />
                 <div>
-                  <p>{card.title}</p>
-                  <h3>{card.value}</h3>
+                  <span>{card.title}</span>
+                  <strong>{card.value}</strong>
                   <small>{card.caption}</small>
                 </div>
               </div>
@@ -187,124 +218,114 @@ export default function CorrectionReview() {
           })}
         </div>
 
-        <div className="gov-queue-toolbar-card">
-          <form className="gov-queue-search-form" onSubmit={handleSearch}>
-            <div className="gov-queue-search-box">
-              <FaSearch className="gov-queue-field-icon" />
-              <input
-                type="text"
-                placeholder="Search by correction ID, base application, NID, name, phone or BRN"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-              />
-            </div>
+        <form className="admin-corrections-toolbar" onSubmit={handleSearch}>
+          <label className="admin-corrections-search" aria-label="Search corrections">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search by correction ID, application, NID, name, phone or BRN"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          </label>
 
-            <button type="submit" className="gov-queue-btn primary">Search</button>
-            <button
-              type="button"
-              className="gov-queue-btn secondary"
-              onClick={() => setSearchParams(new URLSearchParams())}
-            >
-              Clear
-            </button>
-          </form>
-
-          <div className="gov-queue-filter-row">
-            {STATUS_OPTIONS.map((option) => (
-              <button
-                key={option.value || 'all'}
-                type="button"
-                className={`gov-queue-btn ${filters.status === option.value ? 'primary' : 'secondary'}`}
-                onClick={() => updateQuery({ status: option.value })}
+          <div className="admin-corrections-filter-row">
+            <label className="admin-corrections-filter-control">
+              Status
+              <select
+                value={filters.status}
+                onChange={(event) => updateQuery({ status: event.target.value })}
               >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || 'all'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <div className="gov-queue-table-card">
-          <div className="gov-queue-table-head">
-            <div>
-              <h3>Corrections</h3>
-              <p>{queue.length} requests loaded</p>
-            </div>
+            <button type="submit" className="admin-corrections-primary-button">
+              Search
+            </button>
+            <button type="button" className="admin-corrections-secondary-button" onClick={clearFilters}>
+              Clear Filters
+            </button>
+          </div>
+        </form>
+
+        <section className="admin-corrections-directory">
+          <div className="admin-corrections-directory-header">
+            <h2>Correction Queue</h2>
+            <p>{queue.length} correction requests loaded</p>
           </div>
 
           {loading ? (
-            <div className="gov-queue-loader-wrap">
+            <div className="admin-corrections-message">
               <Loader size="medium" text="Loading corrections..." />
             </div>
           ) : queue.length === 0 ? (
-            <div className="gov-queue-empty-state">
-              <h4>No correction requests found</h4>
-              <p>Try changing the search or status filter.</p>
+            <div className="admin-corrections-message">
+              <div>
+                <strong>No correction requests found</strong>
+                <p>Try changing the search or status filter.</p>
+              </div>
             </div>
           ) : (
-            <div className="gov-queue-table-wrap">
-              <table className="gov-queue-table">
-                <thead>
-                  <tr>
-                    <th>Correction</th>
-                    <th>Applicant</th>
-                    <th>Status</th>
-                    <th>Changes</th>
-                    <th>Proof</th>
-                    <th>Submitted</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queue.map((item) => (
-                    <tr key={item._id}>
-                      <td>
-                        <div className="gov-queue-cell">
-                          <strong>#{item.correctionId}</strong>
-                          <small>Base: {item.baseApplicationId || 'N/A'}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="gov-queue-cell">
-                          <strong>{getApplicantName(item)}</strong>
-                          <small>{item.requestedData?.phone || item.applicant?.phone || 'N/A'}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`gov-status ${getStatusTone(item.status)}`}>
-                          {formatStatus(item.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="gov-queue-cell">
-                          <strong><FaExchangeAlt /> {item.changedFields?.length || 0} fields</strong>
-                          <small>{item.changedFields?.[0]?.label || 'No field'} changed</small>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="gov-queue-cell">
-                          <strong>{getVerificationImageCount(item)}/4 docs</strong>
-                          <small>
-                            {item.photoChangeRequested
-                              ? item.documents?.photograph
-                                ? 'Photo change included'
-                                : 'Photo requested, pending upload'
-                              : 'No photo change'}
-                          </small>
-                        </div>
-                      </td>
-                      <td>{formatDateTime(item.submittedAt || item.createdAt)}</td>
-                      <td>
-                        <Link to={`/admin/corrections/review/${item._id}`} className="gov-queue-review-btn">
-                          Review
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="admin-corrections-table-scroll">
+              <div className="admin-corrections-table" role="table" aria-label="Correction requests">
+                <div className="admin-corrections-table-head" role="row">
+                  <span>Correction</span>
+                  <span>Applicant</span>
+                  <span>Status</span>
+                  <span>Changes</span>
+                  <span>Proof</span>
+                  <span>Submitted</span>
+                  <span>Action</span>
+                </div>
+
+                {queue.map((item) => (
+                  <div className="admin-corrections-table-row" role="row" key={item._id}>
+                    <div className="admin-corrections-primary-cell">
+                      <strong>#{item.correctionId}</strong>
+                      <span>Base: {item.baseApplicationId || 'N/A'}</span>
+                    </div>
+
+                    <div className="admin-corrections-primary-cell">
+                      <strong>{getApplicantName(item)}</strong>
+                      <span>{getApplicantContact(item)}</span>
+                    </div>
+
+                    <span className={`admin-corrections-status-chip ${getStatusTone(item.status)}`}>
+                      {formatStatus(item.status)}
+                    </span>
+
+                    <div className="admin-corrections-primary-cell compact">
+                      <strong><FaExchangeAlt /> {item.changedFields?.length || 0} fields</strong>
+                      <span>{getChangeLabel(item)}</span>
+                    </div>
+
+                    <div className="admin-corrections-primary-cell compact">
+                      <strong>{getVerificationImageCount(item)}/3 proof files</strong>
+                      <span>
+                        {item.photoChangeRequested
+                          ? item.documents?.photograph
+                            ? 'Photo change included'
+                            : 'Photo requested'
+                          : 'No photo change'}
+                      </span>
+                    </div>
+
+                    <span>{formatDateTime(item.submittedAt || item.createdAt)}</span>
+
+                    <Link to={`/admin/corrections/review/${item._id}`} className="admin-corrections-view-button">
+                      <FaEye /> Review
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </AdminLayout>
   );

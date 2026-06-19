@@ -128,26 +128,28 @@ const DeliveryTracking = () => {
     [applications]
   );
 
+  const hasActiveFilters = Boolean(searchInput.trim() || statusFilter || typeFilter);
+
   const statsCards = [
     {
       key: 'active',
       title: 'Active Delivery Requests',
       value: statsLoading ? '...' : stats?.activeDeliveryRequests ?? 0,
-      theme: 'yellow',
+      description: 'Paid cards awaiting handover',
       icon: FaClipboardList
     },
     {
       key: 'delivered',
       title: 'Delivered',
       value: statsLoading ? '...' : stats?.deliveredCount ?? 0,
-      theme: 'green',
+      description: 'Completed delivery records',
       icon: FaCheckCircle
     },
     {
       key: 'cancelled',
       title: 'Cancelled',
       value: statsLoading ? '...' : stats?.cancelledCount ?? 0,
-      theme: 'red',
+      description: 'Cancelled delivery requests',
       icon: FaTruck
     }
   ];
@@ -237,42 +239,39 @@ const DeliveryTracking = () => {
   return (
     <AdminLayout>
       <div className="delivery-tracking-page">
-        <div className="delivery-tracking-header-card">
-          <div className="delivery-tracking-header-top">
-            <div>
-              <h1 className="delivery-tracking-title">Delivery Tracking</h1>
-              <p className="delivery-tracking-subtitle">
-                Earliest active paid delivery requests appear first.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="delivery-tracking-primary-button"
-              onClick={() => setBulkModalOpen(true)}
-              disabled={!selectedActiveDeliveryIds.length}
-            >
-              <FaTruck />
-              <span>Bulk Mark Delivered ({selectedActiveDeliveryIds.length})</span>
-            </button>
+        <div className="delivery-tracking-page-header">
+          <div>
+            <h1>Delivery Tracking</h1>
+            <p>Review active paid delivery requests, completed deliveries and cancellation records.</p>
           </div>
 
-          <div className="delivery-tracking-stats-grid">
-            {statsCards.map((item) => {
-              const StatIcon = item.icon;
-              return (
-                <div key={item.key} className={`delivery-tracking-stat-card ${item.theme}`}>
-                  <div className="delivery-tracking-stat-icon">
-                    <StatIcon />
-                  </div>
-                  <div>
-                    <p>{item.title}</p>
-                    <h3>{item.value}</h3>
-                  </div>
+          <button
+            type="button"
+            className="delivery-tracking-primary-button"
+            onClick={() => setBulkModalOpen(true)}
+            disabled={!selectedActiveDeliveryIds.length}
+          >
+            <FaTruck />
+            <span>Bulk Mark Delivered ({selectedActiveDeliveryIds.length})</span>
+          </button>
+        </div>
+
+        <div className="delivery-tracking-stats-grid">
+          {statsCards.map((item) => {
+            const StatIcon = item.icon;
+            return (
+              <div key={item.key} className="delivery-tracking-stat-card">
+                <div className="delivery-tracking-stat-icon">
+                  <StatIcon />
                 </div>
-              );
-            })}
-          </div>
+                <div>
+                  <p>{item.title}</p>
+                  <h3>{item.value}</h3>
+                  <small>{item.description}</small>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="delivery-tracking-toolbar">
@@ -289,53 +288,58 @@ const DeliveryTracking = () => {
             />
           </div>
 
-          <div className="delivery-tracking-filter-row">
-            <div className="delivery-tracking-filter-group">
-              <select
-                value={statusFilter}
-                onChange={(event) => {
-                  setStatusFilter(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All Status</option>
-                <option value="printed">Ready for Delivery</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            <div className="delivery-tracking-filter-group">
-              <select
-                value={typeFilter}
-                onChange={(event) => {
-                  setTypeFilter(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All Types</option>
-                <option value="new">New</option>
-                <option value="correction">Correction</option>
-                <option value="reissue">Reissue</option>
-              </select>
-            </div>
-
-            <button
-              type="button"
-              className="delivery-tracking-secondary-button"
-              onClick={toggleSelectVisibleActive}
-              disabled={!visibleActiveDeliveryIds.length}
+          <div className="delivery-tracking-filter-group">
+            <label>Status</label>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
             >
-              {visibleActiveDeliveryIds.length > 0 &&
-              visibleActiveDeliveryIds.every((id) => selectedIds.includes(id))
-                ? 'Unselect Visible Active'
-                : 'Select Visible Active'}
-            </button>
-
-            <button type="button" className="delivery-tracking-secondary-button" onClick={clearFilters}>
-              Clear Filters
-            </button>
+              <option value="">All Status</option>
+              <option value="printed">Ready for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
+
+          <div className="delivery-tracking-filter-group">
+            <label>Type</label>
+            <select
+              value={typeFilter}
+              onChange={(event) => {
+                setTypeFilter(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="new">New</option>
+              <option value="correction">Correction</option>
+              <option value="reissue">Reissue</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className="delivery-tracking-secondary-button"
+            onClick={toggleSelectVisibleActive}
+            disabled={!visibleActiveDeliveryIds.length}
+          >
+            {visibleActiveDeliveryIds.length > 0 &&
+            visibleActiveDeliveryIds.every((id) => selectedIds.includes(id))
+              ? 'Unselect Visible Active'
+              : 'Select Visible Active'}
+          </button>
+
+          <button
+            type="button"
+            className="delivery-tracking-secondary-button"
+            onClick={clearFilters}
+            disabled={!hasActiveFilters}
+          >
+            Clear Filters
+          </button>
         </div>
 
         <section className="delivery-tracking-list-card">
@@ -348,105 +352,107 @@ const DeliveryTracking = () => {
             </div>
           </div>
 
-          <div className="delivery-tracking-table-header" aria-hidden="true">
-            <span />
-            <span>Application ID</span>
-            <span>Applicant</span>
-            <span>Type</span>
-            <span>Contact Phone</span>
-            <span>Request / Payment Date</span>
-            <span>Delivery Status</span>
-            <span>Action</span>
+          <div className="delivery-tracking-table-wrap">
+            <div className="delivery-tracking-table-header" aria-hidden="true">
+              <span />
+              <span>Application ID</span>
+              <span>Applicant</span>
+              <span>Type</span>
+              <span>Contact Phone</span>
+              <span>Request / Payment Date</span>
+              <span>Delivery Status</span>
+              <span>Action</span>
+            </div>
+
+            {applications.length === 0 ? (
+              <div className="delivery-tracking-empty-state">
+                <FaTruck className="delivery-tracking-empty-icon" />
+                <h3>No delivery requests found</h3>
+                <p>Change the search or filters to review delivery records.</p>
+              </div>
+            ) : (
+              <div className="delivery-tracking-list">
+                {applications.map((item) => {
+                  const isSelected = selectedIds.includes(item._id);
+                  const isDeliveryActive = isActiveDeliveryRequest(item);
+
+                  return (
+                    <div
+                      key={item._id}
+                      className="delivery-tracking-list-item"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDetails(item._id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          openDetails(item._id);
+                        }
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={isSelected ? 'delivery-tracking-check-button selected' : 'delivery-tracking-check-button'}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isDeliveryActive) toggleApplicationSelect(item._id);
+                        }}
+                        disabled={!isDeliveryActive}
+                        aria-label={isDeliveryActive ? 'Select delivery request' : 'Delivery request is not active'}
+                      >
+                        {isSelected ? <FaCheckSquare /> : <FaSquare />}
+                      </button>
+
+                      <div className="delivery-tracking-table-cell application-id" data-label="Application ID">
+                        <strong>{item.applicationId || item._id}</strong>
+                        {item.deliveryInfo?.requestId ? <small>Request {item.deliveryInfo.requestId}</small> : null}
+                      </div>
+
+                      <div className="delivery-tracking-table-cell applicant" data-label="Applicant">
+                        <strong>{getApplicantName(item)}</strong>
+                        <small>{item.email || item.applicant?.email || 'Email not recorded'}</small>
+                      </div>
+
+                      <div className="delivery-tracking-table-cell" data-label="Type">
+                        <span>{formatStatus(item.applicationType || 'new')}</span>
+                      </div>
+
+                      <div className="delivery-tracking-table-cell" data-label="Contact Phone">
+                        <strong>{getDeliveryPhone(item)}</strong>
+                      </div>
+
+                      <div className="delivery-tracking-table-cell" data-label="Request / Payment Date">
+                        <strong>
+                          {getDeliveryQueueDate(item)
+                            ? formatDateTime(getDeliveryQueueDate(item))
+                            : 'Not recorded'}
+                        </strong>
+                      </div>
+
+                      <div className="delivery-tracking-table-cell status" data-label="Delivery Status">
+                        <span className={`delivery-tracking-status-chip ${getDeliveryStatusClass(item)}`}>
+                          {getDeliveryStatusLabel(item)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="delivery-tracking-view-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDetails(item._id);
+                        }}
+                        aria-label="View delivery details"
+                      >
+                        <FaEye />
+                        <span>View</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-
-          {applications.length === 0 ? (
-            <div className="delivery-tracking-empty-state">
-              <FaTruck className="delivery-tracking-empty-icon" />
-              <h3>No delivery requests are ready.</h3>
-              <p>Change the search or filters to review completed delivery records.</p>
-            </div>
-          ) : (
-            <div className="delivery-tracking-list">
-              {applications.map((item) => {
-                const isSelected = selectedIds.includes(item._id);
-                const isDeliveryActive = isActiveDeliveryRequest(item);
-
-                return (
-                  <div
-                    key={item._id}
-                    className="delivery-tracking-list-item"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openDetails(item._id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        openDetails(item._id);
-                      }
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className={isSelected ? 'delivery-tracking-check-button selected' : 'delivery-tracking-check-button'}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (isDeliveryActive) toggleApplicationSelect(item._id);
-                      }}
-                      disabled={!isDeliveryActive}
-                      aria-label={isDeliveryActive ? 'Select delivery request' : 'Delivery request is not active'}
-                    >
-                      {isSelected ? <FaCheckSquare /> : <FaSquare />}
-                    </button>
-
-                    <div className="delivery-tracking-table-cell application-id" data-label="Application ID">
-                      <strong>{item.applicationId || item._id}</strong>
-                      {item.deliveryInfo?.requestId ? <small>Request {item.deliveryInfo.requestId}</small> : null}
-                    </div>
-
-                    <div className="delivery-tracking-table-cell applicant" data-label="Applicant">
-                      <strong>{getApplicantName(item)}</strong>
-                      <small>{item.email || item.applicant?.email || 'Email not recorded'}</small>
-                    </div>
-
-                    <div className="delivery-tracking-table-cell" data-label="Type">
-                      <span>{formatStatus(item.applicationType || 'new')}</span>
-                    </div>
-
-                    <div className="delivery-tracking-table-cell" data-label="Contact Phone">
-                      <strong>{getDeliveryPhone(item)}</strong>
-                    </div>
-
-                    <div className="delivery-tracking-table-cell" data-label="Request / Payment Date">
-                      <strong>
-                        {getDeliveryQueueDate(item)
-                          ? formatDateTime(getDeliveryQueueDate(item))
-                          : 'Not recorded'}
-                      </strong>
-                    </div>
-
-                    <div className="delivery-tracking-table-cell status" data-label="Delivery Status">
-                      <span className={`delivery-tracking-status-chip ${getDeliveryStatusClass(item)}`}>
-                        {getDeliveryStatusLabel(item)}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="delivery-tracking-view-button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openDetails(item._id);
-                      }}
-                      aria-label="View delivery details"
-                    >
-                      <FaEye />
-                      <span>View</span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
           <div className="delivery-tracking-pagination">
             <span>

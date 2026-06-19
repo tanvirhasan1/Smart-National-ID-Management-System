@@ -6,11 +6,13 @@ import {
   FaClock,
   FaExchangeAlt,
   FaExclamationTriangle,
+  FaEye,
   FaFilter,
   FaHeadset,
   FaSearch,
   FaSpinner,
   FaTicketAlt,
+  FaTimes,
   FaUserCheck,
   FaUserClock,
   FaUsers
@@ -81,6 +83,7 @@ const SupportManagement = () => {
 
   const [stats, setStats] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
 
   const [loadingList, setLoadingList] = useState(true);
@@ -154,14 +157,15 @@ const SupportManagement = () => {
 
       if (ticketList.length === 0) {
         setSelectedTicket(null);
+        setDetailsModalOpen(false);
         return;
       }
 
       setSelectedTicket((current) => {
-        if (!current) return ticketList[0];
+        if (!current) return null;
 
         const stillExists = ticketList.find((ticket) => ticket._id === current._id);
-        return stillExists || ticketList[0];
+        return stillExists ? current : null;
       });
     } catch (error) {
       console.error('Error fetching support tickets:', error);
@@ -231,12 +235,6 @@ const SupportManagement = () => {
     fetchTickets();
   }, [fetchTickets]);
 
-  useEffect(() => {
-    if (selectedTicket?._id) {
-      fetchTicketDetails(selectedTicket._id);
-    }
-  }, [fetchTicketDetails, selectedTicket?._id]);
-
   const statCards = useMemo(() => {
     return [
       {
@@ -277,6 +275,16 @@ const SupportManagement = () => {
 
   const selectedResponses = selectedTicket?.responses || [];
 
+  const hasActiveFilters = Boolean(
+    filters.status ||
+      filters.priority ||
+      filters.category ||
+      filters.assignedTo ||
+      filters.search ||
+      filters.sort !== DEFAULT_SORT ||
+      searchInput.trim()
+  );
+
   const handleApplySearch = (event) => {
     event.preventDefault();
 
@@ -315,6 +323,19 @@ const SupportManagement = () => {
       ...prev,
       page: nextPage
     }));
+  };
+
+  const openTicketDetails = async (ticket) => {
+    if (!ticket?._id) return;
+
+    setSelectedTicket(ticket);
+    setDetailsModalOpen(true);
+    await fetchTicketDetails(ticket._id);
+  };
+
+  const closeTicketDetails = () => {
+    if (actionLoading) return;
+    setDetailsModalOpen(false);
   };
 
   const openAssignModal = () => {
@@ -488,8 +509,9 @@ const SupportManagement = () => {
               type="button"
               className="support-management-toolbar-button secondary"
               onClick={handleClearFilters}
+              disabled={!hasActiveFilters}
             >
-              Clear
+              Clear Filters
             </button>
           </form>
 
@@ -550,9 +572,9 @@ const SupportManagement = () => {
           </div>
         </div>
 
-        <div className="support-management-content">
-          {/* Ticket list */}
-          <div className="support-management-list-card">
+        <div className="support-management-content support-management-content-full">
+          {/* Full-width ticket table */}
+          <div className="support-management-list-card support-management-list-card-full">
             <div className="support-management-card-header">
               <div>
                 <h3>Support Queue</h3>
@@ -569,21 +591,23 @@ const SupportManagement = () => {
             ) : (
               <>
                 <div className="support-management-table-wrap">
-                  <table className="support-management-table">
+                  <table className="support-management-table support-management-table-full">
                     <thead>
                       <tr>
                         <th>Ticket</th>
                         <th>Citizen</th>
+                        <th>Category</th>
                         <th>Priority</th>
                         <th>Status</th>
                         <th>Assigned</th>
+                        <th>Created</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {tickets.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="support-management-empty-cell">
+                          <td colSpan="8" className="support-management-empty-cell">
                             No support tickets found for the current filter
                           </td>
                         </tr>
@@ -592,13 +616,13 @@ const SupportManagement = () => {
                           <tr
                             key={ticket._id}
                             className={
-                              selectedTicket?._id === ticket._id
+                              selectedTicket?._id === ticket._id && detailsModalOpen
                                 ? 'support-management-row active'
                                 : 'support-management-row'
                             }
                           >
                             <td>
-                              <div className="support-management-ticket-main">
+                              <div className="support-management-ticket-main support-management-ticket-wide">
                                 <span className="support-management-ticket-number">
                                   {ticket.ticketNumber || `#${ticket._id?.slice(-6)}`}
                                 </span>
@@ -607,11 +631,13 @@ const SupportManagement = () => {
                             </td>
 
                             <td>
-                              <div className="support-management-ticket-main">
+                              <div className="support-management-ticket-main support-management-ticket-wide">
                                 <span>{ticket.citizen?.fullName || 'N/A'}</span>
                                 <small>{ticket.citizen?.email || ticket.citizen?.phone || 'N/A'}</small>
                               </div>
                             </td>
+
+                            <td>{formatStatus(ticket.category || 'N/A')}</td>
 
                             <td>
                               <span
@@ -630,20 +656,23 @@ const SupportManagement = () => {
                             </td>
 
                             <td>
-                              <div className="support-management-ticket-main">
+                              <div className="support-management-ticket-main support-management-ticket-wide">
                                 <span>{ticket.assignedTo?.fullName || 'Unassigned'}</span>
                                 <small>{ticket.assignedTo?.role ? formatStatus(ticket.assignedTo.role) : 'No owner'}</small>
                               </div>
                             </td>
 
+                            <td>{ticket.createdAt ? formatDateTime(ticket.createdAt) : 'N/A'}</td>
+
                             <td>
                               <button
                                 type="button"
-                                className="support-management-icon-button"
-                                onClick={() => setSelectedTicket(ticket)}
+                                className="support-management-view-button"
+                                onClick={() => openTicketDetails(ticket)}
                                 title="View ticket"
                               >
-                                <FaHeadset />
+                                <FaEye />
+                                <span>View</span>
                               </button>
                             </td>
                           </tr>
@@ -694,175 +723,195 @@ const SupportManagement = () => {
               </>
             )}
           </div>
-
-          {/* Ticket details */}
-          <div className="support-management-details-card">
-            {loadingDetails ? (
-              <div className="support-management-loading-state large">
-                <Loader size="medium" text="Loading ticket details..." />
-              </div>
-            ) : selectedTicket ? (
-              <>
-                <div className="support-management-details-header">
-                  <div>
-                    <h2>{selectedTicket.ticketNumber || `#${selectedTicket._id?.slice(-6)}`}</h2>
-                    <p>{selectedTicket.subject || 'No subject available'}</p>
-                  </div>
-
-                  <div className="support-management-details-badges">
-                    <span
-                      className={`support-management-priority-chip ${getPriorityClass(selectedTicket.priority)}`}
-                    >
-                      {formatStatus(selectedTicket.priority || 'low')}
-                    </span>
-
-                    <span
-                      className={`support-management-status-chip ${getStatusClass(selectedTicket.status)}`}
-                    >
-                      {formatStatus(selectedTicket.status)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="support-management-summary-grid">
-                  <div className="support-management-summary-card">
-                    <p>Citizen</p>
-                    <h4>{selectedTicket.citizen?.fullName || 'N/A'}</h4>
-                    <small>{selectedTicket.citizen?.email || selectedTicket.citizen?.phone || 'N/A'}</small>
-                  </div>
-
-                  <div className="support-management-summary-card">
-                    <p>Assigned To</p>
-                    <h4>{selectedTicket.assignedTo?.fullName || 'Unassigned'}</h4>
-                    <small>
-                      {selectedTicket.assignedTo?.role
-                        ? formatStatus(selectedTicket.assignedTo.role)
-                        : 'No owner yet'}
-                    </small>
-                  </div>
-                </div>
-
-                <div className="support-management-section-card">
-                  <h3>Description</h3>
-                  <p className="support-management-description">
-                    {selectedTicket.description || 'No description provided'}
-                  </p>
-                </div>
-
-                <div className="support-management-section-card">
-                  <h3>Ticket Information</h3>
-
-                  <div className="support-management-detail-grid">
-                    <div>
-                      <p>Category</p>
-                      <h4>{formatStatus(selectedTicket.category || 'N/A')}</h4>
-                    </div>
-                    <div>
-                      <p>Created At</p>
-                      <h4>
-                        {selectedTicket.createdAt
-                          ? formatDateTime(selectedTicket.createdAt)
-                          : 'N/A'}
-                      </h4>
-                    </div>
-                    <div>
-                      <p>Resolved At</p>
-                      <h4>
-                        {selectedTicket.resolvedAt
-                          ? formatDateTime(selectedTicket.resolvedAt)
-                          : 'Not resolved'}
-                      </h4>
-                    </div>
-                    <div>
-                      <p>Closed At</p>
-                      <h4>
-                        {selectedTicket.closedAt
-                          ? formatDateTime(selectedTicket.closedAt)
-                          : 'Not closed'}
-                      </h4>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedTicket.resolutionNotes ? (
-                  <div className="support-management-section-card highlighted">
-                    <h3>Resolution Notes</h3>
-                    <p className="support-management-description">
-                      {selectedTicket.resolutionNotes}
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="support-management-section-card">
-                  <h3>Response History</h3>
-
-                  {selectedResponses.length === 0 ? (
-                    <div className="support-management-history-empty">
-                      No response history found yet
-                    </div>
-                  ) : (
-                    <div className="support-management-history-list">
-                      {[...selectedResponses]
-                        .slice()
-                        .reverse()
-                        .map((responseItem, index) => (
-                          <div
-                            key={`${responseItem.createdAt || index}-${index}`}
-                            className="support-management-history-item"
-                          >
-                            <div className="support-management-history-dot" />
-                            <div className="support-management-history-content">
-                              <div className="support-management-history-top">
-                                <span>
-                                  {responseItem.responder?.fullName ||
-                                    formatStatus(responseItem.responder?.role || 'staff')}
-                                </span>
-                                <small>
-                                  {responseItem.createdAt
-                                    ? formatDateTime(responseItem.createdAt)
-                                    : 'N/A'}
-                                </small>
-                              </div>
-
-                              <p>{responseItem.message || 'No message available'}</p>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="support-management-action-row">
-                  <button
-                    type="button"
-                    className="support-management-action-button assign"
-                    onClick={openAssignModal}
-                    disabled={actionLoading}
-                  >
-                    <FaUserCheck />
-                    <span>Assign Ticket</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="support-management-action-button status"
-                    onClick={openStatusModal}
-                    disabled={actionLoading}
-                  >
-                    <FaExchangeAlt />
-                    <span>Update Status</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="support-management-empty-details">
-                <FaHeadset className="support-management-empty-icon" />
-                <h3>Select a Ticket</h3>
-                <p>Choose a support ticket from the left list to see full details.</p>
-              </div>
-            )}
-          </div>
         </div>
+
+        {/* Ticket details modal */}
+        {detailsModalOpen ? (
+          <div className="support-management-modal-backdrop" onClick={closeTicketDetails}>
+            <div
+              className="support-management-ticket-modal-card"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {loadingDetails ? (
+                <div className="support-management-loading-state large">
+                  <Loader size="medium" text="Loading ticket details..." />
+                </div>
+              ) : selectedTicket ? (
+                <>
+                  <div className="support-management-details-header support-management-modal-details-header">
+                    <div>
+                      <h2>{selectedTicket.ticketNumber || `#${selectedTicket._id?.slice(-6)}`}</h2>
+                      <p>{selectedTicket.subject || 'No subject available'}</p>
+                    </div>
+
+                    <div className="support-management-details-header-actions">
+                      <div className="support-management-details-badges">
+                        <span
+                          className={`support-management-priority-chip ${getPriorityClass(selectedTicket.priority)}`}
+                        >
+                          {formatStatus(selectedTicket.priority || 'low')}
+                        </span>
+
+                        <span
+                          className={`support-management-status-chip ${getStatusClass(selectedTicket.status)}`}
+                        >
+                          {formatStatus(selectedTicket.status)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="support-management-modal-close"
+                        onClick={closeTicketDetails}
+                        aria-label="Close ticket details"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="support-management-ticket-modal-body">
+                    <div className="support-management-summary-grid">
+                      <div className="support-management-summary-card">
+                        <p>Citizen</p>
+                        <h4>{selectedTicket.citizen?.fullName || 'N/A'}</h4>
+                        <small>{selectedTicket.citizen?.email || selectedTicket.citizen?.phone || 'N/A'}</small>
+                      </div>
+
+                      <div className="support-management-summary-card">
+                        <p>Assigned To</p>
+                        <h4>{selectedTicket.assignedTo?.fullName || 'Unassigned'}</h4>
+                        <small>
+                          {selectedTicket.assignedTo?.role
+                            ? formatStatus(selectedTicket.assignedTo.role)
+                            : 'No owner yet'}
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="support-management-section-card">
+                      <h3>Description</h3>
+                      <p className="support-management-description">
+                        {selectedTicket.description || 'No description provided'}
+                      </p>
+                    </div>
+
+                    <div className="support-management-section-card">
+                      <h3>Ticket Information</h3>
+
+                      <div className="support-management-detail-grid">
+                        <div>
+                          <p>Category</p>
+                          <h4>{formatStatus(selectedTicket.category || 'N/A')}</h4>
+                        </div>
+                        <div>
+                          <p>Created At</p>
+                          <h4>
+                            {selectedTicket.createdAt
+                              ? formatDateTime(selectedTicket.createdAt)
+                              : 'N/A'}
+                          </h4>
+                        </div>
+                        <div>
+                          <p>Resolved At</p>
+                          <h4>
+                            {selectedTicket.resolvedAt
+                              ? formatDateTime(selectedTicket.resolvedAt)
+                              : 'Not resolved'}
+                          </h4>
+                        </div>
+                        <div>
+                          <p>Closed At</p>
+                          <h4>
+                            {selectedTicket.closedAt
+                              ? formatDateTime(selectedTicket.closedAt)
+                              : 'Not closed'}
+                          </h4>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedTicket.resolutionNotes ? (
+                      <div className="support-management-section-card highlighted">
+                        <h3>Resolution Notes</h3>
+                        <p className="support-management-description">
+                          {selectedTicket.resolutionNotes}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="support-management-section-card">
+                      <h3>Response History</h3>
+
+                      {selectedResponses.length === 0 ? (
+                        <div className="support-management-history-empty">
+                          No response history found yet
+                        </div>
+                      ) : (
+                        <div className="support-management-history-list">
+                          {[...selectedResponses]
+                            .slice()
+                            .reverse()
+                            .map((responseItem, index) => (
+                              <div
+                                key={`${responseItem.createdAt || index}-${index}`}
+                                className="support-management-history-item"
+                              >
+                                <div className="support-management-history-dot" />
+                                <div className="support-management-history-content">
+                                  <div className="support-management-history-top">
+                                    <span>
+                                      {responseItem.responder?.fullName ||
+                                        formatStatus(responseItem.responder?.role || 'staff')}
+                                    </span>
+                                    <small>
+                                      {responseItem.createdAt
+                                        ? formatDateTime(responseItem.createdAt)
+                                        : 'N/A'}
+                                    </small>
+                                  </div>
+
+                                  <p>{responseItem.message || 'No message available'}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="support-management-action-row support-management-ticket-modal-actions">
+                    <button
+                      type="button"
+                      className="support-management-action-button assign"
+                      onClick={openAssignModal}
+                      disabled={actionLoading}
+                    >
+                      <FaUserCheck />
+                      <span>Assign Ticket</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="support-management-action-button status"
+                      onClick={openStatusModal}
+                      disabled={actionLoading}
+                    >
+                      <FaExchangeAlt />
+                      <span>Update Status</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="support-management-empty-details">
+                  <FaHeadset className="support-management-empty-icon" />
+                  <h3>Ticket not found</h3>
+                  <p>The selected support ticket could not be loaded.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {/* Assignment modal */}
         {assignModalOpen ? (

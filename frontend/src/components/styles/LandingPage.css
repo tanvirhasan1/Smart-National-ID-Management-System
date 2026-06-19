@@ -600,3 +600,768 @@
     display: none;
   }
 }
+/* =========================================================
+   Final landing page polish: users-page inspired typography,
+   spacing, cards and button rhythm while keeping public hero.
+   ========================================================= */
+.landing-page {
+  background: #f3f4f6;
+  color: #0f172a;
+}
+
+.landing-page .landing-container {
+  max-width: 1120px;
+}
+
+.landing-page .landing-hero {
+  min-height: auto !important;
+  padding-top: 2.35rem !important;
+  padding-bottom: 2.65rem !important;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(34, 197, 94, 0.11), transparent 26%),
+    linear-gradient(135deg, #f0fdf4 0%, #ffffff 54%, #f8fafc 100%) !important;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.landing-page .hero-layout {
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.82fr) !important;
+  gap: 2.4rem !important;
+}
+
+.landing-page .hero-copy {
+  max-width: 540px;
+}
+
+.landing-page .hero-title {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  font-size: clamp(2rem, 4vw, 3.1rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.landing-page .hero-title-accent {
+  color: #059669 !important;
+}
+
+.landing-page .hero-description {
+  margin-top: 1rem !important;
+  max-width: 530px !important;
+  font-size: 0.92rem !important;
+  line-height: 1.75 !important;
+  color: #475569 !important;
+}
+
+.landing-page .hero-actions {
+  margin-top: 1.35rem !important;
+  gap: 0.75rem !important;
+}
+
+.landing-page .hero-primary-btn,
+.landing-page .hero-secondary-btn,
+.landing-page .cta-primary-btn,
+.landing-page .cta-secondary-btn {
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  padding: 0.68rem 1rem !important;
+  font-size: 0.83rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.landing-page .hero-primary-btn,
+.landing-page .cta-primary-btn {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+.landing-page .hero-primary-btn:hover,
+.landing-page .cta-primary-btn:hover {
+  background: #15803d !important;
+}
+
+.landing-page .hero-secondary-btn,
+.landing-page .cta-secondary-btn {
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.landing-page .hero-points {
+  margin-top: 1.35rem !important;
+  gap: 0.65rem 1rem !important;
+}
+
+.landing-page .hero-point-item {
+  font-size: 0.82rem !important;
+  line-height: 1.45 !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+}
+
+.landing-page .hero-summary-grid {
+  margin-top: 1.4rem !important;
+  gap: 0.75rem !important;
+}
+
+.landing-page .hero-summary-card {
+  border-radius: 12px !important;
+  border-color: #dbe4ee !important;
+  padding: 0.85rem 0.95rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.landing-page .hero-summary-card span:first-child {
+  font-size: 1rem !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+  color: #047857 !important;
+}
+
+.landing-page .hero-summary-card span:last-child {
+  margin-top: 0.28rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.45 !important;
+  color: #64748b !important;
+}
+
+.landing-page .hero-visual {
+  align-self: center;
+}
+
+.landing-page .hero-image-shell {
+  max-width: 455px !important;
+  border-radius: 18px !important;
+  border-color: #dbe4ee !important;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08) !important;
+}
+
+.landing-page .hero-image {
+  height: 330px !important;
+  min-height: 0 !important;
+  background: #ecfdf5 !important;
+  object-fit: cover !important;
+  animation: none !important;
+}
+
+.landing-page .landing-actions,
+.landing-page .landing-trust,
+.landing-page .landing-process,
+.landing-page .landing-requirements,
+.landing-page .landing-cta {
+  padding-top: 3rem !important;
+  padding-bottom: 3rem !important;
+}
+
+.landing-page .actions-panel {
+  border-radius: 16px !important;
+  border-color: #dbe4ee !important;
+  padding: 1.25rem !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045) !important;
+}
+
+.landing-page .section-heading,
+.landing-page .section-heading-center {
+  margin-bottom: 1.35rem !important;
+}
+
+.landing-page .section-tag,
+.landing-page .section-tag-light {
+  border-radius: 999px !important;
+  padding: 0.35rem 0.72rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+.landing-page .section-head-title,
+.landing-page .trust-main-title,
+.landing-page .section-heading-center h2,
+.landing-page .requirements-copy h2,
+.landing-page .cta-box h2 {
+  margin-top: 0.75rem !important;
+  font-size: clamp(1.45rem, 2.2vw, 2rem) !important;
+  line-height: 1.22 !important;
+  letter-spacing: -0.025em !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.landing-page .section-heading p,
+.landing-page .section-heading-center p,
+.landing-page .requirements-copy p,
+.landing-page .trust-copy p,
+.landing-page .cta-box p {
+  margin-top: 0.65rem !important;
+  font-size: 0.88rem !important;
+  line-height: 1.75 !important;
+  color: #64748b !important;
+}
+
+.landing-page .actions-grid {
+  gap: 0.85rem !important;
+}
+
+.landing-page .action-card,
+.landing-page .trust-card,
+.landing-page .journey-card,
+.landing-page .requirement-item {
+  border-radius: 14px !important;
+  border-color: #dbe4ee !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.landing-page .action-card {
+  padding: 1rem !important;
+}
+
+.landing-page .action-card:hover,
+.landing-page .trust-card:hover,
+.landing-page .journey-card:hover,
+.landing-page .requirement-item:hover {
+  border-color: #bbf7d0 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.055) !important;
+}
+
+.landing-page .action-icon-landing,
+.landing-page .trust-card-icon,
+.landing-page .requirement-icon {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 10px !important;
+  font-size: 0.95rem !important;
+  background: #dcfce7 !important;
+  color: #059669 !important;
+}
+
+.landing-page .action-card h3,
+.landing-page .trust-card h3,
+.landing-page .journey-card h3,
+.landing-page .requirement-item h3 {
+  font-size: 0.92rem !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+  color: #111827 !important;
+}
+
+.landing-page .action-card p,
+.landing-page .trust-card p,
+.landing-page .journey-card p {
+  margin-top: 0.6rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.65 !important;
+  color: #64748b !important;
+}
+
+.landing-page .action-link {
+  margin-top: 0.85rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  color: #047857 !important;
+}
+
+.landing-page .trust-layout,
+.landing-page .requirements-layout {
+  gap: 1.5rem !important;
+}
+
+.landing-page .trust-list {
+  margin-top: 1rem !important;
+  display: grid !important;
+  gap: 0.65rem !important;
+}
+
+.landing-page .trust-list-item,
+.landing-page .mini-point {
+  font-size: 0.84rem !important;
+  line-height: 1.5 !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+}
+
+.landing-page .trust-cards {
+  display: grid !important;
+  gap: 0.85rem !important;
+}
+
+.landing-page .trust-card {
+  padding: 1rem !important;
+  gap: 0.85rem !important;
+}
+
+.landing-page .landing-process {
+  background: #f8fafc !important;
+}
+
+.landing-page .journey-grid {
+  gap: 0.85rem !important;
+}
+
+.landing-page .journey-card {
+  min-height: 178px !important;
+  padding: 1.05rem !important;
+}
+
+.landing-page .journey-step-badge {
+  min-height: 25px !important;
+  padding: 0 0.55rem !important;
+  border-radius: 999px !important;
+  font-size: 0.66rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+.landing-page .journey-icon {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  font-size: 0.88rem !important;
+  box-shadow: none !important;
+}
+
+.landing-page .journey-card h3 {
+  margin-top: 1rem !important;
+}
+
+.landing-page .journey-card::after {
+  height: 3px !important;
+}
+
+.landing-page .requirements-copy {
+  justify-content: flex-start !important;
+}
+
+.landing-page .requirements-mini-points {
+  margin-top: 1rem !important;
+  display: grid !important;
+  gap: 0.65rem !important;
+}
+
+.landing-page .requirements-grid {
+  gap: 0.85rem !important;
+}
+
+.landing-page .requirement-item {
+  min-height: 128px !important;
+  padding: 1rem !important;
+}
+
+.landing-page .requirement-item h3 {
+  margin-top: 0.75rem !important;
+  max-width: 150px !important;
+  font-size: 0.82rem !important;
+  line-height: 1.45 !important;
+}
+
+.landing-page .landing-cta {
+  background: #059669 !important;
+}
+
+.landing-page .cta-box {
+  max-width: 640px !important;
+}
+
+.landing-page .cta-box h2 {
+  color: #ffffff !important;
+}
+
+.landing-page .cta-box p {
+  color: #d1fae5 !important;
+}
+
+.landing-page .cta-buttons {
+  margin-top: 1.25rem !important;
+  gap: 0.75rem !important;
+}
+
+.landing-page .cta-primary-btn {
+  background: #ffffff !important;
+  color: #047857 !important;
+}
+
+.landing-page .cta-primary-btn:hover {
+  background: #ecfdf5 !important;
+}
+
+.landing-page .cta-secondary-btn {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.landing-page .landing-cursor-pattern {
+  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.18) 1px, transparent 1.35px) !important;
+  background-size: 20px 20px !important;
+}
+
+@media (max-width: 1024px) {
+  .landing-page .hero-layout {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+  }
+
+  .landing-page .hero-copy {
+    max-width: 720px;
+    text-align: center;
+    margin: 0 auto;
+  }
+
+  .landing-page .hero-description {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .landing-page .hero-actions,
+  .landing-page .hero-points,
+  .landing-page .hero-summary-grid {
+    justify-content: center;
+  }
+
+  .landing-page .hero-image-shell {
+    max-width: 560px !important;
+  }
+
+  .landing-page .hero-image {
+    height: 320px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page .landing-hero,
+  .landing-page .landing-actions,
+  .landing-page .landing-trust,
+  .landing-page .landing-process,
+  .landing-page .landing-requirements,
+  .landing-page .landing-cta {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .landing-page .actions-panel {
+    padding: 1rem !important;
+  }
+
+  .landing-page .trust-card {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-page .hero-title {
+    font-size: 1.85rem !important;
+  }
+
+  .landing-page .hero-description {
+    font-size: 0.86rem !important;
+    line-height: 1.65 !important;
+  }
+
+  .landing-page .hero-actions {
+    flex-direction: column !important;
+  }
+
+  .landing-page .hero-primary-btn,
+  .landing-page .hero-secondary-btn,
+  .landing-page .cta-primary-btn,
+  .landing-page .cta-secondary-btn {
+    width: 100%;
+  }
+
+  .landing-page .hero-image-shell {
+    border-radius: 14px !important;
+  }
+
+  .landing-page .hero-image {
+    height: 245px !important;
+  }
+
+  .landing-page .section-head-title,
+  .landing-page .trust-main-title,
+  .landing-page .section-heading-center h2,
+  .landing-page .requirements-copy h2,
+  .landing-page .cta-box h2 {
+    font-size: 1.28rem !important;
+  }
+
+  .landing-page .actions-grid,
+  .landing-page .journey-grid {
+    gap: 0.75rem !important;
+  }
+
+  .landing-page .trust-list-item,
+  .landing-page .mini-point {
+    align-items: flex-start !important;
+  }
+}
+
+
+/* =========================================================
+   Bangla landing page typography polish
+   Keeps the same public homepage layout but softens Bangla
+   font weight, improves reading line-height and footer spacing.
+   ========================================================= */
+.landing-page.lang-bn {
+  font-family: "Noto Sans Bengali", "Hind Siliguri", "SolaimanLipi", "Siyam Rupali", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.landing-page.lang-bn .hero-title {
+  font-size: clamp(1.9rem, 3.7vw, 2.85rem) !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.018em !important;
+  font-weight: 680 !important;
+}
+
+.landing-page.lang-bn .hero-title-accent {
+  line-height: 1.12 !important;
+}
+
+.landing-page.lang-bn .hero-description {
+  max-width: 560px !important;
+  font-size: 0.9rem !important;
+  line-height: 1.9 !important;
+  font-weight: 400 !important;
+}
+
+.landing-page.lang-bn .hero-primary-btn,
+.landing-page.lang-bn .hero-secondary-btn,
+.landing-page.lang-bn .cta-primary-btn,
+.landing-page.lang-bn .cta-secondary-btn {
+  font-size: 0.8rem !important;
+  font-weight: 560 !important;
+  line-height: 1.35 !important;
+}
+
+.landing-page.lang-bn .hero-point-item,
+.landing-page.lang-bn .trust-list-item,
+.landing-page.lang-bn .mini-point {
+  font-size: 0.8rem !important;
+  line-height: 1.75 !important;
+  font-weight: 450 !important;
+}
+
+.landing-page.lang-bn .hero-summary-card span:first-child {
+  font-size: 0.96rem !important;
+  font-weight: 650 !important;
+  line-height: 1.35 !important;
+}
+
+.landing-page.lang-bn .hero-summary-card span:last-child {
+  font-size: 0.75rem !important;
+  line-height: 1.65 !important;
+}
+
+.landing-page.lang-bn .section-tag,
+.landing-page.lang-bn .section-tag-light,
+.landing-page.lang-bn .journey-step-badge {
+  font-size: 0.68rem !important;
+  font-weight: 560 !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0 !important;
+}
+
+.landing-page.lang-bn .section-head-title,
+.landing-page.lang-bn .trust-main-title,
+.landing-page.lang-bn .section-heading-center h2,
+.landing-page.lang-bn .requirements-copy h2,
+.landing-page.lang-bn .cta-box h2 {
+  font-size: clamp(1.42rem, 2vw, 1.85rem) !important;
+  line-height: 1.34 !important;
+  letter-spacing: -0.014em !important;
+  font-weight: 680 !important;
+}
+
+.landing-page.lang-bn .section-heading p,
+.landing-page.lang-bn .section-heading-center p,
+.landing-page.lang-bn .requirements-copy p,
+.landing-page.lang-bn .trust-copy p,
+.landing-page.lang-bn .cta-box p {
+  font-size: 0.84rem !important;
+  line-height: 1.9 !important;
+  font-weight: 400 !important;
+}
+
+.landing-page.lang-bn .action-card h3,
+.landing-page.lang-bn .trust-card h3,
+.landing-page.lang-bn .journey-card h3,
+.landing-page.lang-bn .requirement-item h3 {
+  font-size: 0.88rem !important;
+  line-height: 1.55 !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+
+.landing-page.lang-bn .action-card p,
+.landing-page.lang-bn .trust-card p,
+.landing-page.lang-bn .journey-card p {
+  font-size: 0.76rem !important;
+  line-height: 1.85 !important;
+  font-weight: 400 !important;
+}
+
+.landing-page.lang-bn .action-link {
+  font-size: 0.75rem !important;
+  line-height: 1.45 !important;
+  font-weight: 560 !important;
+}
+
+.landing-page.lang-bn .trust-card {
+  gap: 0.8rem !important;
+}
+
+.landing-page.lang-bn .journey-card {
+  min-height: 170px !important;
+}
+
+.landing-page.lang-bn .requirement-item h3 {
+  max-width: 170px !important;
+  font-size: 0.78rem !important;
+  line-height: 1.65 !important;
+  font-weight: 620 !important;
+}
+
+.landing-page.lang-bn .landing-cta {
+  padding-top: 2.75rem !important;
+  padding-bottom: 2.75rem !important;
+}
+
+.landing-page.lang-bn .cta-box {
+  max-width: 680px !important;
+}
+
+.landing-page.lang-bn .cta-box h2 {
+  font-size: clamp(1.55rem, 2.3vw, 2rem) !important;
+  line-height: 1.38 !important;
+}
+
+.landing-page.lang-bn .cta-box p {
+  max-width: 600px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.site-footer:has(.footer-description) .footer-description,
+.site-footer .footer-description {
+  line-height: 1.75;
+}
+
+.landing-page.lang-bn ~ .site-footer,
+.landing-page.lang-bn + .site-footer {
+  font-family: "Noto Sans Bengali", "Hind Siliguri", "SolaimanLipi", "Siyam Rupali", system-ui, sans-serif;
+}
+
+.landing-page.lang-bn ~ .site-footer p,
+.landing-page.lang-bn ~ .site-footer a,
+.landing-page.lang-bn ~ .site-footer li,
+.landing-page.lang-bn + .site-footer p,
+.landing-page.lang-bn + .site-footer a,
+.landing-page.lang-bn + .site-footer li {
+  line-height: 1.75;
+  font-weight: 400;
+}
+
+@media (max-width: 1024px) {
+  .landing-page.lang-bn .hero-title {
+    font-size: clamp(1.85rem, 4vw, 2.45rem) !important;
+  }
+
+  .landing-page.lang-bn .hero-description {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-page.lang-bn .hero-title {
+    font-size: 1.72rem !important;
+    line-height: 1.24 !important;
+  }
+
+  .landing-page.lang-bn .hero-description {
+    font-size: 0.82rem !important;
+    line-height: 1.85 !important;
+  }
+
+  .landing-page.lang-bn .section-head-title,
+  .landing-page.lang-bn .trust-main-title,
+  .landing-page.lang-bn .section-heading-center h2,
+  .landing-page.lang-bn .requirements-copy h2,
+  .landing-page.lang-bn .cta-box h2 {
+    font-size: 1.22rem !important;
+    line-height: 1.42 !important;
+  }
+
+  .landing-page.lang-bn .action-card h3,
+  .landing-page.lang-bn .trust-card h3,
+  .landing-page.lang-bn .journey-card h3,
+  .landing-page.lang-bn .requirement-item h3 {
+    font-size: 0.82rem !important;
+  }
+
+  .landing-page.lang-bn .action-card p,
+  .landing-page.lang-bn .trust-card p,
+  .landing-page.lang-bn .journey-card p,
+  .landing-page.lang-bn .section-heading p,
+  .landing-page.lang-bn .section-heading-center p,
+  .landing-page.lang-bn .requirements-copy p,
+  .landing-page.lang-bn .trust-copy p,
+  .landing-page.lang-bn .cta-box p {
+    font-size: 0.76rem !important;
+    line-height: 1.82 !important;
+  }
+}
+
+/* Balanced requirement/document cards */
+.landing-page .requirements-grid {
+  align-items: stretch !important;
+}
+
+.landing-page .requirement-item {
+  min-height: 128px !important;
+  padding: 1rem !important;
+  gap: 0.7rem !important;
+  justify-content: center !important;
+}
+
+.landing-page .requirement-item .requirement-icon {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+.landing-page .requirement-item .requirement-title,
+.landing-page .requirement-item h3 {
+  margin-top: 0.65rem !important;
+  min-height: 2.6em !important;
+  max-width: 132px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  text-wrap: balance;
+}
+
+.landing-page.lang-bn .requirement-item .requirement-title,
+.landing-page.lang-bn .requirement-item h3 {
+  max-width: 140px !important;
+  min-height: 2.7em !important;
+  line-height: 1.45 !important;
+}
+
+@media (max-width: 640px) {
+  .landing-page .requirement-item {
+    min-height: 116px !important;
+    padding: 0.9rem !important;
+  }
+
+  .landing-page .requirement-item .requirement-title,
+  .landing-page .requirement-item h3 {
+    max-width: 120px !important;
+    min-height: 2.4em !important;
+  }
+}

@@ -534,3 +534,458 @@
     min-height: auto;
   }
 }
+
+/* ======================================================================
+   Citizen Track Application — users-page-style polish
+   Keeps the citizen-friendly tracking/timeline flow while aligning spacing,
+   typography, cards, badges and buttons with the clean admin Users page.
+   ====================================================================== */
+
+.tracker-page-wrapper {
+  min-height: calc(100vh - 140px);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(22, 163, 74, 0.045), transparent 26rem),
+    #f3f4f6 !important;
+  padding: 1.65rem 1rem 2rem !important;
+  color: #0f172a;
+}
+
+.tracker-shell {
+  max-width: 1120px !important;
+}
+
+.tracker-header-card {
+  border-radius: 0.9rem !important;
+  margin-bottom: 1.4rem !important;
+  padding: 1.35rem 1.55rem !important;
+  background: linear-gradient(135deg, #168b49 0%, #0f7a3f 100%) !important;
+  box-shadow: none !important;
+}
+
+.tracker-header-card::before,
+.tracker-header-card::after {
+  display: none !important;
+}
+
+.tracker-header-row {
+  align-items: center !important;
+  gap: 1rem !important;
+}
+
+.tracker-header-copy h1 {
+  margin: 0 !important;
+  font-size: 1.45rem !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.tracker-header-copy p {
+  margin-top: 0.45rem !important;
+  font-size: 0.88rem !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.tracker-header-card .inline-flex,
+.tracker-sync-badge {
+  min-height: 1.85rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 999px !important;
+  padding: 0.42rem 0.78rem !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.tracker-layout {
+  grid-template-columns: 270px minmax(0, 1fr) !important;
+  gap: 1.15rem !important;
+}
+
+.tracker-sidebar,
+.tracker-summary-card,
+.tracker-action-row,
+.tracker-correction-card,
+.tracker-progress-card,
+.tracker-no-selection,
+.tracker-empty-state-card {
+  border: 1px solid #d9e2ec !important;
+  border-radius: 0.75rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.tracker-sidebar {
+  padding: 1rem !important;
+  top: 5.8rem !important;
+}
+
+.tracker-sidebar-top {
+  margin-bottom: 0.85rem !important;
+}
+
+.tracker-sidebar-top h2,
+.tracker-progress-card > h3,
+.tracker-action-row h3,
+.tracker-correction-card h3 {
+  font-size: 0.98rem !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+  color: #0f172a !important;
+}
+
+.tracker-sidebar-top p,
+.tracker-progress-card > p,
+.tracker-action-row p,
+.tracker-correction-card p {
+  font-size: 0.83rem !important;
+  line-height: 1.55 !important;
+  color: #64748b !important;
+}
+
+.tracker-application-list {
+  gap: 0.65rem !important;
+}
+
+.tracker-application-item {
+  border-radius: 0.75rem !important;
+  padding: 0.85rem 0.95rem !important;
+  box-shadow: none !important;
+}
+
+.tracker-application-item::before {
+  width: 3px !important;
+}
+
+.tracker-application-item span,
+.tracker-application-item .text-sm {
+  font-size: 0.8rem !important;
+}
+
+.tracker-application-item .break-all {
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.tracker-details {
+  gap: 1rem !important;
+}
+
+.tracker-summary-card,
+.tracker-progress-card,
+.tracker-correction-card {
+  padding: 1.15rem !important;
+}
+
+.tracker-summary-top {
+  gap: 1rem !important;
+  align-items: stretch !important;
+}
+
+.tracker-summary-copy h2 {
+  margin: 0 !important;
+  max-width: 100% !important;
+  font-size: 1.1rem !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+  color: #0f172a !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.tracker-primary-alert {
+  width: min(100%, 410px) !important;
+  border-radius: 0.75rem !important;
+  padding: 0.85rem 1rem !important;
+  box-shadow: none !important;
+}
+
+.tracker-primary-alert h3,
+.tracker-primary-alert h4 {
+  font-size: 0.84rem !important;
+  font-weight: 650 !important;
+}
+
+.tracker-primary-alert p {
+  margin-top: 0.28rem !important;
+  font-size: 0.8rem !important;
+  line-height: 1.5 !important;
+}
+
+.tracker-meta-grid,
+.tracker-correction-card .grid {
+  gap: 0.75rem !important;
+}
+
+.tracker-meta-grid > div,
+.tracker-correction-card .grid > div,
+.tracker-rejection-box,
+.tracker-empty-sidebar {
+  border: 1px solid #e1e7ef !important;
+  border-radius: 0.7rem !important;
+  background: #f8fafc !important;
+  padding: 0.78rem 0.9rem !important;
+}
+
+.tracker-meta-grid p:first-child,
+.tracker-correction-card .grid p:first-child,
+.official-timeline-row p:first-child {
+  font-size: 0.66rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.08em !important;
+  color: #64748b !important;
+}
+
+.tracker-meta-grid p:last-child,
+.tracker-correction-card .grid p:last-child {
+  margin-top: 0.28rem !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+
+.tracker-action-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 1rem !important;
+  padding: 1rem 1.15rem !important;
+}
+
+.tracker-action-row > div:first-child {
+  min-width: 0 !important;
+}
+
+.tracker-action-row .inline-flex,
+.tracker-action-row a,
+.tracker-action-row button {
+  min-height: 2.35rem !important;
+  border-radius: 0.55rem !important;
+  padding: 0.55rem 0.9rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.tracker-progress-card > h3 {
+  margin: 0 !important;
+}
+
+.tracker-progress-card > p {
+  margin-top: 0.25rem !important;
+}
+
+.tracker-progress-card > .mt-6,
+.tracker-correction-card .mt-6 {
+  margin-top: 1rem !important;
+  border-radius: 0.75rem !important;
+}
+
+.official-timeline-row {
+  grid-template-columns: 54px minmax(0, 1fr) 148px !important;
+  gap: 0.85rem !important;
+  min-height: 92px !important;
+  padding: 0.95rem 1rem !important;
+}
+
+.official-timeline-row .h-12.w-12 {
+  width: 2.35rem !important;
+  height: 2.35rem !important;
+  border-radius: 0.75rem !important;
+  font-size: 0.92rem !important;
+  box-shadow: none !important;
+  ring-width: 0 !important;
+}
+
+.official-timeline-row .ring-8 {
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+.official-timeline-row h4 {
+  font-size: 0.86rem !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+  color: #0f172a !important;
+}
+
+.official-timeline-row p {
+  max-width: 42rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.5 !important;
+  color: #64748b !important;
+}
+
+.official-timeline-row .rounded-full {
+  padding: 0.23rem 0.52rem !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.official-timeline-row > div:last-child {
+  border-radius: 0.65rem !important;
+  padding: 0.65rem 0.75rem !important;
+}
+
+.official-timeline-row > div:last-child p:last-child {
+  font-size: 0.79rem !important;
+  font-weight: 600 !important;
+}
+
+.tracker-no-selection,
+.tracker-empty-state-card {
+  min-height: 280px !important;
+  padding: 2rem !important;
+}
+
+.tracker-empty-state-card h2,
+.tracker-no-selection h3 {
+  font-size: 1.15rem !important;
+  font-weight: 650 !important;
+}
+
+.tracker-page-wrapper .badge {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  padding: 0.28rem 0.62rem !important;
+  font-size: 0.7rem !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.tracker-page-wrapper .badge-lg {
+  padding: 0.32rem 0.68rem !important;
+  font-size: 0.72rem !important;
+}
+
+.tracker-page-wrapper .badge-success {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+.tracker-page-wrapper .badge-info {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.tracker-page-wrapper .badge-warning {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+}
+
+.tracker-page-wrapper .badge-danger {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.tracker-page-wrapper .badge-gray {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+.tracker-page-wrapper a,
+.tracker-page-wrapper button {
+  font-family: inherit;
+}
+
+.tracker-page-wrapper .bg-\[\#16A34A\],
+.tracker-page-wrapper .hover\:bg-\[\#15803D\]:hover {
+  box-shadow: none !important;
+}
+
+@media (max-width: 1279px) {
+  .tracker-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tracker-sidebar {
+    position: static !important;
+  }
+
+  .tracker-application-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .tracker-header-row,
+  .tracker-summary-top,
+  .tracker-action-row {
+    align-items: flex-start !important;
+  }
+
+  .tracker-primary-alert {
+    width: 100% !important;
+  }
+
+  .official-timeline-row {
+    grid-template-columns: 44px minmax(0, 1fr) !important;
+  }
+
+  .official-timeline-row > div:last-child {
+    grid-column: 2 / -1 !important;
+    text-align: left !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tracker-page-wrapper {
+    padding: 1rem 0.75rem 1.5rem !important;
+  }
+
+  .tracker-header-card {
+    padding: 1.05rem !important;
+  }
+
+  .tracker-header-copy h1 {
+    font-size: 1.2rem !important;
+  }
+
+  .tracker-summary-card,
+  .tracker-progress-card,
+  .tracker-correction-card,
+  .tracker-sidebar,
+  .tracker-action-row {
+    padding: 1rem !important;
+  }
+
+  .tracker-meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tracker-action-row {
+    flex-direction: column !important;
+  }
+
+  .tracker-action-row > div:last-child {
+    width: 100% !important;
+  }
+
+  .tracker-action-row .inline-flex,
+  .tracker-action-row a,
+  .tracker-action-row button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .official-timeline-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .official-timeline-row > div:last-child {
+    grid-column: auto !important;
+  }
+}

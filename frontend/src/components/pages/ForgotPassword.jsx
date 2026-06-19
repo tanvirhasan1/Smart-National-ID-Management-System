@@ -20,7 +20,7 @@ import '../styles/ForgotPassword.css';
 
 const ForgotPassword = () => {
   const { forgotPassword, resetPassword, passwordResetKey } = useAuth();
-  const { t } = useLanguage();
+  const { t, isBangla } = useLanguage();
   const navigate = useNavigate();
 
   const storedResetData = useMemo(() => {
@@ -116,7 +116,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="forgot-password-page-wrapper">
+    <div className={`forgot-password-page-wrapper ${isBangla ? 'lang-bn' : 'lang-en'}`}>
       <div className="forgot-password-container">
         <div className="forgot-password-card-panel">
           <div className="forgot-password-header-block">

@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  FaChevronDown,
+  FaChevronLeft,
+  FaChevronRight,
   FaExclamationTriangle,
+  FaEye,
   FaFilter,
   FaHistory,
   FaSearch,
+  FaTimes,
   FaUserShield
 } from 'react-icons/fa';
 import api from '../api/axios';
@@ -12,6 +15,8 @@ import AdminLayout from './AdminLayout';
 import Loader from '../common/Loader';
 import { formatDateTime, formatStatus } from '../utils/helpers';
 import '../styles/AuditLogs.css';
+
+const PAGE_SIZE = 12;
 
 const getLogsFromResponse = (response) =>
   response?.data?.data || response?.data?.logs || [];
@@ -33,6 +38,8 @@ const buildLogSearchText = (log) =>
       log?.actorRole,
       log?.actor?.fullName,
       log?.actor?.email,
+      log?.requestId,
+      log?.ipAddress,
       ...(Array.isArray(log?.changedFields) ? log.changedFields : [])
     ]
       .filter(Boolean)
@@ -56,18 +63,21 @@ const prettyJson = (value) => {
   }
 };
 
-
 const ENTITY_FILTER_OPTIONS = [
   { value: '', label: 'All Entities' },
   { value: 'User', label: 'User' },
   { value: 'Application', label: 'Application' },
   { value: 'SupportTicket', label: 'Support Ticket' },
-  { value: 'Center', label: 'Center' }
+  { value: 'Center', label: 'Center' },
+  { value: 'Appointment', label: 'Appointment' },
+  { value: 'DeliveryRequest', label: 'Delivery Request' },
+  { value: 'CorrectionApplication', label: 'Correction' }
 ];
 
 const ACTOR_ROLE_FILTER_OPTIONS = [
   { value: '', label: 'All Actor Roles' },
   { value: 'admin', label: 'Admin' },
+  { value: 'super_admin', label: 'Super Admin' },
   { value: 'system_supervisor', label: 'System Supervisor' },
   { value: 'support_staff', label: 'Support Staff' },
   { value: 'citizen', label: 'Citizen' }
@@ -88,64 +98,173 @@ const SOURCE_FILTER_OPTIONS = [
   { value: 'admin.printing', label: 'Admin Printing' },
   { value: 'admin.support', label: 'Admin Support' },
   { value: 'support', label: 'Support' },
-  { value: 'applications', label: 'Applications' }
+  { value: 'applications', label: 'Applications' },
+  { value: 'appointments', label: 'Appointments' }
 ];
 
-const AuditFilterSelect = ({ label, value, options, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectedOption = options.find((option) => option.value === value) || options[0];
+const SelectFilter = ({ label, value, options, onChange }) => (
+  <label className="audit-logs-filter-control">
+    <span>{label}</span>
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option) => (
+        <option key={`${label}-${option.value || 'all'}`} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </label>
+);
 
-  const handleSelect = (nextValue) => {
-    onChange(nextValue);
-    setIsOpen(false);
-  };
+const getActorName = (log) =>
+  log?.actor?.fullName ||
+  log?.actorName ||
+  formatStatus(log?.actorRole || '') ||
+  'Unknown Actor';
+
+const getActorEmail = (log) => log?.actor?.email || log?.actorEmail || 'No email';
+
+const getEntityLabel = (log) => formatStatus(log?.entityType || 'Unknown');
+
+const getSourceLabel = (log) =>
+  String(log?.sourceModule || 'N/A')
+    .split('.')
+    .map((part) => formatStatus(part))
+    .join(' / ');
+
+const AuditDetailModal = ({ log, onClose }) => {
+  if (!log) return null;
 
   return (
-    <div
-      className={`audit-logs-filter-select${isOpen ? ' open' : ''}`}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setIsOpen(false);
-        }
-      }}
-    >
-      <button
-        type="button"
-        className="audit-logs-filter-trigger"
-        onClick={() => setIsOpen((current) => !current)}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-label={label}
+    <div className="audit-logs-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <div
+        className="audit-logs-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="audit-log-details-title"
+        onMouseDown={(event) => event.stopPropagation()}
       >
-        <span className="audit-logs-filter-leading-icon" aria-hidden="true">
-          <FaFilter />
-        </span>
-        <span className="audit-logs-filter-value">{selectedOption.label}</span>
-        <FaChevronDown className="audit-logs-filter-chevron" aria-hidden="true" />
-      </button>
-
-      {isOpen && (
-        <div className="audit-logs-filter-menu" role="listbox" aria-label={label}>
-          {options.map((option) => {
-            const isSelected = option.value === value;
-
-            return (
-              <button
-                key={`${label}-${option.value || 'all'}`}
-                type="button"
-                className={`audit-logs-filter-option${isSelected ? ' selected' : ''}`}
-                role="option"
-                aria-selected={isSelected}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => handleSelect(option.value)}
-              >
-                <span>{option.label}</span>
-                {isSelected && <span className="audit-logs-filter-check">✓</span>}
-              </button>
-            );
-          })}
+        <div className="audit-logs-modal-header">
+          <div>
+            <h2 id="audit-log-details-title">{log.action || 'Unknown Action'}</h2>
+            <p>{log.message || 'No message available'}</p>
+          </div>
+          <button
+            type="button"
+            className="audit-logs-icon-button"
+            onClick={onClose}
+            aria-label="Close audit log details"
+          >
+            <FaTimes />
+          </button>
         </div>
-      )}
+
+        <div className="audit-logs-modal-summary">
+          <div>
+            <span>Severity</span>
+            <strong className={`audit-logs-severity-chip ${getSeverityClass(log.severity)}`}>
+              {formatStatus(log.severity || 'info')}
+            </strong>
+          </div>
+          <div>
+            <span>Entity</span>
+            <strong>{getEntityLabel(log)}</strong>
+          </div>
+          <div>
+            <span>Source</span>
+            <strong>{getSourceLabel(log)}</strong>
+          </div>
+          <div>
+            <span>Created At</span>
+            <strong>{log.createdAt ? formatDateTime(log.createdAt) : 'N/A'}</strong>
+          </div>
+        </div>
+
+        <div className="audit-logs-details-grid">
+          <section className="audit-logs-section">
+            <div className="audit-logs-section-title">
+              <FaUserShield />
+              <h3>Actor Information</h3>
+            </div>
+            <dl className="audit-logs-detail-list">
+              <div>
+                <dt>Actor Name</dt>
+                <dd>{getActorName(log)}</dd>
+              </div>
+              <div>
+                <dt>Actor Email</dt>
+                <dd>{getActorEmail(log)}</dd>
+              </div>
+              <div>
+                <dt>Actor Role</dt>
+                <dd>{formatStatus(log.actorRole || 'N/A')}</dd>
+              </div>
+              <div>
+                <dt>Entity ID</dt>
+                <dd>{log.entityId || 'N/A'}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="audit-logs-section">
+            <div className="audit-logs-section-title">
+              <FaHistory />
+              <h3>Trace Details</h3>
+            </div>
+            <dl className="audit-logs-detail-list">
+              <div>
+                <dt>Reason</dt>
+                <dd>{log.reason || 'No reason provided'}</dd>
+              </div>
+              <div>
+                <dt>Request ID</dt>
+                <dd>{log.requestId || 'N/A'}</dd>
+              </div>
+              <div>
+                <dt>IP Address</dt>
+                <dd>{log.ipAddress || 'N/A'}</dd>
+              </div>
+              <div>
+                <dt>User Agent</dt>
+                <dd>{log.userAgent || 'N/A'}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+
+        <section className="audit-logs-section">
+          <div className="audit-logs-section-title">
+            <FaHistory />
+            <h3>Changed Fields</h3>
+          </div>
+          {Array.isArray(log.changedFields) && log.changedFields.length > 0 ? (
+            <div className="audit-logs-chip-list">
+              {log.changedFields.map((field) => (
+                <span key={field} className="audit-logs-field-chip">
+                  {field}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="audit-logs-empty-inline">No changed fields recorded.</p>
+          )}
+        </section>
+
+        <div className="audit-logs-json-grid">
+          <section className="audit-logs-json-card">
+            <h3>Before State</h3>
+            <pre>{prettyJson(log.beforeState)}</pre>
+          </section>
+          <section className="audit-logs-json-card">
+            <h3>After State</h3>
+            <pre>{prettyJson(log.afterState)}</pre>
+          </section>
+        </div>
+
+        <section className="audit-logs-json-card single">
+          <h3>Meta</h3>
+          <pre>{prettyJson(log.meta)}</pre>
+        </section>
+      </div>
     </div>
   );
 };
@@ -154,6 +273,7 @@ const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   const [searchInput, setSearchInput] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
@@ -161,23 +281,12 @@ const AuditLogs = () => {
   const [severityFilter, setSeverityFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
 
-  // Load recent audit logs for trace-first admin monitoring.
   const fetchLogs = async () => {
     try {
       setLoading(true);
 
       const response = await api.get('/admin/audit/recent?limit=300&sort=-createdAt');
-      const rows = getLogsFromResponse(response);
-
-      setLogs(rows);
-
-      setSelectedLog((currentSelected) => {
-        if (!rows.length) return null;
-        if (!currentSelected) return rows[0];
-
-        const stillExists = rows.find((item) => item._id === currentSelected._id);
-        return stillExists || rows[0];
-      });
+      setLogs(getLogsFromResponse(response));
     } catch (error) {
       console.error('Error fetching audit logs:', error);
     } finally {
@@ -226,19 +335,16 @@ const AuditLogs = () => {
     });
   }, [logs, searchInput, entityFilter, actorRoleFilter, severityFilter, sourceFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(visibleLogs.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageLogs = visibleLogs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const hasActiveFilters = Boolean(
+    searchInput || entityFilter || actorRoleFilter || severityFilter || sourceFilter
+  );
+
   useEffect(() => {
-    if (!visibleLogs.length) {
-      setSelectedLog(null);
-      return;
-    }
-
-    setSelectedLog((currentSelected) => {
-      if (!currentSelected) return visibleLogs[0];
-
-      const stillExists = visibleLogs.find((item) => item._id === currentSelected._id);
-      return stillExists || visibleLogs[0];
-    });
-  }, [visibleLogs]);
+    setPage(1);
+  }, [searchInput, entityFilter, actorRoleFilter, severityFilter, sourceFilter]);
 
   const clearFilters = () => {
     setSearchInput('');
@@ -251,7 +357,7 @@ const AuditLogs = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="audit-logs-loading-state">
+        <div className="audit-logs-message standalone">
           <Loader size="large" text="Loading audit logs..." />
         </div>
       </AdminLayout>
@@ -261,333 +367,206 @@ const AuditLogs = () => {
   return (
     <AdminLayout>
       <div className="audit-logs-page">
-        {/* Audit overview header */}
-        <div className="audit-logs-header-card">
-          <div className="audit-logs-header-top">
+        <div className="audit-logs-page-header">
+          <div>
+            <h1>Audit Logs</h1>
+            <p>Review admin actions, user changes and system trace history.</p>
+          </div>
+        </div>
+
+        <div className="audit-logs-stats-grid">
+          <div className="audit-logs-stat">
+            <FaHistory />
             <div>
-              <h1 className="audit-logs-title">Audit Logs</h1>
-              <p className="audit-logs-subtitle">
-                Review admin actions, user changes and system trace history from one governance workspace.
-              </p>
+              <span>Total Logs</span>
+              <strong>{summary.total}</strong>
             </div>
           </div>
-
-          <div className="audit-logs-stats-grid">
-            <div className="audit-logs-stat-card neutral">
-              <div className="audit-logs-stat-icon">
-                <FaHistory />
-              </div>
-              <div>
-                <p>Total Logs</p>
-                <h3>{summary.total}</h3>
-              </div>
+          <div className="audit-logs-stat">
+            <FaHistory />
+            <div>
+              <span>Info</span>
+              <strong>{summary.info}</strong>
             </div>
-
-            <div className="audit-logs-stat-card blue">
-              <div className="audit-logs-stat-icon">
-                <FaHistory />
-              </div>
-              <div>
-                <p>Info</p>
-                <h3>{summary.info}</h3>
-              </div>
+          </div>
+          <div className="audit-logs-stat">
+            <FaExclamationTriangle />
+            <div>
+              <span>Warning</span>
+              <strong>{summary.warning}</strong>
             </div>
-
-            <div className="audit-logs-stat-card yellow">
-              <div className="audit-logs-stat-icon">
-                <FaExclamationTriangle />
-              </div>
-              <div>
-                <p>Warning</p>
-                <h3>{summary.warning}</h3>
-              </div>
+          </div>
+          <div className="audit-logs-stat">
+            <FaExclamationTriangle />
+            <div>
+              <span>Critical</span>
+              <strong>{summary.critical}</strong>
             </div>
-
-            <div className="audit-logs-stat-card red">
-              <div className="audit-logs-stat-icon">
-                <FaExclamationTriangle />
-              </div>
-              <div>
-                <p>Critical</p>
-                <h3>{summary.critical}</h3>
-              </div>
+          </div>
+          <div className="audit-logs-stat">
+            <FaUserShield />
+            <div>
+              <span>User Logs</span>
+              <strong>{summary.userLogs}</strong>
             </div>
-
-            <div className="audit-logs-stat-card green">
-              <div className="audit-logs-stat-icon">
-                <FaUserShield />
-              </div>
-              <div>
-                <p>User Logs</p>
-                <h3>{summary.userLogs}</h3>
-              </div>
-            </div>
-
-            <div className="audit-logs-stat-card purple">
-              <div className="audit-logs-stat-icon">
-                <FaHistory />
-              </div>
-              <div>
-                <p>Application Logs</p>
-                <h3>{summary.applicationLogs}</h3>
-              </div>
+          </div>
+          <div className="audit-logs-stat">
+            <FaHistory />
+            <div>
+              <span>Application Logs</span>
+              <strong>{summary.applicationLogs}</strong>
             </div>
           </div>
         </div>
 
-        {/* Search and filter controls */}
         <div className="audit-logs-toolbar">
-          <div className="audit-logs-search-box">
-            <FaSearch className="audit-logs-field-icon" />
+          <div className="audit-logs-search">
+            <FaSearch />
             <input
               type="text"
-              placeholder="Search by action, actor, reason, source, entity or changed field"
+              placeholder="Search action, actor, reason, source, entity or changed field"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
           </div>
 
           <div className="audit-logs-filter-row">
-            <AuditFilterSelect
-              label="Filter by entity"
+            <SelectFilter
+              label="Entity"
               value={entityFilter}
               options={ENTITY_FILTER_OPTIONS}
               onChange={setEntityFilter}
             />
-
-            <AuditFilterSelect
-              label="Filter by actor role"
+            <SelectFilter
+              label="Actor Role"
               value={actorRoleFilter}
               options={ACTOR_ROLE_FILTER_OPTIONS}
               onChange={setActorRoleFilter}
             />
-
-            <AuditFilterSelect
-              label="Filter by severity"
+            <SelectFilter
+              label="Severity"
               value={severityFilter}
               options={SEVERITY_FILTER_OPTIONS}
               onChange={setSeverityFilter}
             />
-
-            <AuditFilterSelect
-              label="Filter by source"
+            <SelectFilter
+              label="Source"
               value={sourceFilter}
               options={SOURCE_FILTER_OPTIONS}
               onChange={setSourceFilter}
             />
-
             <button
               type="button"
               className="audit-logs-secondary-button"
               onClick={clearFilters}
+              disabled={!hasActiveFilters}
             >
               Clear Filters
             </button>
           </div>
         </div>
 
-        <div className="audit-logs-content">
-          {/* Log list */}
-          <div className="audit-logs-list-card">
-            <div className="audit-logs-card-header">
-              <div>
-                <h3>Trace Timeline</h3>
-                <p>{visibleLogs.length} logs found</p>
-              </div>
+        <section className="audit-logs-directory">
+          <div className="audit-logs-directory-header">
+            <h2>Audit Log Records</h2>
+            <p>{visibleLogs.length} logs found</p>
+          </div>
+
+          {visibleLogs.length === 0 ? (
+            <div className="audit-logs-message">
+              No audit logs found. Try changing your search or filters.
             </div>
+          ) : (
+            <>
+              <div className="audit-logs-table-scroll">
+                <div className="audit-logs-table">
+                  <div className="audit-logs-table-head">
+                    <span>Action</span>
+                    <span>Actor</span>
+                    <span>Entity</span>
+                    <span>Severity</span>
+                    <span>Source</span>
+                    <span>Created At</span>
+                    <span>Action</span>
+                  </div>
 
-            {visibleLogs.length === 0 ? (
-              <div className="audit-logs-empty-state">
-                <FaHistory className="audit-logs-empty-icon" />
-                <h3>No logs found</h3>
-                <p>Try changing your search or filter selection.</p>
+                  {pageLogs.map((item) => (
+                    <div
+                      key={item._id}
+                      className="audit-logs-table-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedLog(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedLog(item);
+                        }
+                      }}
+                    >
+                      <strong title={item.message || item.action || 'Unknown Action'}>
+                        {item.action || 'Unknown Action'}
+                        <small>{item.message || 'No message available'}</small>
+                      </strong>
+                      <span title={getActorEmail(item)}>
+                        <b>{getActorName(item)}</b>
+                        <small>{getActorEmail(item)}</small>
+                      </span>
+                      <span>{getEntityLabel(item)}</span>
+                      <span>
+                        <em className={`audit-logs-severity-chip ${getSeverityClass(item.severity)}`}>
+                          {formatStatus(item.severity || 'info')}
+                        </em>
+                      </span>
+                      <span title={item.sourceModule || 'N/A'}>{getSourceLabel(item)}</span>
+                      <span>{item.createdAt ? formatDateTime(item.createdAt) : 'N/A'}</span>
+                      <span>
+                        <button
+                          type="button"
+                          className="audit-logs-view-button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedLog(item);
+                          }}
+                        >
+                          <FaEye />
+                          View
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div className="audit-logs-list">
-                {visibleLogs.map((item) => (
+
+              <div className="audit-logs-pagination">
+                <span>
+                  Page {currentPage} of {totalPages} · Showing {pageLogs.length} of {visibleLogs.length}
+                </span>
+                <div>
                   <button
-                    key={item._id}
                     type="button"
-                    className={
-                      selectedLog?._id === item._id
-                        ? 'audit-logs-list-item active'
-                        : 'audit-logs-list-item'
-                    }
-                    onClick={() => setSelectedLog(item)}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                    disabled={currentPage <= 1}
+                    aria-label="Previous page"
                   >
-                    <div className="audit-logs-list-top">
-                      <h4>{item.action || 'Unknown Action'}</h4>
-
-                      <span
-                        className={`audit-logs-severity-chip ${getSeverityClass(
-                          item.severity
-                        )}`}
-                      >
-                        {formatStatus(item.severity || 'info')}
-                      </span>
-                    </div>
-
-                    <p>{item.message || 'No message available'}</p>
-
-                    <div className="audit-logs-list-meta">
-                      <span className="audit-logs-entity-chip">
-                        {formatStatus(item.entityType || 'Unknown')}
-                      </span>
-                      <small>{formatDateTime(item.createdAt)}</small>
-                    </div>
+                    <FaChevronLeft />
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Selected log details */}
-          <div className="audit-logs-details-card">
-            {selectedLog ? (
-              <>
-                <div className="audit-logs-details-header">
-                  <div>
-                    <h2>{selectedLog.action || 'Unknown Action'}</h2>
-                    <p>{selectedLog.message || 'No message available'}</p>
-                  </div>
-
-                  <span
-                    className={`audit-logs-severity-chip ${getSeverityClass(
-                      selectedLog.severity
-                    )}`}
+                  <button
+                    type="button"
+                    onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                    disabled={currentPage >= totalPages}
+                    aria-label="Next page"
                   >
-                    {formatStatus(selectedLog.severity || 'info')}
-                  </span>
+                    <FaChevronRight />
+                  </button>
                 </div>
-
-                <div className="audit-logs-summary-grid">
-                  <div className="audit-logs-summary-card">
-                    <p>Entity</p>
-                    <h4>{formatStatus(selectedLog.entityType || 'N/A')}</h4>
-                  </div>
-
-                  <div className="audit-logs-summary-card">
-                    <p>Actor Role</p>
-                    <h4>{formatStatus(selectedLog.actorRole || 'N/A')}</h4>
-                  </div>
-
-                  <div className="audit-logs-summary-card">
-                    <p>Source Module</p>
-                    <h4>{selectedLog.sourceModule || 'N/A'}</h4>
-                  </div>
-
-                  <div className="audit-logs-summary-card">
-                    <p>Created At</p>
-                    <h4>{selectedLog.createdAt ? formatDateTime(selectedLog.createdAt) : 'N/A'}</h4>
-                  </div>
-                </div>
-
-                <div className="audit-logs-section-card">
-                  <div className="audit-logs-section-title">
-                    <FaUserShield className="audit-logs-section-icon" />
-                    <h3>Actor Information</h3>
-                  </div>
-
-                  <div className="audit-logs-detail-grid">
-                    <div>
-                      <p>Actor Name</p>
-                      <h4>{selectedLog.actor?.fullName || 'N/A'}</h4>
-                    </div>
-
-                    <div>
-                      <p>Actor Email</p>
-                      <h4>{selectedLog.actor?.email || 'N/A'}</h4>
-                    </div>
-
-                    <div>
-                      <p>Actor Role</p>
-                      <h4>{formatStatus(selectedLog.actorRole || 'N/A')}</h4>
-                    </div>
-
-                    <div>
-                      <p>Entity ID</p>
-                      <h4>{selectedLog.entityId || 'N/A'}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="audit-logs-section-card">
-                  <div className="audit-logs-section-title">
-                    <FaHistory className="audit-logs-section-icon" />
-                    <h3>Trace Details</h3>
-                  </div>
-
-                  <div className="audit-logs-detail-grid">
-                    <div>
-                      <p>Reason</p>
-                      <h4>{selectedLog.reason || 'No reason provided'}</h4>
-                    </div>
-
-                    <div>
-                      <p>Request ID</p>
-                      <h4>{selectedLog.requestId || 'N/A'}</h4>
-                    </div>
-
-                    <div>
-                      <p>IP Address</p>
-                      <h4>{selectedLog.ipAddress || 'N/A'}</h4>
-                    </div>
-
-                    <div>
-                      <p>User Agent</p>
-                      <h4>{selectedLog.userAgent || 'N/A'}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="audit-logs-section-card">
-                  <div className="audit-logs-section-title">
-                    <FaHistory className="audit-logs-section-icon" />
-                    <h3>Changed Fields</h3>
-                  </div>
-
-                  {Array.isArray(selectedLog.changedFields) && selectedLog.changedFields.length > 0 ? (
-                    <div className="audit-logs-chip-list">
-                      {selectedLog.changedFields.map((field) => (
-                        <span key={field} className="audit-logs-field-chip">
-                          {field}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="audit-logs-empty-inline">
-                      No changed fields recorded
-                    </div>
-                  )}
-                </div>
-
-                <div className="audit-logs-json-grid">
-                  <div className="audit-logs-json-card">
-                    <h3>Before State</h3>
-                    <pre>{prettyJson(selectedLog.beforeState)}</pre>
-                  </div>
-
-                  <div className="audit-logs-json-card">
-                    <h3>After State</h3>
-                    <pre>{prettyJson(selectedLog.afterState)}</pre>
-                  </div>
-                </div>
-
-                <div className="audit-logs-json-card single">
-                  <h3>Meta</h3>
-                  <pre>{prettyJson(selectedLog.meta)}</pre>
-                </div>
-              </>
-            ) : (
-              <div className="audit-logs-empty-state details">
-                <FaHistory className="audit-logs-empty-icon" />
-                <h3>Select a log</h3>
-                <p>Choose an audit log from the left side to view full details.</p>
               </div>
-            )}
-          </div>
-        </div>
+            </>
+          )}
+        </section>
       </div>
+
+      <AuditDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
     </AdminLayout>
   );
 };

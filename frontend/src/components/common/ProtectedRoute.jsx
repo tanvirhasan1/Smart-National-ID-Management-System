@@ -2,15 +2,11 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loader from './Loader';
-import { INTERNAL_USER_ROLES, getRoleHomePath } from '../utils/roles';
+import { getRoleHomePath } from '../utils/roles';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
-
-  const isAdminArea = allowedRoles.some((role) =>
-    INTERNAL_USER_ROLES.includes(role)
-  );
 
   if (loading) {
     return (
@@ -22,9 +18,13 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (!isAuthenticated) {
+    const loginPath = location.pathname.startsWith('/admin')
+      ? '/admin/login'
+      : '/login';
+
     return (
       <Navigate
-        to={isAdminArea ? '/admin/login' : '/login'}
+        to={loginPath}
         state={{ from: location }}
         replace
       />

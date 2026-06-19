@@ -565,3 +565,167 @@
 .site-footer {
   margin-top: 0 !important;
 }
+/* Final landing/public footer compact polish
+   Keeps the dark public footer, but reduces height and matches the cleaner
+   landing-page card/typography rhythm. Authenticated compact footer remains intact. */
+.site-footer:not(.site-footer-compact) {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.site-footer:not(.site-footer-compact) .footer-top {
+  padding: 2.15rem 1rem 1.55rem !important;
+}
+
+.site-footer:not(.site-footer-compact) .footer-container {
+  max-width: 1120px;
+}
+
+.site-footer:not(.site-footer-compact) .footer-grid {
+  grid-template-columns: 1.25fr 0.78fr 0.9fr 1.08fr;
+  gap: 1.7rem;
+  align-items: start;
+}
+
+.site-footer:not(.site-footer-compact) .footer-brand-column {
+  padding-right: 0.4rem;
+}
+
+.site-footer:not(.site-footer-compact) .footer-brand-logo {
+  max-width: 235px;
+  margin-bottom: 0.65rem !important;
+}
+
+.site-footer:not(.site-footer-compact) .footer-logo-image {
+  max-width: 220px;
+  height: 50px;
+}
+
+.site-footer:not(.site-footer-compact) .footer-description {
+  max-width: 280px;
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.68;
+  font-weight: 400;
+}
+
+.site-footer:not(.site-footer-compact) .footer-title {
+  margin: 0 0 0.7rem !important;
+  color: #ffffff;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.site-footer:not(.site-footer-compact) .footer-links li + li {
+  margin-top: 0.45rem !important;
+}
+
+.site-footer:not(.site-footer-compact) .footer-links a,
+.site-footer:not(.site-footer-compact) .footer-contact-item,
+.site-footer:not(.site-footer-compact) .footer-bottom-content p,
+.site-footer:not(.site-footer-compact) .footer-bottom-links a {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  font-weight: 400;
+}
+
+.site-footer:not(.site-footer-compact) .footer-links a:hover,
+.site-footer:not(.site-footer-compact) .footer-bottom-links a:hover {
+  color: #34d399;
+}
+
+.site-footer:not(.site-footer-compact) .footer-contact-list {
+  gap: 0.55rem !important;
+}
+
+.site-footer:not(.site-footer-compact) .footer-contact-item {
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 0.65rem;
+}
+
+.site-footer:not(.site-footer-compact) .footer-contact-icon {
+  width: 18px;
+  height: 20px;
+  padding-top: 0.12rem;
+  color: #22c55e;
+  font-size: 0.82rem;
+}
+
+.site-footer:not(.site-footer-compact) .footer-bottom {
+  padding: 0.72rem 1rem !important;
+  border-top-color: rgba(148, 163, 184, 0.14);
+}
+
+.site-footer:not(.site-footer-compact) .footer-bottom-content {
+  max-width: 1120px;
+  gap: 0.85rem;
+}
+
+.site-footer:not(.site-footer-compact) .footer-bottom-links {
+  gap: 0.85rem;
+}
+
+/* Bangla footer readability without increasing height too much */
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-title,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-title {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  font-weight: 620;
+}
+
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-description,
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-links a,
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-contact-item,
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-bottom-content p,
+.landing-page.lang-bn ~ .site-footer:not(.site-footer-compact) .footer-bottom-links a,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-description,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-links a,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-contact-item,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-bottom-content p,
+.landing-page.lang-bn + .site-footer:not(.site-footer-compact) .footer-bottom-links a {
+  font-size: 0.78rem;
+  line-height: 1.72;
+  font-weight: 400;
+}
+
+@media (max-width: 992px) {
+  .site-footer:not(.site-footer-compact) .footer-grid {
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1.5rem 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-footer:not(.site-footer-compact) .footer-top {
+    padding: 1.75rem 1rem 1.25rem !important;
+  }
+
+  .site-footer:not(.site-footer-compact) .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .site-footer:not(.site-footer-compact) .footer-logo-image {
+    max-width: 205px;
+    height: 46px;
+  }
+
+  .site-footer:not(.site-footer-compact) .footer-description {
+    max-width: 100%;
+  }
+
+  .site-footer:not(.site-footer-compact) .footer-bottom-content {
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-footer:not(.site-footer-compact) .footer-bottom-links {
+    gap: 0.7rem;
+  }
+}

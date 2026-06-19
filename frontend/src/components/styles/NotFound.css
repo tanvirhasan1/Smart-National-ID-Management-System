@@ -1,131 +1,51 @@
-/* Not Found Page Styles */
-
-.not-found-page,
-.not-found-page-wrapper {
-  min-height: calc(100vh - 140px);
+.not-found-minimal-page {
+  min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  background-color: #F9FAFB;
+  background: #ffffff;
+  padding: 24px;
 }
 
-.not-found-page .not-found-container,
-.not-found-page-wrapper .not-found-container {
+.not-found-minimal-content {
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: 420px;
   text-align: center;
 }
 
-.not-found-page .not-found-card,
-.not-found-page-wrapper .not-found-card {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  padding: 2.5rem 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+.not-found-minimal-code {
+  margin: 0;
+  font-size: clamp(96px, 16vw, 170px);
+  line-height: 0.85;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+  color: #050505;
 }
 
-.not-found-page .not-found-code,
-.not-found-page-wrapper .not-found-code {
-  font-size: 5rem;
-  line-height: 1;
-  font-weight: 800;
-  color: #16A34A;
-  margin: 0 0 1rem;
-}
-
-.not-found-page .not-found-title,
-.not-found-page-wrapper .not-found-title {
-  font-size: 2rem;
+.not-found-minimal-title {
+  margin: 28px 0 0;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.2;
   font-weight: 700;
-  color: #1F2937;
-  margin: 0 0 0.75rem;
+  color: #111827;
 }
 
-.not-found-page .not-found-text,
-.not-found-page-wrapper .not-found-text {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: #6B7280;
-  max-width: 560px;
-  margin: 0 auto 1.5rem;
+.not-found-minimal-message {
+  margin: 20px auto 0;
+  max-width: 360px;
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #4b5563;
 }
 
-.not-found-page .not-found-actions,
-.not-found-page-wrapper .not-found-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.not-found-page .not-found-actions a,
-.not-found-page .not-found-actions button,
-.not-found-page-wrapper .not-found-actions a,
-.not-found-page-wrapper .not-found-actions button {
-  text-decoration: none;
-  outline: none;
-}
-
-.not-found-page .not-found-actions a:focus-visible,
-.not-found-page .not-found-actions button:focus-visible,
-.not-found-page-wrapper .not-found-actions a:focus-visible,
-.not-found-page-wrapper .not-found-actions button:focus-visible {
-  outline: 2px solid #16a34a;
-  outline-offset: 2px;
-}
-
-.not-found-page .not-found-illustration,
-.not-found-page-wrapper .not-found-illustration {
-  margin-bottom: 1.25rem;
-}
-
-.not-found-page .not-found-illustration img,
-.not-found-page-wrapper .not-found-illustration img {
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto;
-}
-
-@media (max-width: 640px) {
-  .not-found-page,
-  .not-found-page-wrapper {
-    padding: 1.5rem 0.875rem;
+@media (max-width: 480px) {
+  .not-found-minimal-page {
+    padding: 20px;
   }
 
-  .not-found-page .not-found-card,
-  .not-found-page-wrapper .not-found-card {
-    padding: 2rem 1.25rem;
-    border-radius: 0.875rem;
-  }
-
-  .not-found-page .not-found-code,
-  .not-found-page-wrapper .not-found-code {
-    font-size: 4rem;
-  }
-
-  .not-found-page .not-found-title,
-  .not-found-page-wrapper .not-found-title {
-    font-size: 1.5rem;
-  }
-
-  .not-found-page .not-found-text,
-  .not-found-page-wrapper .not-found-text {
-    font-size: 0.95rem;
-  }
-
-  .not-found-page .not-found-actions,
-  .not-found-page-wrapper .not-found-actions {
-    flex-direction: column;
-  }
-
-  .not-found-page .not-found-actions a,
-  .not-found-page .not-found-actions button,
-  .not-found-page-wrapper .not-found-actions a,
-  .not-found-page-wrapper .not-found-actions button {
-    width: 100%;
-    justify-content: center;
+  .not-found-minimal-message {
+    font-size: 13px;
   }
 }

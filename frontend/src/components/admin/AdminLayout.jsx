@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FaHome,
@@ -13,6 +13,8 @@ import {
   FaTimes,
   FaUserShield,
   FaUserCog,
+  FaChevronDown,
+  FaCog,
   FaEdit
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -26,12 +28,42 @@ const AdminLayout = ({ children }) => {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
   const isMainAdmin = inferMainAdmin(user);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = () => {
+    setProfileMenuOpen(false);
     logout();
-    navigate('/admin/login');
+    navigate('/login', { replace: true });
   };
+
 
   const allMenuItems = [
     {
@@ -107,17 +139,25 @@ const menuItems = allMenuItems.filter((item) => {
 
   const roleLabel = getRoleLabel(user?.role, user);
   const roleScope = getRoleScopeText(user);
+  const adminName = user?.fullName || user?.name || 'Admin User';
+  const adminEmail = user?.email || 'admin@smartnid.local';
+  const adminInitials = adminName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'AD';
 
   return (
     <div
-      className={`admin-layout-wrapper flex min-h-screen bg-[#F3F4F6] ${sidebarOpen ? '' : 'admin-layout-collapsed'
+      className={`admin-layout-wrapper flex min-h-screen bg-[#F3F4F6] ${sidebarOpen ? 'admin-sidebar-visible' : 'admin-sidebar-hidden'
         }`}
     >
       <aside
-        className={`admin-sidebar-panel fixed inset-y-0 left-0 z-[100] flex w-[260px] flex-col bg-[#1F2937] text-white transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'lg:w-[260px]' : 'lg:w-[80px]'
+        className={`admin-sidebar-panel fixed inset-y-0 left-0 z-[100] flex w-[232px] flex-col bg-[#1F2937] text-white transition-all duration-300 ${sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
           } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} `}
       >
-        <div className="admin-sidebar-header flex items-center justify-between border-b border-[#374151] px-4 py-4">
+        <div className="admin-sidebar-header flex items-center justify-between border-b border-[#374151] px-3 py-3">
           <Link
             to="/admin/dashboard"
             className="admin-sidebar-logo flex items-center gap-3 text-white no-underline"
@@ -132,14 +172,16 @@ const menuItems = allMenuItems.filter((item) => {
 
           <button
             type="button"
-            className="admin-sidebar-toggle hidden p-2 text-xl text-[#9CA3AF] transition hover:text-white lg:block"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Close sidebar"
+            className="admin-sidebar-toggle hidden p-2 text-lg text-[#9CA3AF] transition hover:text-white lg:inline-flex"
+            onClick={() => setSidebarOpen(false)}
           >
-            <FaBars />
+            <FaTimes />
           </button>
 
           <button
             type="button"
+            aria-label="Close sidebar"
             className="admin-sidebar-close block p-2 text-xl text-[#9CA3AF] transition hover:text-white lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -157,14 +199,16 @@ const menuItems = allMenuItems.filter((item) => {
                 <li key={item.path}>
                   <Link
                     to={item.path}
+                    title={item.label}
+                    aria-label={item.label}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`admin-sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${isActive
+                    className={`admin-sidebar-link flex items-center gap-3 rounded-[10px] px-3.5 py-2.5 text-[0.86rem] font-medium transition ${isActive
                       ? 'border-l-[3px] border-[#16A34A] bg-[rgba(22,163,74,0.10)] text-[#16A34A]'
                       : 'border-l-[3px] border-transparent text-[#9CA3AF] hover:bg-[#374151] hover:text-white'
-                      } ${sidebarOpen ? 'justify-start' : 'justify-center lg:px-3'}`}
+                      } justify-start`}
                   >
-                    <Icon className="admin-sidebar-link-icon min-w-6 text-lg" />
-                    {sidebarOpen && <span>{item.label}</span>}
+                    <Icon className="admin-sidebar-link-icon min-w-5 text-[1rem]" />
+                    <span>{item.label}</span>
                   </Link>
                 </li>
               );
@@ -172,15 +216,16 @@ const menuItems = allMenuItems.filter((item) => {
           </ul>
         </nav>
 
-        <div className="admin-sidebar-footer border-t border-[#374151] p-4">
+        <div className="admin-sidebar-footer border-t border-[#374151] p-3">
           <button
             type="button"
-            className={`admin-logout-button flex w-full items-center gap-3 rounded-xl bg-[#374151] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4B5563] ${sidebarOpen ? 'justify-start' : 'justify-center'
-              }`}
+            title="Logout"
+            aria-label="Logout"
+            className={`admin-logout-button flex w-full items-center gap-3 rounded-[10px] bg-[#374151] px-3.5 py-2.5 text-[0.86rem] font-medium text-white transition hover:bg-[#4B5563] justify-start`}
             onClick={handleLogout}
           >
             <FaSignOutAlt className="text-base" />
-            {sidebarOpen && <span>Logout</span>}
+            <span>Logout</span>
           </button>
         </div>
       </aside>
@@ -193,12 +238,22 @@ const menuItems = allMenuItems.filter((item) => {
       )}
 
       <div
-        className={`admin-main-wrapper flex min-h-screen flex-1 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[80px]'
+        className={`admin-main-wrapper flex min-h-screen flex-1 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-[232px]' : 'lg:ml-0'
           }`}
       >
         <header className="admin-topbar sticky top-0 z-50 flex items-center justify-between bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.1)] sm:px-6">
           <button
             type="button"
+            aria-label="Open sidebar"
+            className="admin-desktop-menu-button hidden text-xl text-[#374151] lg:inline-flex"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <FaBars />
+          </button>
+
+          <button
+            type="button"
+            aria-label="Open sidebar"
             className="admin-mobile-menu-button block text-xl text-[#374151] lg:hidden"
             onClick={() => setMobileMenuOpen(true)}
           >
@@ -207,19 +262,55 @@ const menuItems = allMenuItems.filter((item) => {
 
           <div className="admin-topbar-spacer flex-1" />
 
-          <div className="admin-profile-card flex items-center gap-3" title={roleScope}>
-            <div className="admin-profile-avatar flex h-10 w-10 items-center justify-center rounded-full bg-[#16A34A] text-white">
-              <FaUserShield />
-            </div>
+          <div className="admin-profile-menu" ref={profileMenuRef}>
+            <button
+              type="button"
+              className={`admin-profile-card flex items-center gap-3 ${profileMenuOpen ? 'is-open' : ''}`}
+              title={roleScope}
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              onClick={() => setProfileMenuOpen((open) => !open)}
+            >
+              <span className="admin-profile-avatar flex h-10 w-10 items-center justify-center rounded-full bg-[#16A34A] text-white">
+                <FaUserShield />
+              </span>
 
-            <div className="admin-profile-meta hidden sm:flex sm:flex-col">
-              <span className="admin-profile-name text-sm font-semibold text-[#1F2937]">
-                {user?.fullName || 'Admin User'}
+              <span className="admin-profile-meta hidden sm:flex sm:flex-col">
+                <span className="admin-profile-name text-sm font-semibold text-[#1F2937]">
+                  {adminName}
+                </span>
+                <span className="admin-profile-role text-xs text-[#6B7280]">
+                  {roleLabel}
+                </span>
               </span>
-              <span className="admin-profile-role text-xs text-[#6B7280]">
-                {roleLabel}
-              </span>
-            </div>
+
+              <FaChevronDown className="admin-profile-chevron hidden text-xs text-[#6B7280] sm:block" />
+            </button>
+
+            {profileMenuOpen && (
+              <div className="admin-profile-dropdown" role="menu">
+                <div className="admin-profile-dropdown-pointer" />
+
+                <div className="admin-profile-dropdown-header admin-profile-dropdown-header-horizontal">
+                  <div className="admin-profile-dropdown-avatar">
+                    {adminInitials}
+                  </div>
+
+                  <div className="admin-profile-dropdown-details">
+                    <div className="admin-profile-dropdown-name">{adminName}</div>
+                    <div className="admin-profile-dropdown-email">{adminEmail}</div>
+                  </div>
+                </div>
+
+                <div className="admin-profile-dropdown-list">
+
+                  <button type="button" className="admin-profile-dropdown-item is-danger" onClick={handleLogout}>
+                    <FaSignOutAlt />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </header>
 

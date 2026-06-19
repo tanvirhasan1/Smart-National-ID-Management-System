@@ -6,6 +6,10 @@ const REQUEST_TIMEOUT_MESSAGE =
 const API_TIMEOUT_ENV_VALUE = import.meta.env.VITE_API_TIMEOUT_MS;
 const isDev = Boolean(import.meta.env.DEV);
 
+const TOKEN_KEY = 'token';
+const AUTH_LOGOUT_EVENT = 'smartnid:auth:logout';
+const AUTH_REFRESH_EVENT = 'smartnid:auth:token-refreshed';
+
 const getApiTimeoutMs = () => {
   const configuredTimeoutMs = Number(API_TIMEOUT_ENV_VALUE);
 
@@ -15,6 +19,7 @@ const getApiTimeoutMs = () => {
 };
 
 const apiTimeoutMs = getApiTimeoutMs();
+const apiBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const isAxiosTimeout = (error) =>
   error?.code === 'ECONNABORTED' ||
@@ -47,7 +52,8 @@ const logApiDiagnostic = (event, details = {}) => {
     return;
   }
 
-  console.info(`[api] ${event}`, details);
+  // Keep API diagnostics silent by default. Enable this line only while debugging.
+  // console.info(`[api] ${event}`, details);
 };
 
 logApiDiagnostic('timeout_configured', {
@@ -55,19 +61,151 @@ logApiDiagnostic('timeout_configured', {
   finalTimeoutMs: apiTimeoutMs
 });
 
-// Shared axios instance
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+const publicAuthPaths = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/verify-otp',
+  '/auth/resend-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password'
+];
+
+const normalizeUrlPath = (url = '') => {
+  const text = String(url || '');
+
+  try {
+    if (/^https?:\/\//i.test(text)) {
+      const parsed = new URL(text);
+      return parsed.pathname.replace(/^\/api/, '');
+    }
+  } catch (error) {
+    // Fall back to raw string normalization below.
+  }
+
+  return text.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/api/, '');
+};
+
+const isAuthRefreshRequest = (config = {}) =>
+  normalizeUrlPath(config.url).includes('/auth/refresh');
+
+const isPublicAuthRequest = (config = {}) => {
+  const path = normalizeUrlPath(config.url);
+  return publicAuthPaths.some((publicPath) => path.includes(publicPath));
+};
+
+const setStoredAccessToken = (token) => {
+  if (!token) {
+    return;
+  }
+
+  localStorage.setItem(TOKEN_KEY, token);
+  api.defaults.headers.common.Authorization = `Bearer ${token}`;
+};
+
+const clearStoredAccessToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  delete api.defaults.headers.common.Authorization;
+};
+
+const emitAuthRefresh = (payload = {}) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_REFRESH_EVENT, {
+      detail: payload
+    })
+  );
+};
+
+const emitAuthLogout = (reason = 'session_expired') => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_LOGOUT_EVENT, {
+      detail: { reason }
+    })
+  );
+};
+
+const redirectAfterSessionExpired = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const currentPath = window.location.pathname;
+  const isAuthPage = ['/login', '/admin/login'].includes(currentPath);
+
+  if (isAuthPage) {
+    return;
+  }
+
+  const isAdminPath = currentPath.startsWith('/admin');
+  window.location.href = isAdminPath ? '/admin/login' : '/login';
+};
+
+const authRefreshClient = axios.create({
+  baseURL: apiBaseURL,
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: apiTimeoutMs
+  timeout: apiTimeoutMs,
+  withCredentials: true
 });
+
+let refreshPromise = null;
+
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = authRefreshClient
+      .post('/auth/refresh')
+      .then((response) => {
+        const payload = response.data || {};
+        const nextToken = payload.accessToken || payload.token;
+
+        if (!nextToken) {
+          throw new Error('Refresh response did not include an access token');
+        }
+
+        setStoredAccessToken(nextToken);
+        emitAuthRefresh({ token: nextToken, user: payload.user || null });
+        return nextToken;
+      })
+      .catch((error) => {
+        clearStoredAccessToken();
+        emitAuthLogout('session_expired');
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+};
+
+// Shared axios instance
+const api = axios.create({
+  baseURL: apiBaseURL,
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  timeout: apiTimeoutMs,
+  withCredentials: true
+});
+
+const storedToken = localStorage.getItem(TOKEN_KEY);
+if (storedToken) {
+  api.defaults.headers.common.Authorization = `Bearer ${storedToken}`;
+}
 
 // Attach token on every request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     config.metadata = {
       ...(config.metadata || {}),
       startedAtMs: Date.now()
@@ -107,7 +245,7 @@ api.interceptors.response.use(
 
     return response;
   },
-  (error) => {
+  async (error) => {
     const timedOut = isAxiosTimeout(error);
     const safeError = sanitizeTimeoutError(error);
     const config = error.config || {};
@@ -124,35 +262,37 @@ api.interceptors.response.use(
       backendCode: error.response?.data?.code || ''
     });
 
-    if (error.response) {
-      switch (error.response.status) {
-        case 401: {
-          localStorage.removeItem('token');
-
-          const currentPath = window.location.pathname;
-          const isAdminPath = currentPath.startsWith('/admin');
-
-          if (currentPath !== '/login' && currentPath !== '/admin/login') {
-            window.location.href = isAdminPath ? '/admin/login' : '/login';
-          }
-          break;
-        }
-
-        case 403:
-          console.error('Access forbidden');
-          break;
-
-        case 404:
-          console.error('Resource not found');
-          break;
-
-        case 500:
-          console.error('Server error');
-          break;
-
-        default:
-          break;
+    if (error.response?.status === 401) {
+      if (isPublicAuthRequest(config) || isAuthRefreshRequest(config)) {
+        return Promise.reject(safeError);
       }
+
+      if (!config._smartNidRetry) {
+        config._smartNidRetry = true;
+
+        try {
+          const nextToken = await refreshAccessToken();
+          config.headers = {
+            ...(config.headers || {}),
+            Authorization: `Bearer ${nextToken}`
+          };
+
+          return api(config);
+        } catch (refreshError) {
+          redirectAfterSessionExpired();
+          return Promise.reject(sanitizeTimeoutError(refreshError));
+        }
+      }
+
+      clearStoredAccessToken();
+      emitAuthLogout('session_expired');
+      redirectAfterSessionExpired();
+    } else if (error.response?.status === 403) {
+      console.error('Access forbidden');
+    } else if (error.response?.status === 404) {
+      console.error('Resource not found');
+    } else if (error.response?.status >= 500) {
+      console.error('Server error');
     } else if (error.request) {
       console.error('Network error - please check your connection');
     }
@@ -161,4 +301,5 @@ api.interceptors.response.use(
   }
 );
 
+export { AUTH_LOGOUT_EVENT, AUTH_REFRESH_EVENT };
 export default api;
