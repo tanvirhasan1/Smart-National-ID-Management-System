@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   FaArrowLeft,
@@ -22,6 +22,8 @@ const DIGITAL_NID_COPY = {
     subtitle: 'Secure digital version generated after card printing.',
     demoNote: 'Demo digital NID for academic use.',
     downloadPrint: 'Download / Print',
+    preparingDownload: 'Opening print dialog...',
+    downloadFailed: 'Print dialog could not be opened.',
     loading: 'Loading Digital NID...',
     unavailableTitle: 'Digital NID Not Available',
     noData: 'No digital NID data found.',
@@ -33,6 +35,8 @@ const DIGITAL_NID_COPY = {
     subtitle: 'কার্ড প্রিন্টের পর তৈরি নিরাপদ ডিজিটাল সংস্করণ।',
     demoNote: 'শিক্ষামূলক ব্যবহারের জন্য ডেমো ডিজিটাল এনআইডি।',
     downloadPrint: 'ডাউনলোড / প্রিন্ট',
+    preparingDownload: 'প্রিন্ট ডায়ালগ খোলা হচ্ছে...',
+    downloadFailed: 'প্রিন্ট ডায়ালগ খোলা যায়নি।',
     loading: 'ডিজিটাল এনআইডি লোড হচ্ছে...',
     unavailableTitle: 'ডিজিটাল এনআইডি পাওয়া যায়নি',
     noData: 'ডিজিটাল এনআইডির তথ্য পাওয়া যায়নি।',
@@ -119,6 +123,162 @@ const imageUrl = (path) => {
   return `${base}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
 };
 
+
+const OBFUSCATION_KEY = 'smart-nid-card-display-v1';
+
+const encodeUnicode = (value) =>
+  window.btoa(unescape(encodeURIComponent(value)));
+
+const decodeUnicode = (value) =>
+  decodeURIComponent(escape(window.atob(value)));
+
+const encryptDisplayText = (value) => {
+  const text = String(value ?? NA);
+  let shifted = '';
+
+  for (let index = 0; index < text.length; index += 1) {
+    shifted += String.fromCharCode(
+      text.charCodeAt(index) ^ OBFUSCATION_KEY.charCodeAt(index % OBFUSCATION_KEY.length)
+    );
+  }
+
+  return encodeUnicode(shifted);
+};
+
+const decryptDisplayText = (token) => {
+  try {
+    const shifted = decodeUnicode(token || '');
+    let text = '';
+
+    for (let index = 0; index < shifted.length; index += 1) {
+      text += String.fromCharCode(
+        shifted.charCodeAt(index) ^ OBFUSCATION_KEY.charCodeAt(index % OBFUSCATION_KEY.length)
+      );
+    }
+
+    return text;
+  } catch (_) {
+    return NA;
+  }
+};
+
+const wrapCanvasText = (context, text, maxWidth, maxLines = 1) => {
+  const cleanText = String(text || NA).replace(/\s+/g, ' ').trim();
+
+  if (maxLines <= 1 || context.measureText(cleanText).width <= maxWidth) {
+    return [cleanText];
+  }
+
+  const words = cleanText.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+
+    if (context.measureText(nextLine).width <= maxWidth || !currentLine) {
+      currentLine = nextLine;
+      return;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  });
+
+  if (currentLine) lines.push(currentLine);
+
+  if (lines.length > maxLines) {
+    const visibleLines = lines.slice(0, maxLines);
+    let lastLine = visibleLines[maxLines - 1] || '';
+
+    while (lastLine.length > 1 && context.measureText(`${lastLine}…`).width > maxWidth) {
+      lastLine = lastLine.slice(0, -1).trimEnd();
+    }
+
+    visibleLines[maxLines - 1] = `${lastLine}…`;
+    return visibleLines;
+  }
+
+  return lines;
+};
+
+const ProtectedCanvasText = ({
+  value,
+  className = '',
+  block = false,
+  maxLines = 1,
+  align = 'left',
+}) => {
+  const canvasRef = useRef(null);
+  const token = useMemo(() => encryptDisplayText(value), [value]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    const draw = () => {
+      const text = decryptDisplayText(canvas.dataset.secureToken);
+      const style = window.getComputedStyle(canvas);
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      const fontSize = Number.parseFloat(style.fontSize) || 14;
+      const lineHeight = Number.parseFloat(style.lineHeight) || fontSize * 1.25;
+      const fontWeight = style.fontWeight || '500';
+      const fontFamily = style.fontFamily || 'Inter, sans-serif';
+      const letterSpacing = Number.parseFloat(style.letterSpacing) || 0;
+      const dpr = window.devicePixelRatio || 1;
+      const parentWidth = canvas.parentElement?.clientWidth || 0;
+
+      context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+
+      const measuredWidth = context.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
+      const cssWidth = block
+        ? Math.max(16, Math.floor(parentWidth || measuredWidth + 4))
+        : Math.max(16, Math.ceil(measuredWidth + 4));
+      const lines = wrapCanvasText(context, text, Math.max(12, cssWidth - 2), maxLines);
+      const cssHeight = Math.max(10, Math.ceil(lines.length * lineHeight + 2));
+
+      canvas.width = Math.ceil(cssWidth * dpr);
+      canvas.height = Math.ceil(cssHeight * dpr);
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, cssWidth, cssHeight);
+      context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+      context.fillStyle = style.color || '#0f172a';
+      context.textBaseline = 'middle';
+
+      lines.forEach((line, index) => {
+        const textWidth = context.measureText(line).width;
+        const x = align === 'right' ? cssWidth - textWidth : align === 'center' ? (cssWidth - textWidth) / 2 : 0;
+        const y = lineHeight / 2 + index * lineHeight + 1;
+        context.fillText(line, x, y);
+      });
+    };
+
+    draw();
+    window.addEventListener('resize', draw);
+
+    return () => window.removeEventListener('resize', draw);
+  }, [token, block, maxLines, align]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`protected-canvas-text ${block ? 'protected-canvas-text--block' : ''} ${className}`}
+      data-secure-token={token}
+      aria-label="Protected digital NID information"
+      role="img"
+      onContextMenu={(event) => event.preventDefault()}
+      onCopy={(event) => event.preventDefault()}
+      onCut={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
+    />
+  );
+};
+
 const DigitalNID = () => {
   const { id } = useParams();
   const { language } = useLanguage();
@@ -130,6 +290,7 @@ const DigitalNID = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [photoError, setPhotoError] = useState(false);
   const [signatureError, setSignatureError] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const loadDigitalNid = async () => {
@@ -418,25 +579,31 @@ const DigitalNID = () => {
   }, [data.nidNumber, data.name, data.dob]);
 
   const handleDownloadPrint = () => {
-    const previousTitle = document.title;
-    const safeName = String(data.name || 'Citizen')
-      .replace(/[^a-z0-9]+/gi, '-')
-      .replace(/^-+|-+$/g, '') || 'Citizen';
+    if (downloading) return;
 
-    document.title = `Smart-NID-${safeName}`;
+    try {
+      setDownloading(true);
+      toast.info(copy.preparingDownload, { autoClose: 1400 });
 
-    window.setTimeout(() => {
-      window.print();
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          window.print();
+          setDownloading(false);
+        }, 120);
+      });
+    } catch (_) {
+      toast.error(copy.downloadFailed);
+      setDownloading(false);
+    }
+  };
 
-      window.setTimeout(() => {
-        document.title = previousTitle;
-      }, 600);
-    }, 80);
+  const preventCardInteraction = (event) => {
+    event.preventDefault();
   };
 
   if (loading) {
     return (
-      <div className="digital-nid-page-wrapper">
+      <div className={`digital-nid-page-wrapper digital-nid-page-wrapper--${languageKey}`}>
         <div className="digital-nid-container digital-nid-container--narrow">
           <div className="digital-nid-state-card">
             <FaSpinner className="digital-nid-spinner" />
@@ -449,7 +616,7 @@ const DigitalNID = () => {
 
   if (errorMessage || !record) {
     return (
-      <div className="digital-nid-page-wrapper">
+      <div className={`digital-nid-page-wrapper digital-nid-page-wrapper--${languageKey}`}>
         <div className="digital-nid-container digital-nid-container--narrow">
           <div className="digital-nid-state-card">
             <h2>{copy.unavailableTitle}</h2>
@@ -466,7 +633,7 @@ const DigitalNID = () => {
   }
 
   return (
-    <div className="digital-nid-page-wrapper">
+    <div className={`digital-nid-page-wrapper digital-nid-page-wrapper--${languageKey}`}>
       <div className="digital-nid-container">
         <div className="digital-nid-topbar">
           <Link to="/dashboard" className="digital-nid-back-link">
@@ -478,9 +645,10 @@ const DigitalNID = () => {
             type="button"
             onClick={handleDownloadPrint}
             className="digital-nid-download-button"
+            disabled={downloading}
           >
-            <FaDownload />
-            {copy.downloadPrint}
+            {downloading ? <FaSpinner className="digital-nid-button-spinner" /> : <FaDownload />}
+            {downloading ? copy.preparingDownload : copy.downloadPrint}
           </button>
         </div>
 
@@ -499,7 +667,14 @@ const DigitalNID = () => {
               </span>
             </div>
 
-            <div className="nid-card-stack">
+            <div
+              className="nid-card-stack nid-card-stack--protected"
+              onContextMenu={preventCardInteraction}
+              onCopy={preventCardInteraction}
+              onCut={preventCardInteraction}
+              onDragStart={preventCardInteraction}
+              title="Digital NID preview is protected"
+            >
               <article className="bd-nid-card bd-nid-card--front">
                 <div className="bd-nid-security-grid" />
                 <div className="bd-nid-rose-ring" />
@@ -528,7 +703,10 @@ const DigitalNID = () => {
                       {data.photo && !photoError ? (
                         <img
                           src={data.photo}
-                          alt={data.name}
+                          alt="Applicant photo"
+                          draggable="false"
+                          onContextMenu={preventCardInteraction}
+                          onDragStart={preventCardInteraction}
                           onError={() => setPhotoError(true)}
                         />
                       ) : (
@@ -550,7 +728,10 @@ const DigitalNID = () => {
                       {data.signature && !signatureError ? (
                         <img
                           src={data.signature}
-                          alt={`${data.name} signature`}
+                          alt="Citizen signature"
+                          draggable="false"
+                          onContextMenu={preventCardInteraction}
+                          onDragStart={preventCardInteraction}
                           onError={() => setSignatureError(true)}
                         />
                       ) : (
@@ -562,32 +743,32 @@ const DigitalNID = () => {
                   <div className="bd-nid-front-info">
                     <div className="bd-nid-field bd-nid-field--bangla">
                       <span>নাম</span>
-                      <strong>{data.nameBangla}</strong>
+                      <strong><ProtectedCanvasText value={data.nameBangla} /></strong>
                     </div>
 
                     <div className="bd-nid-field">
                       <span>Name</span>
-                      <strong>{data.name}</strong>
+                      <strong><ProtectedCanvasText value={data.name} /></strong>
                     </div>
 
                     <div className="bd-nid-field bd-nid-field--bangla-small">
                       <span>পিতা</span>
-                      <strong>{data.father}</strong>
+                      <strong><ProtectedCanvasText value={data.father} /></strong>
                     </div>
 
                     <div className="bd-nid-field bd-nid-field--bangla-small">
                       <span>মাতা</span>
-                      <strong>{data.mother}</strong>
+                      <strong><ProtectedCanvasText value={data.mother} /></strong>
                     </div>
 
                     <div className="bd-nid-number-row">
                       <span>Date of Birth</span>
-                      <strong>{formatDate(data.dob)}</strong>
+                      <strong><ProtectedCanvasText value={formatDate(data.dob)} /></strong>
                     </div>
 
                     <div className="bd-nid-number-row bd-nid-number-row--nid">
                       <span>NID No.</span>
-                      <strong>{formatNid(data.nidNumber)}</strong>
+                      <strong><ProtectedCanvasText value={formatNid(data.nidNumber)} /></strong>
                     </div>
                   </div>
 
@@ -610,29 +791,31 @@ const DigitalNID = () => {
 
                 <div className="bd-nid-back-address">
                   <span>ঠিকানা / Address</span>
-                  <p>{data.address !== NA ? data.address : data.permanentAddress}</p>
+                  <p><ProtectedCanvasText value={data.address !== NA ? data.address : data.permanentAddress} block maxLines={2} /></p>
                 </div>
 
                 <div className="bd-nid-back-meta-grid">
                   <div>
                     <span>Blood Group:</span>
-                    <strong>{data.blood}</strong>
+                    <strong><ProtectedCanvasText value={data.blood} /></strong>
                   </div>
 
                   <div>
                     <span>Place of Birth:</span>
-                    <strong>{String(data.birthPlace).toUpperCase()}</strong>
+                    <strong><ProtectedCanvasText value={String(data.birthPlace).toUpperCase()} /></strong>
                   </div>
 
                   <div>
                     <span>Issue Date:</span>
-                    <strong>{data.issueDate}</strong>
+                    <strong><ProtectedCanvasText value={data.issueDate} /></strong>
                   </div>
                 </div>
 
                 <div className="bd-nid-mrz-block" aria-label="machine readable zone">
-                  {mrzLines.map((line) => (
-                    <p key={line}>{line}</p>
+                  {mrzLines.map((line, index) => (
+                    <p key={`${index}-${line.length}`}>
+                      <ProtectedCanvasText value={line} block maxLines={1} />
+                    </p>
                   ))}
                 </div>
               </article>

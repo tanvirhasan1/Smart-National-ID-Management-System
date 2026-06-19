@@ -74,137 +74,32 @@ const DEFAULT_STAGE_LABELS = {
   cancelled: 'Cancelled'
 };
 
-const DASHBOARD_SIDE_CARD_COPY = {
-  en: {
-    appointmentDetails: DEFAULT_APPOINTMENT_DETAILS,
-    appointmentRequired: {
-      title: 'Appointment required',
-      description: 'Book your biometric appointment to continue the NID process.',
-      actionLabel: 'Book appointment'
-    },
-    appointmentBooked: {
-      title: 'Appointment booked',
-      description: 'Your biometric appointment is scheduled.'
-    },
-    whatHappensNext: {
-      title: 'What happens next',
-      description:
-        'Attend your biometric appointment. After verification is completed, your application will move to card printing.'
-    },
-    waitingForPrinting: {
-      title: 'Waiting for card printing',
-      description:
-        'Your biometric verification is complete. Your card will be prepared for printing.'
-    },
-    cardPrinted: {
-      title: 'Card printed',
-      description: 'Your NID card has been printed. Digital NID is now available.',
-      actionLabel: 'View Digital NID'
-    },
-    deliveryRequest: {
-      title: 'Delivery request',
-      description:
-        'Your card is printed. Complete the delivery request to receive it at your address.',
-      actionLabel: 'Pay delivery fee'
-    },
-    deliveryRequested: {
-      title: 'Delivery requested',
-      description:
-        'Your delivery request has been received. Dispatch updates will appear soon.'
-    },
-    deliveryInProgress: {
-      title: 'Delivery in progress',
-      description:
-        'Your NID card has been dispatched. Track delivery updates from the status page.',
-      actionLabel: 'View full status'
-    },
-    cardDelivered: {
-      title: 'Card delivered',
-      description: 'Your NID card has been delivered.',
-      actionLabel: 'View Digital NID'
-    },
-    review: {
-      title: 'Application under review',
-      description:
-        'Your application is being reviewed. You will be notified when the next step is available.'
-    },
-    rejected: {
-      title: 'Application rejected',
-      description: 'Please review the reason and submit a new application if required.'
-    },
-    cancelled: {
-      title: 'Application cancelled',
-      description: 'This application is no longer active.'
-    }
-  },
-  bn: {
-    appointmentDetails: {
-      date: 'তারিখ',
-      time: 'সময়',
-      center: 'কেন্দ্র',
-      notAvailable: 'পাওয়া যায়নি',
-      empty: 'তথ্য পাওয়া গেলে অ্যাপয়েন্টমেন্টের বিস্তারিত এখানে দেখানো হবে।'
-    },
-    appointmentRequired: {
-      title: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
-      description: 'এনআইডি প্রক্রিয়া চালিয়ে যেতে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করুন।',
-      actionLabel: 'অ্যাপয়েন্টমেন্ট বুক করুন'
-    },
-    appointmentBooked: {
-      title: 'অ্যাপয়েন্টমেন্ট বুক হয়েছে',
-      description: 'আপনার বায়োমেট্রিক অ্যাপয়েন্টমেন্ট নির্ধারিত হয়েছে।'
-    },
-    whatHappensNext: {
-      title: 'পরবর্তী ধাপ',
-      description:
-        'বায়োমেট্রিক অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন। যাচাই সম্পন্ন হলে আপনার আবেদন কার্ড প্রিন্টিং ধাপে যাবে।'
-    },
-    waitingForPrinting: {
-      title: 'কার্ড প্রিন্টিংয়ের অপেক্ষায়',
-      description:
-        'আপনার বায়োমেট্রিক যাচাই সম্পন্ন হয়েছে। আপনার কার্ড প্রিন্টিংয়ের জন্য প্রস্তুত করা হবে।'
-    },
-    cardPrinted: {
-      title: 'কার্ড প্রিন্ট সম্পন্ন',
-      description: 'আপনার এনআইডি কার্ড প্রিন্ট সম্পন্ন হয়েছে। ডিজিটাল এনআইডি এখন উপলব্ধ।',
-      actionLabel: 'ডিজিটাল এনআইডি দেখুন'
-    },
-    deliveryRequest: {
-      title: 'ডেলিভারি অনুরোধ',
-      description:
-        'আপনার কার্ড প্রিন্ট সম্পন্ন হয়েছে। ঠিকানায় কার্ড পেতে ডেলিভারি অনুরোধ সম্পন্ন করুন।',
-      actionLabel: 'ডেলিভারি ফি পরিশোধ করুন'
-    },
-    deliveryRequested: {
-      title: 'ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে',
-      description:
-        'আপনার ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে। পাঠানোর আপডেট শিগগিরই দেখানো হবে।'
-    },
-    deliveryInProgress: {
-      title: 'ডেলিভারি চলমান',
-      description:
-        'আপনার এনআইডি কার্ড পাঠানো হয়েছে। স্ট্যাটাস পেজ থেকে ডেলিভারি আপডেট দেখুন।',
-      actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-    },
-    cardDelivered: {
-      title: 'কার্ড বিতরণ সম্পন্ন',
-      description: 'আপনার এনআইডি কার্ড বিতরণ সম্পন্ন হয়েছে।',
-      actionLabel: 'ডিজিটাল এনআইডি দেখুন'
-    },
-    review: {
-      title: 'আবেদন পর্যালোচনাধীন',
-      description:
-        'আপনার আবেদন পর্যালোচনা করা হচ্ছে। পরবর্তী ধাপ উপলব্ধ হলে আপনাকে জানানো হবে।'
-    },
-    rejected: {
-      title: 'আবেদন বাতিল হয়েছে',
-      description: 'কারণটি পর্যালোচনা করুন এবং প্রয়োজন হলে নতুন আবেদন জমা দিন।'
-    },
-    cancelled: {
-      title: 'আবেদন বাতিল করা হয়েছে',
-      description: 'এই আবেদনটি আর সক্রিয় নয়।'
-    }
-  }
+const DEFAULT_APPOINTMENT_DETAILS_BN = {
+  date: 'তারিখ',
+  time: 'সময়',
+  center: 'কেন্দ্র',
+  notAvailable: 'প্রযোজ্য নয়',
+  empty: 'অ্যাপয়েন্টমেন্ট বিস্তারিত পাওয়া গেলে এখানে দেখা যাবে।'
+};
+
+const DEFAULT_APPLICATION_TYPE_LABELS_BN = {
+  new: 'নতুন এনআইডি',
+  correction: 'সংশোধন',
+  reissue: 'রিইস্যু'
+};
+
+const DEFAULT_STAGE_LABELS_BN = {
+  submitted: 'জমা হয়েছে',
+  under_review: 'পর্যালোচনাধীন',
+  correction_required: 'সংশোধন প্রয়োজন',
+  appointment_required: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
+  appointment_booked: 'অ্যাপয়েন্টমেন্ট বুকড',
+  waiting_for_printing: 'প্রিন্টিংয়ের অপেক্ষায়',
+  printed: 'কার্ড প্রিন্টেড',
+  dispatched: 'ডেলিভারি চলমান',
+  delivered: 'ডেলিভারড',
+  rejected: 'বাতিল',
+  cancelled: 'বাতিল হয়েছে'
 };
 
 const formatAppointmentDate = (appointment, language = 'en') => {
@@ -326,813 +221,29 @@ const needsDeliveryPayment = (application) =>
   application?.status === 'printed' && !isDeliveryRequestSubmitted(application);
 
 
-const dashboardCopy = {
-  en: {
-    loading: 'Loading your dashboard...',
-    citizen: 'Citizen',
-    welcomePrefix: 'Welcome',
-    welcomeSubtitle:
-      'Track your applications, appointments, corrections, and service updates from one place.',
-    syncing: 'Syncing...',
-    autoSynced: 'Auto synced',
-    applyForNewNid: 'Apply for New NID',
-    applyForCorrection: 'Apply for Correction',
-    newNidLocked: 'New NID application is locked',
-    startApplication: 'Start Application',
-    activeApplication: 'Active Application',
-    currentStatus: 'Current Status',
-    applicationType: 'Application Type',
-    currentStage: 'Current Stage',
-    nextStep: 'Next Step',
-    applicationId: 'Application ID',
-    submittedOn: 'Submitted On',
-    lastUpdated: 'Last Updated',
-    rejectionReason: 'Rejection Reason',
-    latestUpdates: 'Latest Updates',
-    quickActions: 'Quick Actions',
-    continueJourney: 'Continue your application journey',
-    startFromHere: 'Start from here',
-    quickActionsWithApps:
-      'Use these shortcuts to continue your Smart NID journey.',
-    quickActionsNoApps:
-      'Complete your first Smart NID process step by step from these quick shortcuts.',
-    recentApplications: 'Recent Applications',
-    gettingStarted: 'Getting Started',
-    recentApplicationsText:
-      'Review your latest submitted applications and open details quickly.',
-    gettingStartedText:
-      'A quick overview of what to prepare before submitting your first application.',
-    viewAll: 'View All',
-    viewFullStatus: 'View full status',
-    noApplicationsYet: 'No applications yet',
-    noApplicationsText:
-      'You have not submitted any Smart NID application yet. Prepare the required information, then start the process from the apply page.',
-    applyNow: 'Apply Now',
-    needHelp: 'Need Help?',
-    open: 'Open',
-    viewDetails: 'View Details',
-    digitalNid: 'Digital NID',
-    heroStatusLabels: {
-      appointmentNeeded: 'Appointment needed',
-      appointmentBooked: 'Appointment booked',
-      waitingForPrinting: 'Waiting for printing',
-      digitalNidAvailable: 'Digital NID available',
-      deliveryInProgress: 'Delivery in progress',
-      delivered: 'Delivered'
-    },
-    nextStepLabels: {
-      review: 'Wait for review',
-      appointmentRequired: 'Book appointment',
-      appointmentBooked: 'Attend appointment',
-      waitingForPrinting: 'No action needed',
-      requestDelivery: 'Request delivery',
-      waitForDispatch: 'Wait for dispatch',
-      trackDelivery: 'Track delivery',
-      viewDigitalNid: 'View Digital NID',
-      noActionNeeded: 'No action needed',
-      reviewStatus: 'Review status',
-      applyAgain: 'Review and apply again',
-      contactSupport: 'Contact support'
-    },
-    deliveryPayment: {
-      payFee: 'Pay Delivery Fee',
-      payShort: 'Pay Delivery',
-      quickTitle: 'Delivery Payment',
-      quickDescription: 'Pay the delivery fee after your card is printed',
-      requested: 'Delivery request submitted',
-      waitingDispatch: 'Payment completed. Waiting for dispatch.'
-    },
-    type: 'Type',
-    submitted: 'Submitted',
-    updated: 'Updated',
-    status: 'Status',
-    reviewStatus: 'Review Status',
-    action: 'Action',
-    reason: 'Reason',
-    na: 'N/A',
-    statusLabels: {
-      draft: 'Draft',
-      submitted: 'Submitted',
-      under_review: 'Under Review',
-      correction_required: 'Correction Required',
-      approved: 'Approved',
-      rejected: 'Rejected',
-      printed: 'Printed',
-      dispatched: 'Dispatched',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled'
-    },
-    recentReviewStatusLabels: {
-      submitted: 'Submitted',
-      under_review: 'Under review',
-      approved: 'Approved',
-      rejected: 'Rejected',
-      cancelled: 'Cancelled'
-    },
-    applicationTypeLabels: DEFAULT_APPLICATION_TYPE_LABELS,
-    stageLabels: DEFAULT_STAGE_LABELS,
-    appointmentDetails: DEFAULT_APPOINTMENT_DETAILS,
-    highlights: [
-      {
-        title: 'Prepare your documents',
-        description:
-          'Keep birth registration number, photo, signature image, and mobile number ready.'
-      },
-      {
-        title: 'Submit and wait for review',
-        description:
-          'After submission, the authority will verify your information and documents.'
-      },
-      {
-        title: 'Track every next step',
-        description:
-          'Follow approval, appointment, printing, and delivery updates from this dashboard.'
-      }
-    ],
-    primary: {
-      noApplication: {
-        badge: 'Not Started',
-        title: 'Start your first Smart NID application',
-        description:
-          'You have not submitted any application yet. Once you apply, your live status, appointment progress, and delivery updates will appear here.',
-        actionLabel: 'Apply for NID',
-        secondaryActionLabel: 'Contact support'
-      },
-      submitted: {
-        badge: 'Submitted',
-        title: 'Your application has been submitted',
-        description:
-          'Your application is waiting for official review. You can track the full status while the authority starts verification.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: 'Contact support'
-      },
-      review: {
-        badge: 'In Review',
-        title: 'Your application is under verification',
-        description:
-          'Your submitted information and supporting documents are being reviewed by the authority.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: 'Contact support'
-      },
-      correctionRequired: {
-        badge: 'Correction Required',
-        title: 'Your application needs correction',
-        description:
-          'The authority has requested correction for this application. Review the correction note, update the required information or document, and resubmit when ready.',
-        actionLabel: 'View correction details',
-        secondaryActionLabel: 'Contact support'
-      },
-      approved: {
-        badge: 'Approved',
-        title: 'Your application has been approved',
-        descriptionBooked:
-          'Your application is approved and your appointment progress is now the most important update.',
-        descriptionNoBooking:
-          'Your application is approved. Please book your biometric appointment as the next step.',
-        actionBooked: 'View full status',
-        actionNoBooking: 'Book appointment',
-        secondaryActionLabel: 'View full status'
-      },
-      printed: {
-        badge: 'Printed',
-        title: 'Your Smart NID has been printed',
-        description:
-          'Printing is complete. The next official delivery update will appear here automatically.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: ''
-      },
-      dispatched: {
-        badge: 'Dispatched',
-        title: 'Your Smart NID is on the way',
-        description:
-          'Your card has already been dispatched and is now moving through delivery.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: ''
-      },
-      delivered: {
-        badge: 'Delivered',
-        title: 'Your Smart NID has been delivered',
-        description:
-          'Delivery is complete. You can now keep the digital copy for quick reference if available.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: ''
-      },
-      rejected: {
-        badge: 'Rejected',
-        title: 'Your application needs correction',
-        description:
-          'Your application was rejected during review. Please read the official reason below and take the next action.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: ''
-      },
-      cancelled: {
-        badge: 'Cancelled',
-        title: 'Your previous application was cancelled',
-        description:
-          'This application is no longer active. You can start a new application whenever you are ready.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: ''
-      },
-      default: {
-        title: 'Follow your latest NID update',
-        description:
-          'Your latest application status is available here. Open the tracker for full details.',
-        actionLabel: 'View full status',
-        secondaryActionLabel: 'Contact support'
-      }
-    },
-    sidePanels: {
-      beforeApply: {
-        title: 'Before you apply',
-        description:
-          'Keep your birth registration number, recent photo, signature image, and mobile number ready before starting.',
-        actionLabel: 'Apply now'
-      },
-      processWorks: {
-        title: 'How the process works',
-        description:
-          'Apply first, wait for review, complete biometric appointment after approval, then follow printing and delivery updates.',
-        actionLabel: 'Contact support'
-      },
-      rejectedAction: {
-        title: 'What you should do now',
-        description:
-          'Review the rejection reason carefully. Update the incorrect document or information before you submit again.',
-        actionLabel: 'Apply again'
-      },
-      rejectedHelp: {
-        title: 'Need help with correction?',
-        description:
-          'Contact support if you need guidance about the rejection reason or the next correction step.',
-        actionLabel: 'Get support'
-      },
-      cancelledAction: {
-        title: 'Application is no longer active',
-        description:
-          'This application will not move forward. Start a new application when you are ready.',
-        actionLabel: 'Apply again'
-      },
-      cancelledHelp: {
-        title: 'Need any support?',
-        description:
-          'If you cancelled by mistake or need guidance before applying again, contact support.',
-        actionLabel: 'Contact support'
-      },
-      reviewProgress: {
-        title: 'Review in progress',
-        description:
-          'Your application is currently under review. No appointment action is needed yet.',
-        actionLabel: 'Track application'
-      },
-      correctionAction: {
-        title: 'Correction required',
-        description:
-          'Check which information or document needs correction before you submit the updated application again.',
-        actionLabel: 'View correction'
-      },
-      correctionHelp: {
-        title: 'Need help with correction?',
-        description:
-          'Create a support ticket if the correction note is unclear or if you need help with correction documents.',
-        actionLabel: 'Contact support'
-      },
-      nextAfterReview: {
-        title: 'What happens next?',
-        description:
-          'After approval, biometric appointment booking and later delivery updates will appear here.',
-        actionLabel: 'View full status'
-      },
-      appointmentBooked: {
-        title: 'Appointment booked',
-        description:
-          'Your biometric appointment is scheduled.'
-      },
-      appointmentCompleted: {
-        title: 'Appointment completed',
-        description:
-          'Your biometric appointment is complete. The application is waiting for printing.'
-      },
-      appointmentNeeded: {
-        title: 'Appointment Needed',
-        description:
-          'Your application is approved. Book your biometric appointment as the next step.',
-        actionLabel: 'Book now'
-      },
-      deliveryNotStarted: {
-        title: 'Delivery not started yet',
-        description:
-          'Delivery updates will appear only after the printing and dispatch stages are completed.',
-        actionLabel: 'View status'
-      },
-      printingCompleted: {
-        title: 'Printing completed',
-        description:
-          'Your Smart NID has been printed successfully and is waiting for the next delivery movement.',
-        actionLabel: 'Track status'
-      },
-      deliveryPaymentRequired: {
-        title: 'Delivery payment required',
-        description:
-          'Your Smart NID has been printed. Complete the mock delivery payment to request home delivery.',
-        actionLabel: 'Pay delivery fee'
-      },
-      deliveryPaymentDone: {
-        title: 'Payment completed',
-        description:
-          'Your delivery request has been submitted and is waiting for admin dispatch.',
-        actionLabel: 'View tracker'
-      },
-      deliveryQueue: {
-        title: 'Delivery queue started',
-        description:
-          'Dispatch information will appear here as soon as the delivery step begins.',
-        actionLabel: 'View tracker'
-      },
-      outForDelivery: {
-        title: 'Out for delivery',
-        description:
-          'Your Smart NID has already left the processing stage and is now moving through delivery.',
-        actionLabel: 'Track delivery'
-      },
-      digitalCopyAvailable: {
-        title: 'Digital copy available',
-        description:
-          'You can keep the digital NID ready while you wait for the physical card to arrive.',
-        actionLabel: 'Open digital NID'
-      },
-      deliveryCompleted: {
-        title: 'Delivery completed',
-        description:
-          'Your Smart NID delivery is complete. Keep your tracker history for future reference.',
-        actionLabel: 'Track history'
-      },
-      digitalCopyReady: {
-        title: 'Digital copy ready',
-        description:
-          'Use the digital copy whenever you need a quick reference of your NID information.',
-        actionLabel: 'View digital NID'
-      },
-      latestUpdate: {
-        title: 'Latest update',
-        description:
-          'Your latest application status is available here. Open the tracker for the full stage-by-stage progress.',
-        actionLabel: 'View full status'
-      },
-      needSupport: {
-        title: 'Need support?',
-        description:
-          'Contact support if you want help understanding your application status or next steps.',
-        actionLabel: 'Contact support'
-      }
-    },
-    insightDescriptions: {
-      activeWithApp:
-        'Latest application selected automatically from your submissions.',
-      activeNoApp: 'Start a new Smart NID request when you are ready.',
-      statusRejected: 'Correction is required before resubmission.',
-      statusWithApp: 'Keep tracking your application from this dashboard.',
-      statusNoApp: 'No active application status is available yet.',
-      nextWithApp: '',
-      nextNoApp: 'Create your first application to begin the Smart NID process.'
-    },
-    quickActionItems: {
-      applyTitle: 'Apply for NID',
-      correctionTitle: 'Correction',
-      applyWithApp: 'Submit a new Smart NID application',
-      correctionWithApp: 'Request changes to your printed Smart NID information',
-      applyLocked: 'Available after the current application is rejected/cancelled, or use Correction after printing',
-      applyNoApp: 'Start your first Smart NID application',
-      trackTitle: 'Track Application',
-      trackWithApp: 'Check your application status',
-      trackNoApp: 'Use this after submitting your application',
-      supportTitle: 'Support',
-      supportDescription: 'Get help or raise a ticket',
-      digitalTitle: 'Digital NID',
-      digitalDescription: 'Open your digital ID card'
-    },
-    gettingStartedSteps: [
-      {
-        step: 'Step 1',
-        title: 'Prepare your documents',
-        description:
-          'Keep your birth registration number, recent photo, signature image, and mobile number ready.'
-      },
-      {
-        step: 'Step 2',
-        title: 'Submit your application',
-        description:
-          'Fill in your personal information, upload the required documents, and submit your Smart NID application.'
-      },
-      {
-        step: 'Step 3',
-        title: 'Wait for review',
-        description:
-          'The authority will review your information and documents before approving the next step.'
-      },
-      {
-        step: 'Step 4',
-        title: 'Track progress',
-        description:
-          'Follow your approval, appointment, printing, and delivery updates from the dashboard.'
-      }
-    ]
+const gettingStartedCardStyles = [
+  {
+    card: 'rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-4',
+    label: 'text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700'
   },
-
-  bn: {
-    loading: 'আপনার ড্যাশবোর্ড লোড হচ্ছে...',
-    citizen: 'নাগরিক',
-    welcomePrefix: 'স্বাগতম',
-    welcomeSubtitle:
-      'এক জায়গা থেকে আবেদন, অ্যাপয়েন্টমেন্ট, সংশোধন এবং সেবা আপডেট ট্র্যাক করুন।',
-    syncing: 'সিঙ্ক হচ্ছে...',
-    autoSynced: 'শেষ সিঙ্ক',
-    applyForNewNid: 'নতুন এনআইডির জন্য আবেদন',
-    applyForCorrection: 'সংশোধনের জন্য আবেদন',
-    newNidLocked: 'নতুন এনআইডি আবেদন লক করা আছে',
-    startApplication: 'আবেদন শুরু করুন',
-    activeApplication: 'সক্রিয় আবেদন',
-    currentStatus: 'বর্তমান স্ট্যাটাস',
-    nextStep: 'পরবর্তী ধাপ',
-    applicationId: 'আবেদন আইডি',
-    submittedOn: 'জমা দেওয়ার তারিখ',
-    lastUpdated: 'সর্বশেষ আপডেট',
-    rejectionReason: 'বাতিলের কারণ',
-    latestUpdates: 'সর্বশেষ আপডেট',
-    quickActions: 'দ্রুত কাজ',
-    continueJourney: 'আপনার আবেদন প্রক্রিয়া চালিয়ে যান',
-    startFromHere: 'এখান থেকে শুরু করুন',
-    quickActionsWithApps:
-      'স্মার্ট এনআইডি প্রক্রিয়া চালিয়ে যেতে এই শর্টকাটগুলো ব্যবহার করুন।',
-    quickActionsNoApps:
-      'এই দ্রুত শর্টকাটগুলো থেকে ধাপে ধাপে আপনার প্রথম স্মার্ট এনআইডি প্রক্রিয়া সম্পন্ন করুন।',
-    recentApplications: 'সাম্প্রতিক আবেদন',
-    gettingStarted: 'শুরু করার নির্দেশনা',
-    recentApplicationsText:
-      'সাম্প্রতিক জমা দেওয়া আবেদনগুলো দেখুন এবং দ্রুত বিস্তারিত খুলুন।',
-    gettingStartedText:
-      'প্রথম আবেদন জমা দেওয়ার আগে কী প্রস্তুত রাখতে হবে তার সংক্ষিপ্ত ধারণা।',
-    viewAll: 'সব দেখুন',
-    viewFullStatus: 'পূর্ণ স্ট্যাটাস দেখুন',
-    noApplicationsYet: 'এখনও কোনো আবেদন নেই',
-    noApplicationsText:
-      'আপনি এখনও কোনো স্মার্ট এনআইডি আবেদন জমা দেননি। প্রয়োজনীয় তথ্য প্রস্তুত করে আবেদন পেজ থেকে প্রক্রিয়া শুরু করুন।',
-    applyNow: 'এখন আবেদন করুন',
-    needHelp: 'সাহায্য লাগবে?',
-    open: 'খুলুন',
-    viewDetails: 'বিস্তারিত দেখুন',
-    digitalNid: 'ডিজিটাল এনআইডি',
-    heroStatusLabels: {
-      appointmentNeeded: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
-      appointmentBooked: 'অ্যাপয়েন্টমেন্ট বুক হয়েছে',
-      waitingForPrinting: 'প্রিন্টিংয়ের অপেক্ষায়',
-      digitalNidAvailable: 'ডিজিটাল এনআইডি উপলব্ধ',
-      deliveryInProgress: 'ডেলিভারি চলমান',
-      delivered: 'বিতরণ সম্পন্ন'
-    },
-    nextStepLabels: {
-      review: 'রিভিউর জন্য অপেক্ষা করুন',
-      appointmentRequired: 'অ্যাপয়েন্টমেন্ট বুক করুন',
-      appointmentBooked: 'অ্যাপয়েন্টমেন্টে উপস্থিত থাকুন',
-      waitingForPrinting: 'এখন কোনো পদক্ষেপ প্রয়োজন নেই',
-      requestDelivery: 'ডেলিভারি অনুরোধ করুন',
-      waitForDispatch: 'পাঠানোর অপেক্ষায়',
-      trackDelivery: 'ডেলিভারি ট্র্যাক করুন',
-      viewDigitalNid: 'ডিজিটাল এনআইডি দেখুন',
-      noActionNeeded: 'এখন কোনো পদক্ষেপ প্রয়োজন নেই',
-      reviewStatus: 'স্ট্যাটাস দেখুন',
-      applyAgain: 'পর্যালোচনা করে আবার আবেদন করুন',
-      contactSupport: 'সাপোর্টে যোগাযোগ করুন'
-    },
-    deliveryPayment: {
-      payFee: 'ডেলিভারি ফি দিন',
-      payShort: 'ডেলিভারি পেমেন্ট',
-      quickTitle: 'ডেলিভারি পেমেন্ট',
-      quickDescription: 'কার্ড প্রিন্ট হওয়ার পর ডেলিভারি ফি দিন',
-      requested: 'ডেলিভারি অনুরোধ জমা হয়েছে',
-      waitingDispatch: 'পেমেন্ট সম্পন্ন। ডিসপ্যাচের অপেক্ষায়।'
-    },
-    type: 'ধরন',
-    submitted: 'জমা',
-    updated: 'আপডেট',
-    status: 'স্ট্যাটাস',
-    reviewStatus: 'পর্যালোচনা স্ট্যাটাস',
-    action: 'অ্যাকশন',
-    reason: 'কারণ',
-    na: 'প্রযোজ্য নয়',
-    statusLabels: {
-      draft: 'ড্রাফট',
-      submitted: 'জমা হয়েছে',
-      under_review: 'পর্যালোচনাধীন',
-      correction_required: 'সংশোধন প্রয়োজন',
-      approved: 'অনুমোদিত',
-      rejected: 'বাতিল',
-      printed: 'প্রিন্টেড',
-      dispatched: 'পাঠানো হয়েছে',
-      delivered: 'ডেলিভারড',
-      cancelled: 'বাতিল হয়েছে'
-    },
-    recentReviewStatusLabels: {
-      submitted: 'জমা হয়েছে',
-      under_review: 'পর্যালোচনাধীন',
-      approved: 'অনুমোদিত',
-      rejected: 'বাতিল হয়েছে',
-      cancelled: 'বাতিল করা হয়েছে'
-    },
-    highlights: [
-      {
-        title: 'ডকুমেন্ট প্রস্তুত রাখুন',
-        description:
-          'জন্ম নিবন্ধন নম্বর, ছবি, স্বাক্ষর এবং মোবাইল নম্বর প্রস্তুত রাখুন।'
-      },
-      {
-        title: 'জমা দিয়ে রিভিউর অপেক্ষা করুন',
-        description:
-          'জমার পর কর্তৃপক্ষ আপনার তথ্য ও ডকুমেন্ট যাচাই করবে।'
-      },
-      {
-        title: 'প্রতিটি ধাপ ট্র্যাক করুন',
-        description:
-          'এই ড্যাশবোর্ড থেকে অনুমোদন, অ্যাপয়েন্টমেন্ট, প্রিন্টিং ও ডেলিভারি আপডেট দেখুন।'
-      }
-    ],
-    primary: {
-      noApplication: {
-        badge: 'শুরু হয়নি',
-        title: 'আপনার প্রথম স্মার্ট এনআইডি আবেদন শুরু করুন',
-        description:
-          'আপনি এখনও কোনো আবেদন জমা দেননি। আবেদন করার পর লাইভ স্ট্যাটাস, অ্যাপয়েন্টমেন্ট এবং ডেলিভারি আপডেট এখানে দেখা যাবে।',
-        actionLabel: 'এনআইডির জন্য আবেদন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      submitted: {
-        badge: 'জমা হয়েছে',
-        title: 'আপনার আবেদন জমা হয়েছে',
-        description:
-          'আপনার আবেদন অফিসিয়াল রিভিউর অপেক্ষায় আছে। কর্তৃপক্ষ যাচাই শুরু করা পর্যন্ত আপনি পূর্ণ স্ট্যাটাস ট্র্যাক করতে পারবেন।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      review: {
-        badge: 'রিভিউ চলছে',
-        title: 'আপনার আবেদন যাচাই চলছে',
-        description:
-          'আপনার জমা দেওয়া তথ্য এবং ডকুমেন্ট কর্তৃপক্ষ যাচাই করছে।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      correctionRequired: {
-        badge: 'সংশোধন প্রয়োজন',
-        title: 'আপনার আবেদনে সংশোধন দরকার',
-        description:
-          'কর্তৃপক্ষ এই আবেদনের জন্য সংশোধন চেয়েছে। সংশোধনের নোট দেখে প্রয়োজনীয় তথ্য বা ডকুমেন্ট আপডেট করে আবার জমা দিন।',
-        actionLabel: 'সংশোধনের বিস্তারিত দেখুন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      approved: {
-        badge: 'অনুমোদিত',
-        title: 'আপনার আবেদন অনুমোদিত হয়েছে',
-        descriptionBooked:
-          'আপনার আবেদন অনুমোদিত এবং অ্যাপয়েন্টমেন্ট আপডেট এখন সবচেয়ে গুরুত্বপূর্ণ।',
-        descriptionNoBooking:
-          'আপনার আবেদন অনুমোদিত হয়েছে। পরবর্তী ধাপে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করুন।',
-        actionBooked: 'পূর্ণ স্ট্যাটাস দেখুন',
-        actionNoBooking: 'অ্যাপয়েন্টমেন্ট বুক',
-        secondaryActionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-      },
-      printed: {
-        badge: 'প্রিন্টেড',
-        title: 'আপনার স্মার্ট এনআইডি প্রিন্ট হয়েছে',
-        description:
-          'প্রিন্টিং সম্পন্ন হয়েছে। পরবর্তী অফিসিয়াল ডেলিভারি আপডেট এখানে দেখা যাবে।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন',
-        secondaryActionLabel: 'ডিজিটাল এনআইডি দেখুন'
-      },
-      dispatched: {
-        badge: 'পাঠানো হয়েছে',
-        title: 'আপনার স্মার্ট এনআইডি পথে আছে',
-        description:
-          'আপনার কার্ড পাঠানো হয়েছে এবং ডেলিভারি প্রক্রিয়ায় রয়েছে।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন',
-        secondaryActionLabel: 'ডিজিটাল এনআইডি দেখুন'
-      },
-      delivered: {
-        badge: 'ডেলিভারড',
-        title: 'আপনার স্মার্ট এনআইডি ডেলিভার হয়েছে',
-        description:
-          'ডেলিভারি সম্পন্ন হয়েছে। প্রয়োজন হলে দ্রুত রেফারেন্সের জন্য ডিজিটাল কপি রাখতে পারেন।',
-        actionLabel: 'ডিজিটাল এনআইডি দেখুন',
-        secondaryActionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-      },
-      rejected: {
-        badge: 'বাতিল',
-        title: 'আপনার আবেদনে সংশোধন প্রয়োজন',
-        description:
-          'রিভিউর সময় আবেদন বাতিল হয়েছে। অফিসিয়াল কারণ পড়ে পরবর্তী পদক্ষেপ নিন।',
-        actionLabel: 'সাপোর্টে যোগাযোগ',
-        secondaryActionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-      },
-      cancelled: {
-        badge: 'বাতিল হয়েছে',
-        title: 'আপনার আগের আবেদন বাতিল হয়েছে',
-        description:
-          'এই আবেদন আর সক্রিয় নয়। প্রস্তুত হলে নতুন আবেদন শুরু করতে পারেন।',
-        actionLabel: 'আবার আবেদন করুন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      default: {
-        title: 'সর্বশেষ এনআইডি আপডেট দেখুন',
-        description:
-          'আপনার সর্বশেষ আবেদন স্ট্যাটাস এখানে আছে। পূর্ণ বিস্তারিত জানতে ট্র্যাকার খুলুন।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন',
-        secondaryActionLabel: 'সাপোর্টে যোগাযোগ'
-      }
-    },
-    sidePanels: {
-      beforeApply: {
-        title: 'আবেদনের আগে',
-        description:
-          'শুরু করার আগে জন্ম নিবন্ধন নম্বর, সাম্প্রতিক ছবি, স্বাক্ষর এবং মোবাইল নম্বর প্রস্তুত রাখুন।',
-        actionLabel: 'এখন আবেদন'
-      },
-      processWorks: {
-        title: 'প্রক্রিয়া কীভাবে কাজ করে',
-        description:
-          'আগে আবেদন করুন, রিভিউর অপেক্ষা করুন, অনুমোদনের পর বায়োমেট্রিক সম্পন্ন করুন, তারপর প্রিন্টিং ও ডেলিভারি আপডেট দেখুন।',
-        actionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      rejectedAction: {
-        title: 'এখন কী করবেন',
-        description:
-          'বাতিলের কারণ ভালোভাবে দেখুন। আবার জমা দেওয়ার আগে ভুল তথ্য বা ডকুমেন্ট ঠিক করুন।',
-        actionLabel: 'আবার আবেদন'
-      },
-      rejectedHelp: {
-        title: 'সংশোধনে সাহায্য লাগবে?',
-        description:
-          'বাতিলের কারণ বা পরবর্তী সংশোধন ধাপ বুঝতে সাপোর্টে যোগাযোগ করুন।',
-        actionLabel: 'সাপোর্ট নিন'
-      },
-      cancelledAction: {
-        title: 'আবেদন আর সক্রিয় নয়',
-        description:
-          'এই আবেদন আর এগোবে না। প্রস্তুত হলে নতুন আবেদন শুরু করুন।',
-        actionLabel: 'আবার আবেদন'
-      },
-      cancelledHelp: {
-        title: 'কোনো সাহায্য লাগবে?',
-        description:
-          'ভুলে বাতিল করে থাকলে বা আবার আবেদন করার আগে নির্দেশনা চাইলে সাপোর্টে যোগাযোগ করুন।',
-        actionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      reviewProgress: {
-        title: 'রিভিউ চলছে',
-        description:
-          'আপনার আবেদন এখন রিভিউতে আছে। এখনই কোনো অ্যাপয়েন্টমেন্ট কাজ দরকার নেই।',
-        actionLabel: 'আবেদন ট্র্যাক করুন'
-      },
-      correctionAction: {
-        title: 'সংশোধন প্রয়োজন',
-        description:
-          'আবার জমা দেওয়ার আগে কোন তথ্য বা ডকুমেন্ট সংশোধন করতে হবে তা দেখে নিন।',
-        actionLabel: 'সংশোধন দেখুন'
-      },
-      correctionHelp: {
-        title: 'সংশোধনে সাহায্য লাগবে?',
-        description:
-          'সংশোধনের নোট বুঝতে সমস্যা হলে অথবা সংশোধন/রিইস্যু ডকুমেন্ট নিয়ে সাহায্য লাগলে সাপোর্ট টিকেট তৈরি করুন।',
-        actionLabel: 'সাপোর্টে যোগাযোগ'
-      },
-      nextAfterReview: {
-        title: 'এরপর কী হবে?',
-        description:
-          'অনুমোদনের পর বায়োমেট্রিক অ্যাপয়েন্টমেন্ট এবং পরে ডেলিভারি আপডেট এখানে দেখা যাবে।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-      },
-      appointmentBooked: {
-        title: 'অ্যাপয়েন্টমেন্ট বুকড',
-        description:
-          'আপনার বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করা আছে। সর্বশেষ তথ্য দেখতে ট্র্যাকার খুলুন।',
-        actionLabel: 'অ্যাপয়েন্টমেন্ট ট্র্যাক'
-      },
-      appointmentNeeded: {
-        title: 'অ্যাপয়েন্টমেন্ট প্রয়োজন',
-        description:
-          'আপনার আবেদন অনুমোদিত হয়েছে। পরবর্তী ধাপে বায়োমেট্রিক অ্যাপয়েন্টমেন্ট বুক করুন।',
-        actionLabel: 'এখন বুক করুন'
-      },
-      deliveryNotStarted: {
-        title: 'ডেলিভারি এখনো শুরু হয়নি',
-        description:
-          'প্রিন্টিং ও ডিসপ্যাচ ধাপ শেষ হলে ডেলিভারি আপডেট দেখা যাবে।',
-        actionLabel: 'স্ট্যাটাস দেখুন'
-      },
-      printingCompleted: {
-        title: 'প্রিন্টিং সম্পন্ন',
-        description:
-          'আপনার স্মার্ট এনআইডি সফলভাবে প্রিন্ট হয়েছে এবং ডেলিভারির পরবর্তী ধাপের অপেক্ষায় আছে।',
-        actionLabel: 'স্ট্যাটাস ট্র্যাক'
-      },
-      deliveryQueue: {
-        title: 'ডেলিভারি কিউ শুরু',
-        description:
-          'ডেলিভারি ধাপ শুরু হলেই ডিসপ্যাচ তথ্য এখানে দেখা যাবে।',
-        actionLabel: 'ট্র্যাকার দেখুন'
-      },
-      outForDelivery: {
-        title: 'ডেলিভারির পথে',
-        description:
-          'আপনার স্মার্ট এনআইডি প্রসেসিং ধাপ ছেড়ে এখন ডেলিভারিতে রয়েছে।',
-        actionLabel: 'ডেলিভারি ট্র্যাক'
-      },
-      digitalCopyAvailable: {
-        title: 'ডিজিটাল কপি আছে',
-        description:
-          'ফিজিক্যাল কার্ড আসা পর্যন্ত ডিজিটাল এনআইডি প্রস্তুত রাখতে পারেন।',
-        actionLabel: 'ডিজিটাল এনআইডি খুলুন'
-      },
-      deliveryCompleted: {
-        title: 'ডেলিভারি সম্পন্ন',
-        description:
-          'আপনার স্মার্ট এনআইডি ডেলিভারি সম্পন্ন হয়েছে। ভবিষ্যতের জন্য ট্র্যাকার ইতিহাস রাখুন।',
-        actionLabel: 'ইতিহাস দেখুন'
-      },
-      digitalCopyReady: {
-        title: 'ডিজিটাল কপি প্রস্তুত',
-        description:
-          'এনআইডি তথ্য দ্রুত রেফারেন্সের জন্য ডিজিটাল কপি ব্যবহার করুন।',
-        actionLabel: 'ডিজিটাল এনআইডি দেখুন'
-      },
-      latestUpdate: {
-        title: 'সর্বশেষ আপডেট',
-        description:
-          'আপনার সর্বশেষ আবেদন স্ট্যাটাস এখানে আছে। ধাপে ধাপে অগ্রগতি দেখতে ট্র্যাকার খুলুন।',
-        actionLabel: 'পূর্ণ স্ট্যাটাস দেখুন'
-      },
-      needSupport: {
-        title: 'সাপোর্ট লাগবে?',
-        description:
-          'আবেদন স্ট্যাটাস বা পরবর্তী ধাপ বুঝতে সাহায্য চাইলে সাপোর্টে যোগাযোগ করুন।',
-        actionLabel: 'সাপোর্টে যোগাযোগ'
-      }
-    },
-    insightDescriptions: {
-      activeWithApp:
-        'আপনার জমা দেওয়া আবেদন থেকে সর্বশেষটি স্বয়ংক্রিয়ভাবে নির্বাচন করা হয়েছে।',
-      activeNoApp: 'প্রস্তুত হলে নতুন স্মার্ট এনআইডি অনুরোধ শুরু করুন।',
-      statusRejected: 'আবার জমা দেওয়ার আগে সংশোধন প্রয়োজন।',
-      statusWithApp: 'এই ড্যাশবোর্ড থেকে আবেদন ট্র্যাক করুন।',
-      statusNoApp: 'এখনও কোনো সক্রিয় আবেদন স্ট্যাটাস নেই।',
-      nextWithApp: '',
-      nextNoApp: 'স্মার্ট এনআইডি প্রক্রিয়া শুরু করতে প্রথম আবেদন তৈরি করুন।'
-    },
-    quickActionItems: {
-      applyTitle: 'এনআইডির জন্য আবেদন',
-      correctionTitle: 'সংশোধন',
-      applyWithApp: 'নতুন স্মার্ট এনআইডি আবেদন জমা দিন',
-      correctionWithApp: 'অনুমোদিত স্মার্ট এনআইডি তথ্য সংশোধনের অনুরোধ করুন',
-      applyLocked: 'বর্তমান আবেদন রিজেক্ট/ক্যানসেল হলে, অথবা অনুমোদনের পর সংশোধন ব্যবহার করলে এটি পাওয়া যাবে',
-      applyNoApp: 'আপনার প্রথম স্মার্ট এনআইডি আবেদন শুরু করুন',
-      trackTitle: 'আবেদন ট্র্যাক',
-      trackWithApp: 'আপনার আবেদন স্ট্যাটাস দেখুন',
-      trackNoApp: 'আবেদন জমা দেওয়ার পর এটি ব্যবহার করুন',
-      supportTitle: 'সাপোর্ট',
-      supportDescription: 'সাহায্য নিন অথবা টিকেট তৈরি করুন',
-      digitalTitle: 'ডিজিটাল এনআইডি',
-      digitalDescription: 'আপনার ডিজিটাল আইডি কার্ড খুলুন'
-    },
-    gettingStartedSteps: [
-      {
-        step: 'ধাপ ১',
-        title: 'ডকুমেন্ট প্রস্তুত',
-        description:
-          'জন্ম নিবন্ধন নম্বর, সাম্প্রতিক ছবি, স্বাক্ষর এবং মোবাইল নম্বর প্রস্তুত রাখুন।'
-      },
-      {
-        step: 'ধাপ ২',
-        title: 'আবেদন জমা',
-        description:
-          'ফর্মটি সাবধানে পূরণ করে অনলাইনে স্মার্ট এনআইডি অনুরোধ জমা দিন।'
-      },
-      {
-        step: 'ধাপ ৩',
-        title: 'রিভিউর অপেক্ষা',
-        description:
-          'জমার পর কর্তৃপক্ষ আপনার তথ্য ও ডকুমেন্ট রিভিউ করবে।'
-      },
-      {
-        step: 'ধাপ ৪',
-        title: 'আপডেট ট্র্যাক',
-        description:
-          'ড্যাশবোর্ড থেকে অনুমোদন, অ্যাপয়েন্টমেন্ট, প্রিন্টিং ও ডেলিভারি অগ্রগতি দেখুন।'
-      }
-    ]
+  {
+    card: 'rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-4',
+    label: 'text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700'
+  },
+  {
+    card: 'rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-4',
+    label: 'text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700'
+  },
+  {
+    card: 'rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-4',
+    label: 'text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700'
   }
-};
+];
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
-  const { language } = useLanguage();
-  const copy = dashboardCopy[language === 'bn' ? 'bn' : 'en'];
+  const { language, getTranslation } = useLanguage();
+  const copy = getTranslation('dashboardPage');
 
   const translateStatus = (status) =>
     copy.statusLabels[status] || formatStatus(status);
@@ -1466,10 +577,17 @@ const CitizenDashboard = () => {
 
   const hasApplications = applications.length > 0;
   const displayedRecentApplications = applications.slice(0, 3);
-  const sideCardCopy = DASHBOARD_SIDE_CARD_COPY[language === 'bn' ? 'bn' : 'en'];
-  const appointmentDetailsCopy = sideCardCopy.appointmentDetails || DEFAULT_APPOINTMENT_DETAILS;
-  const applicationTypeLabels = copy.applicationTypeLabels || DEFAULT_APPLICATION_TYPE_LABELS;
-  const stageLabels = copy.stageLabels || DEFAULT_STAGE_LABELS;
+  const sideCardCopy = copy.sideCards || {};
+  const appointmentDetailsCopy =
+    sideCardCopy.appointmentDetails ||
+    copy.appointmentDetails ||
+    (language === 'bn' ? DEFAULT_APPOINTMENT_DETAILS_BN : DEFAULT_APPOINTMENT_DETAILS);
+  const applicationTypeLabels =
+    copy.applicationTypeLabels ||
+    (language === 'bn' ? DEFAULT_APPLICATION_TYPE_LABELS_BN : DEFAULT_APPLICATION_TYPE_LABELS);
+  const stageLabels =
+    copy.stageLabels ||
+    (language === 'bn' ? DEFAULT_STAGE_LABELS_BN : DEFAULT_STAGE_LABELS);
 
   const getApplicationTypeLabel = (application) => {
     const applicationType = String(application?.applicationType || 'new').toLowerCase();
@@ -1952,7 +1070,10 @@ const CitizenDashboard = () => {
   }
 
   return (
-    <div className="dashboard-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
+    <div
+      lang={language === 'bn' ? 'bn' : 'en'}
+      className={`dashboard-page-wrapper dashboard-language-${language} min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8`}
+    >
       <div className="dashboard-content-shell mx-auto w-full max-w-[1200px]">
         {/* Welcome Section */}
         <section className="dashboard-welcome-panel mb-8 flex flex-col justify-between gap-5 rounded-2xl bg-[linear-gradient(135deg,#16A34A_0%,#15803D_100%)] px-6 py-6 text-white md:flex-row md:items-center md:px-8">
@@ -2038,7 +1159,7 @@ const CitizenDashboard = () => {
 
                   <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.applicationType || 'Application Type'}
+                      {copy.applicationType || (language === 'bn' ? 'আবেদনের ধরন' : 'Application Type')}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-[#111827]">
                       {getApplicationTypeLabel(currentApplication)}
@@ -2047,7 +1168,7 @@ const CitizenDashboard = () => {
 
                   <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.currentStage || 'Current Stage'}
+                      {copy.currentStage || (language === 'bn' ? 'বর্তমান ধাপ' : 'Current Stage')}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-[#111827]">
                       {getCurrentStageLabel(currentApplication, currentAppointment)}
@@ -2056,7 +1177,7 @@ const CitizenDashboard = () => {
 
                   <div className={`rounded-xl px-4 py-3 ${dashboardStatusTheme.statusBoxClass}`}>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.nextStep || 'Next Step'}
+                      {copy.nextStep || (language === 'bn' ? 'পরবর্তী ধাপ' : 'Next Step')}
                     </p>
                     <p className={`mt-1 text-sm font-semibold ${dashboardStatusTheme.statusTextClass}`}>
                       {getNextStepLabel(currentApplication, currentAppointment)}
@@ -2188,15 +1309,17 @@ const CitizenDashboard = () => {
               <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] md:p-8">
                 <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
                   <div>
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F0FDF4] text-2xl text-[#16A34A]">
-                      <FaIdCard />
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F0FDF4] text-2xl text-[#16A34A]">
+                        <FaIdCard />
+                      </div>
+
+                      <h3 className="text-xl font-semibold text-[#111827]">
+                        {copy.noApplicationsYet}
+                      </h3>
                     </div>
 
-                    <h3 className="text-xl font-semibold text-[#111827]">
-                      {copy.noApplicationsYet}
-                    </h3>
-
-                    <p className="mt-2 max-w-[520px] text-sm leading-7 text-[#6B7280]">
+                    <p className="mt-4 max-w-[620px] text-sm leading-7 text-[#6B7280]">
                       {copy.noApplicationsText}
                     </p>
 
@@ -2211,53 +1334,21 @@ const CitizenDashboard = () => {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                        Step 1
-                      </p>
-                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
-                        Prepare documents
-                      </h4>
-                      <p className="mt-1 text-sm leading-6 text-[#5B6475]">
-                        Keep your birth registration number, recent photo, signature image, and mobile number ready.
-                      </p>
-                    </div>
+                    {copy.gettingStartedSteps.map((item, index) => {
+                      const style = gettingStartedCardStyles[index] || gettingStartedCardStyles[0];
 
-                    <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">
-                        Step 2
-                      </p>
-                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
-                        Submit application
-                      </h4>
-                      <p className="mt-1 text-sm leading-6 text-[#5B6475]">
-                        Fill up the form carefully and submit your Smart NID request online.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-                        Step 3
-                      </p>
-                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
-                        Wait for review
-                      </h4>
-                      <p className="mt-1 text-sm leading-6 text-[#5B6475]">
-                        After submission, the authority will review your information and documents.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700">
-                        Step 4
-                      </p>
-                      <h4 className="mt-2 text-sm font-medium text-[#111827]">
-                        Track updates
-                      </h4>
-                      <p className="mt-1 text-sm leading-6 text-[#5B6475]">
-                        Follow approval, appointment, printing, and delivery progress from your dashboard.
-                      </p>
-                    </div>
+                      return (
+                        <div key={`${item.step}-${item.title}`} className={style.card}>
+                          <p className={style.label}>{item.step}</p>
+                          <h4 className="mt-2 text-sm font-medium text-[#111827]">
+                            {item.title}
+                          </h4>
+                          <p className="mt-1 text-sm leading-6 text-[#5B6475]">
+                            {item.description}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -2284,7 +1375,7 @@ const CitizenDashboard = () => {
                       <th>{copy.type}</th>
                       <th>{copy.submitted}</th>
                       <th>{copy.updated}</th>
-                      <th>{copy.reviewStatus || 'Review Status'}</th>
+                      <th>{copy.reviewStatus || (language === 'bn' ? 'পর্যালোচনা স্ট্যাটাস' : 'Review Status')}</th>
                       <th>{copy.action}</th>
                     </tr>
                   </thead>
@@ -2318,7 +1409,7 @@ const CitizenDashboard = () => {
 
                           <td>
                             <span className="dashboard-recent-type-pill">
-                              {(app.applicationType || copy.na).toUpperCase()}
+                              {getApplicationTypeLabel(app)}
                             </span>
                           </td>
 

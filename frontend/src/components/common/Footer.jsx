@@ -73,8 +73,8 @@ const Footer = () => {
             <p>{t('footer.copyright', { year: currentYear })}</p>
 
             <div className="footer-compact-bottom-links">
-              <a href="#" aria-label="Privacy policy placeholder">Privacy Policy</a>
-              <a href="#" aria-label="Terms of service placeholder">Terms of Service</a>
+              <Link to="/privacy-policy">Privacy Policy</Link>
+              <Link to="/terms-of-service">Terms of Service</Link>
             </div>
           </div>
         </div>
@@ -176,8 +176,8 @@ const Footer = () => {
           <p>© {currentYear} Smart NID Management System.</p>
 
           <div className="footer-bottom-links">
-            <a href="#" aria-label="Privacy policy placeholder">{t('footer.privacyPolicy')}</a>
-            <a href="#" aria-label="Terms of service placeholder">{t('footer.termsOfService')}</a>
+            <Link to="/privacy-policy">{t('footer.privacyPolicy')}</Link>
+            <Link to="/terms-of-service">{t('footer.termsOfService')}</Link>
           </div>
         </div>
       </div>

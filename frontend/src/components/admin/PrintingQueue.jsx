@@ -124,26 +124,28 @@ const PrintingQueue = () => {
     [applications]
   );
 
+  const filtersActive = Boolean(searchInput || debouncedSearch || statusFilter || typeFilter);
+
   const statsCards = [
     {
       key: 'approved',
       title: 'Ready For Print',
       value: statsLoading ? '...' : stats?.approvedForPrint ?? 0,
-      theme: 'yellow',
+      note: 'Accepted after biometric completion',
       icon: <FaFileAlt />
     },
     {
       key: 'printed',
       title: 'Printed',
       value: statsLoading ? '...' : stats?.printedCount ?? 0,
-      theme: 'blue',
+      note: 'Cards already accepted for print',
       icon: <FaPrint />
     },
     {
       key: 'today',
       title: 'Printed Today',
       value: statsLoading ? '...' : stats?.printedToday ?? 0,
-      theme: 'purple',
+      note: 'Completed in the current day',
       icon: <FaCheckCircle />
     }
   ];
@@ -228,80 +230,81 @@ const PrintingQueue = () => {
   return (
     <AdminLayout>
       <div className="printing-queue-page">
-        <div className="printing-queue-header-card">
-          <div className="printing-queue-header-top">
-            <div>
-              <h1 className="printing-queue-title">Printing Queue</h1>
-              <p className="printing-queue-subtitle">
-                Earliest biometric-completed applications appear first.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="printing-queue-primary-button"
-              onClick={handleBulkMarkPrinted}
-              disabled={!selectedPrintReadyIds.length || actionLoading}
-            >
-              {actionLoading ? <FaSpinner className="printing-queue-spin" /> : <FaPrint />}
-              <span>Bulk Mark Printed ({selectedPrintReadyIds.length})</span>
-            </button>
+        <div className="printing-queue-page-header">
+          <div>
+            <h1>Printing Queue</h1>
+            <p>Review biometric-completed applications and manage secure physical card printing.</p>
           </div>
 
-          <div className="printing-queue-stats-grid">
-            {statsCards.map((item) => (
-              <div key={item.key} className={`printing-queue-stat-card ${item.theme}`}>
-                <div className="printing-queue-stat-icon">{item.icon}</div>
-                <div>
-                  <p>{item.title}</p>
-                  <h3>{item.value}</h3>
-                </div>
+          <button
+            type="button"
+            className="printing-queue-primary-button"
+            onClick={handleBulkMarkPrinted}
+            disabled={!selectedPrintReadyIds.length || actionLoading}
+          >
+            {actionLoading ? <FaSpinner className="printing-queue-spin" /> : <FaPrint />}
+            <span>Bulk Mark Printed ({selectedPrintReadyIds.length})</span>
+          </button>
+        </div>
+
+        <div className="printing-queue-stats-grid">
+          {statsCards.map((item) => (
+            <div key={item.key} className="printing-queue-stat-card">
+              <div className="printing-queue-stat-icon">{item.icon}</div>
+              <div>
+                <span>{item.title}</span>
+                <strong>{item.value}</strong>
+                <small>{item.note}</small>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         <div className="printing-queue-toolbar-card">
-          <div className="printing-queue-search-row">
-            <div className="printing-queue-search-box">
-              <FaSearch />
-              <input
-                type="text"
-                placeholder="Search by application ID, name, email, phone or BRN"
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+          <div className="printing-queue-search-box">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search by application ID, name, email, phone or BRN"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+            />
           </div>
 
           <div className="printing-queue-filter-row">
-            <select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All Status</option>
-              <option value="approved">Ready for Print</option>
-              <option value="printed">Printed</option>
-            </select>
+            <label className="printing-queue-filter-control">
+              <span>Status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="approved">Ready for Print</option>
+                <option value="printed">Printed</option>
+              </select>
+            </label>
 
-            <select
-              value={typeFilter}
-              onChange={(event) => {
-                setTypeFilter(event.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All Types</option>
-              <option value="new">New</option>
-              <option value="correction">Correction</option>
-              <option value="reissue">Reissue</option>
-            </select>
+            <label className="printing-queue-filter-control">
+              <span>Type</span>
+              <select
+                value={typeFilter}
+                onChange={(event) => {
+                  setTypeFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All Types</option>
+                <option value="new">New</option>
+                <option value="correction">Correction</option>
+                <option value="reissue">Reissue</option>
+              </select>
+            </label>
 
             <button
               type="button"
@@ -318,7 +321,12 @@ const PrintingQueue = () => {
               <span>Select Visible Ready</span>
             </button>
 
-            <button type="button" className="printing-queue-secondary-button" onClick={clearFilters}>
+            <button
+              type="button"
+              className="printing-queue-secondary-button"
+              onClick={clearFilters}
+              disabled={!filtersActive}
+            >
               Clear Filters
             </button>
           </div>
@@ -334,102 +342,106 @@ const PrintingQueue = () => {
             </div>
           </div>
 
-          <div className="printing-queue-table-header" aria-hidden="true">
-            <span />
-            <span>Application ID</span>
-            <span>Applicant</span>
-            <span>Type</span>
-            <span>Phone / BRN</span>
-            <span>Ready Date / Age</span>
-            <span>Print Status</span>
-            <span>Action</span>
-          </div>
-
-          <div className="printing-queue-list">
-            {applications.length === 0 ? (
-              <div className="printing-queue-empty-state compact">
-                <FaPrint />
-                <h3>No applications are ready for printing.</h3>
-                <p>Change the search or filters to review completed print records.</p>
+          <div className="printing-queue-table-scroll">
+            <div className="printing-queue-table">
+              <div className="printing-queue-table-header" aria-hidden="true">
+                <span />
+                <span>Application ID</span>
+                <span>Applicant</span>
+                <span>Type</span>
+                <span>Phone / BRN</span>
+                <span>Ready Date / Age</span>
+                <span>Print Status</span>
+                <span>Action</span>
               </div>
-            ) : (
-              applications.map((application) => {
-                const isPrintReady = isApplicationPrintReady(application);
-                const isSelected = selectedIds.includes(application._id);
 
-                return (
-                  <div
-                    key={application._id}
-                    className="printing-queue-list-item"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openDetails(application._id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        openDetails(application._id);
-                      }
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className={`printing-queue-check ${isSelected ? 'checked' : ''} ${!isPrintReady ? 'disabled' : ''}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (isPrintReady) toggleApplicationSelect(application._id);
-                      }}
-                      disabled={!isPrintReady}
-                      aria-label={isPrintReady ? 'Select application' : 'Application is not ready for printing'}
-                    >
-                      {isSelected ? <FaCheckSquare /> : <FaRegSquare />}
-                    </button>
-
-                    <div className="printing-queue-table-cell application-id" data-label="Application ID">
-                      <strong>{application.applicationId || application._id}</strong>
-                      {application.nidNumber ? <small>NID {application.nidNumber}</small> : null}
-                    </div>
-
-                    <div className="printing-queue-table-cell applicant" data-label="Applicant">
-                      <strong>{getApplicantName(application)}</strong>
-                      <small>{application.email || application.applicant?.email || 'Email not recorded'}</small>
-                    </div>
-
-                    <div className="printing-queue-table-cell" data-label="Type">
-                      <span>{formatStatus(application.applicationType) || 'New'}</span>
-                    </div>
-
-                    <div className="printing-queue-table-cell" data-label="Phone / BRN">
-                      <strong>{getApplicantPhone(application)}</strong>
-                      <small>{application.birthRegistrationNumber || 'BRN not recorded'}</small>
-                    </div>
-
-                    <div className="printing-queue-table-cell" data-label="Ready Date / Age">
-                      <strong>{formatDate(getPrintingQueueDate(application)) || 'Not recorded'}</strong>
-                      <small>{getQueueAge(getPrintingQueueDate(application))}</small>
-                    </div>
-
-                    <div className="printing-queue-table-cell status" data-label="Print Status">
-                      <span className={`printing-queue-status-badge ${getPrintingStatusClass(application)}`}>
-                        {getPrintingStatusLabel(application)}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="printing-queue-view-button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openDetails(application._id);
-                      }}
-                      aria-label="View printing details"
-                    >
-                      <FaEye />
-                      <span>View</span>
-                    </button>
+              <div className="printing-queue-list">
+                {applications.length === 0 ? (
+                  <div className="printing-queue-empty-state compact">
+                    <FaPrint />
+                    <h3>No applications are ready for printing.</h3>
+                    <p>Change the search or filters to review completed print records.</p>
                   </div>
-                );
-              })
-            )}
+                ) : (
+                  applications.map((application) => {
+                    const isPrintReady = isApplicationPrintReady(application);
+                    const isSelected = selectedIds.includes(application._id);
+
+                    return (
+                      <div
+                        key={application._id}
+                        className="printing-queue-list-item"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openDetails(application._id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openDetails(application._id);
+                          }
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className={`printing-queue-check ${isSelected ? 'checked' : ''} ${!isPrintReady ? 'disabled' : ''}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (isPrintReady) toggleApplicationSelect(application._id);
+                          }}
+                          disabled={!isPrintReady}
+                          aria-label={isPrintReady ? 'Select application' : 'Application is not ready for printing'}
+                        >
+                          {isSelected ? <FaCheckSquare /> : <FaRegSquare />}
+                        </button>
+
+                        <div className="printing-queue-table-cell application-id" data-label="Application ID">
+                          <strong>{application.applicationId || application._id}</strong>
+                          {application.nidNumber ? <small>NID {application.nidNumber}</small> : null}
+                        </div>
+
+                        <div className="printing-queue-table-cell applicant" data-label="Applicant">
+                          <strong>{getApplicantName(application) || 'Unknown Citizen'}</strong>
+                          <small>{application.email || application.applicant?.email || 'Email not recorded'}</small>
+                        </div>
+
+                        <div className="printing-queue-table-cell" data-label="Type">
+                          <span>{formatStatus(application.applicationType) || 'New'}</span>
+                        </div>
+
+                        <div className="printing-queue-table-cell" data-label="Phone / BRN">
+                          <strong>{getApplicantPhone(application)}</strong>
+                          <small>{application.birthRegistrationNumber || 'BRN not recorded'}</small>
+                        </div>
+
+                        <div className="printing-queue-table-cell" data-label="Ready Date / Age">
+                          <strong>{formatDate(getPrintingQueueDate(application)) || 'Not recorded'}</strong>
+                          <small>{getQueueAge(getPrintingQueueDate(application))}</small>
+                        </div>
+
+                        <div className="printing-queue-table-cell status" data-label="Print Status">
+                          <span className={`printing-queue-status-badge ${getPrintingStatusClass(application)}`}>
+                            {getPrintingStatusLabel(application)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="printing-queue-view-button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openDetails(application._id);
+                          }}
+                          aria-label="View printing details"
+                        >
+                          <FaEye />
+                          <span>View</span>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="printing-queue-pagination">

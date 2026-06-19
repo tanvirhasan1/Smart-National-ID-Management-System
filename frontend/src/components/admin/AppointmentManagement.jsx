@@ -6,6 +6,7 @@ import {
   FaBuilding,
   FaCalendarAlt,
   FaCheck,
+  FaChevronDown,
   FaChevronLeft,
   FaChevronRight,
   FaClock,
@@ -197,7 +198,136 @@ const getApplicantText = (appointment) => {
     appointment?.applicant?.fullName ||
     appointment?.application?.fullNameEnglish ||
     appointment?.application?.fullNameBangla ||
-    'N/A'
+    'Unknown Citizen'
+  );
+};
+
+const APPOINTMENT_MEDIA_BASE_URL = (
+  import.meta.env?.VITE_API_URL ||
+  import.meta.env?.VITE_API_BASE_URL ||
+  'http://localhost:5000'
+).replace(/\/$/, '');
+
+const resolveAppointmentAssetUrl = (asset) => {
+  if (!asset) return '';
+
+  if (typeof asset === 'string') {
+    const value = asset.trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+      return value;
+    }
+    if (value.startsWith('/')) return `${APPOINTMENT_MEDIA_BASE_URL}${value}`;
+    return `${APPOINTMENT_MEDIA_BASE_URL}/${value.replace(/^\/+/, '')}`;
+  }
+
+  if (Array.isArray(asset)) {
+    for (const item of asset) {
+      const resolved = resolveAppointmentAssetUrl(item);
+      if (resolved) return resolved;
+    }
+    return '';
+  }
+
+  if (typeof asset === 'object') {
+    return (
+      resolveAppointmentAssetUrl(asset.secureUrl) ||
+      resolveAppointmentAssetUrl(asset.url) ||
+      resolveAppointmentAssetUrl(asset.fileUrl) ||
+      resolveAppointmentAssetUrl(asset.previewUrl) ||
+      resolveAppointmentAssetUrl(asset.path) ||
+      resolveAppointmentAssetUrl(asset.filePath) ||
+      resolveAppointmentAssetUrl(asset.cloudinary?.secureUrl) ||
+      resolveAppointmentAssetUrl(asset.cloudinary?.url) ||
+      resolveAppointmentAssetUrl(asset.file?.url) ||
+      resolveAppointmentAssetUrl(asset.file?.path)
+    );
+  }
+
+  return '';
+};
+
+const getAppointmentPhotoUrl = (appointment) => {
+  const application = appointment?.application || {};
+  const documentAssets = application.documentAssets || {};
+
+  return (
+    resolveAppointmentAssetUrl(appointment?.applicant?.photo) ||
+    resolveAppointmentAssetUrl(appointment?.applicant?.profilePhoto) ||
+    resolveAppointmentAssetUrl(application.passportPhoto) ||
+    resolveAppointmentAssetUrl(application.photo) ||
+    resolveAppointmentAssetUrl(application.photograph) ||
+    resolveAppointmentAssetUrl(documentAssets.photograph) ||
+    resolveAppointmentAssetUrl(documentAssets.photo) ||
+    resolveAppointmentAssetUrl(documentAssets.passportPhoto)
+  );
+};
+
+const getCitizenInitials = (name) => {
+  const words = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) return 'CT';
+  return words.slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+};
+
+
+const FilterDropdown = ({ icon: Icon, value, options, onChange, ariaLabel }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption =
+    options.find((option) => option.value === value) || options[0] || {
+      value: '',
+      label: 'Select'
+    };
+
+  const handleBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div
+      className={`appointment-management__custom-select ${isOpen ? 'is-open' : ''}`}
+      onBlur={handleBlur}
+    >
+      <button
+        type="button"
+        className="appointment-management__custom-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={ariaLabel || selectedOption.label}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        {Icon ? <Icon className="appointment-management__custom-select-icon" /> : null}
+        <span>{selectedOption.label}</span>
+        <FaChevronDown className="appointment-management__custom-select-caret" />
+      </button>
+
+      {isOpen ? (
+        <div className="appointment-management__custom-select-menu" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option.value || option.label}
+              type="button"
+              className={`appointment-management__custom-select-option ${
+                option.value === value ? 'is-selected' : ''
+              }`}
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 };
 
@@ -997,15 +1127,13 @@ const AppointmentManagement = () => {
 
         return (
           <div key={card.key} className="appointment-management__stat-card">
+            <Icon />
+
             <div>
               <span>{card.title}</span>
               <strong>{card.value}</strong>
               <small>{card.helpText}</small>
             </div>
-
-            <span className={`appointment-management__stat-icon is-${card.tone}`}>
-              <Icon />
-            </span>
           </div>
         );
       })}
@@ -1017,18 +1145,15 @@ const AppointmentManagement = () => {
       {renderStatCards()}
 
       <div className="appointment-management__panel">
-        <div className="appointment-management__panel-head">
+        <div className="appointment-management__panel-head appointment-management__panel-head--with-search">
           <div>
             <h2>Appointment Records</h2>
             <p>
-              Search, filter, view details, cancel appointments or mark biometric
-              completed.
+              Search, filter and manage citizen biometric appointment records.
             </p>
           </div>
-        </div>
 
-        <div className="appointment-management__filters">
-          <label className="appointment-management__search-field">
+          <label className="appointment-management__search-field appointment-management__search-field--header">
             <FaSearch />
             <input
               type="text"
@@ -1037,49 +1162,49 @@ const AppointmentManagement = () => {
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </label>
+        </div>
 
-          <label className="appointment-management__select-field">
-            <FaFilter />
-            <select
-              value={centerFilter}
-              onChange={(event) => setCenterFilter(event.target.value)}
-            >
-              <option value="">All Centers</option>
-              {centers.map((center) => (
-                <option key={center._id} value={center._id}>
-                  {center.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="appointment-management__filters appointment-management__filters--compact">
+          <FilterDropdown
+            icon={FaFilter}
+            value={centerFilter}
+            onChange={setCenterFilter}
+            ariaLabel="Filter by center"
+            options={[
+              { value: '', label: 'All Centers' },
+              ...centers.map((center) => ({
+                value: center._id,
+                label: center.name
+              }))
+            ]}
+          />
 
-          <label className="appointment-management__select-field">
-            <FaMapMarkerAlt />
-            <select
-              value={districtFilter}
-              onChange={(event) => setDistrictFilter(event.target.value)}
-            >
-              <option value="">All Districts</option>
-              {districtOptions.map((district) => (
-                <option key={district} value={district}>
-                  {district}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            icon={FaMapMarkerAlt}
+            value={districtFilter}
+            onChange={setDistrictFilter}
+            ariaLabel="Filter by district"
+            options={[
+              { value: '', label: 'All Districts' },
+              ...districtOptions.map((district) => ({
+                value: district,
+                label: district
+              }))
+            ]}
+          />
 
-          <label className="appointment-management__select-field">
-            <FaFilter />
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="booked">Booked</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </label>
+          <FilterDropdown
+            icon={FaFilter}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            ariaLabel="Filter by appointment status"
+            options={[
+              { value: '', label: 'All Status' },
+              { value: 'booked', label: 'Booked' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'cancelled', label: 'Cancelled' }
+            ]}
+          />
 
           <label className="appointment-management__date-field">
             <FaCalendarAlt />
@@ -1090,12 +1215,15 @@ const AppointmentManagement = () => {
             />
           </label>
 
-          {(searchQuery || centerFilter || districtFilter || statusFilter || dateFilter) && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={clearFilters}>
-              <FaTimes />
-              Clear
-            </button>
-          )}
+          <button
+            type="button"
+            className="appointment-management__clear-filters"
+            onClick={clearFilters}
+            disabled={!(searchQuery || centerFilter || districtFilter || statusFilter || dateFilter)}
+            title="Clear all appointment filters"
+          >
+            Clear Filters
+          </button>
         </div>
 
         <div className="appointment-management__table-wrap">
@@ -1173,11 +1301,12 @@ const AppointmentManagement = () => {
                       <div className="appointment-management__table-actions">
                         <button
                           type="button"
-                          className="appointment-management__icon-btn"
+                          className="appointment-management__view-button"
                           onClick={() => handleViewAppointment(appointment._id)}
                           title="View details"
                         >
                           <FaEye />
+                          View
                         </button>
 
                         {appointment.status === 'booked' && (
@@ -1532,7 +1661,7 @@ const AppointmentManagement = () => {
             />
           </label>
 
-          <label className="appointment-management__switch-card">
+          <label className="appointment-management__switch-card appointment-management__switch-card--inline">
             <input
               type="checkbox"
               checked={config.isActive !== false}
@@ -1541,8 +1670,8 @@ const AppointmentManagement = () => {
               }
             />
             <span>
-              <strong>Appointment booking active</strong>
-              <small>Turn off to stop citizen booking for this center.</small>
+              <strong>Booking active</strong>
+              <small>Citizen booking enabled</small>
             </span>
           </label>
         </div>
@@ -1955,17 +2084,46 @@ const AppointmentManagement = () => {
   const renderAppointmentModal = () => {
     if (!showAppointmentModal || !selectedAppointment) return null;
 
+    const applicationId = getApplicationText(selectedAppointment);
+    const citizenName = getApplicantText(selectedAppointment);
+    const citizenInitials = getCitizenInitials(citizenName);
+    const citizenPhotoUrl = getAppointmentPhotoUrl(selectedAppointment);
+    const phone =
+      selectedAppointment?.applicant?.phone ||
+      selectedAppointment?.application?.phone ||
+      'N/A';
+    const email =
+      selectedAppointment?.applicant?.email ||
+      selectedAppointment?.application?.email ||
+      'N/A';
+    const centerName =
+      selectedAppointment.centerName ||
+      selectedAppointment?.center?.name ||
+      'N/A';
+    const district =
+      selectedAppointment.centerDistrict ||
+      selectedAppointment?.center?.district ||
+      'N/A';
+    const appointmentDate = formatDateKey(selectedAppointment.appointmentDateKey);
+    const completedAt = formatDateTime(selectedAppointment.completedAt) || 'N/A';
+    const bookedAt =
+      formatDateTime(selectedAppointment.bookedAt || selectedAppointment.createdAt) || 'N/A';
+    const statusText = formatStatus(selectedAppointment.status);
+    const serialText = selectedAppointment.slotSerial
+      ? `#${selectedAppointment.slotSerial}`
+      : '';
+
     return (
       <div className="appointment-management__modal-backdrop" role="presentation">
         <div
-          className="appointment-management__modal appointment-management__modal--large"
+          className="appointment-management__modal appointment-management__modal--large appointment-management__appointment-modal"
           role="dialog"
           aria-modal="true"
         >
-          <div className="appointment-management__modal-head">
+          <div className="appointment-management__modal-head appointment-management__appointment-modal-head">
             <div>
               <h2>Appointment Details</h2>
-              <p>{getApplicationText(selectedAppointment)}</p>
+              <p>Review citizen appointment information before taking an action.</p>
             </div>
 
             <button
@@ -1977,89 +2135,115 @@ const AppointmentManagement = () => {
             </button>
           </div>
 
-          <div className="appointment-management__details-grid">
-            <div>
-              <span>Application ID</span>
-              <strong>{getApplicationText(selectedAppointment)}</strong>
+          <div className="appointment-management__appointment-summary">
+            <div className="appointment-management__appointment-photo">
+              {citizenPhotoUrl ? (
+                <img
+                  src={citizenPhotoUrl}
+                  alt={`${citizenName} appointment photo`}
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none';
+                    event.currentTarget.nextElementSibling?.classList.remove('is-hidden');
+                  }}
+                />
+              ) : null}
+              <span className={citizenPhotoUrl ? 'is-hidden' : ''}>{citizenInitials}</span>
             </div>
 
-            <div>
-              <span>Citizen</span>
-              <strong>{getApplicantText(selectedAppointment)}</strong>
+            <div className="appointment-management__appointment-summary-main">
+              <span>Citizen & Appointment</span>
+              <h3>{citizenName}</h3>
+              <p>{applicationId}</p>
+              <div className="appointment-management__appointment-chips">
+                <span className={`badge badge-${getStatusColor(selectedAppointment.status)}`}>
+                  {statusText}
+                </span>
+                <span>{appointmentDate}</span>
+                <span>{selectedAppointment.timeSlot || 'N/A'}</span>
+              </div>
             </div>
 
-            <div>
-              <span>Phone</span>
-              <strong>
-                {selectedAppointment?.applicant?.phone ||
-                  selectedAppointment?.application?.phone ||
-                  'N/A'}
-              </strong>
-            </div>
-
-            <div>
-              <span>Email</span>
-              <strong>
-                {selectedAppointment?.applicant?.email ||
-                  selectedAppointment?.application?.email ||
-                  'N/A'}
-              </strong>
-            </div>
-
-            <div>
+            <div className="appointment-management__appointment-summary-side">
               <span>Center</span>
-              <strong>
-                {selectedAppointment.centerName ||
-                  selectedAppointment?.center?.name ||
-                  'N/A'}
-              </strong>
-            </div>
-
-            <div>
-              <span>District</span>
-              <strong>
-                {selectedAppointment.centerDistrict ||
-                  selectedAppointment?.center?.district ||
-                  'N/A'}
-              </strong>
-            </div>
-
-            <div>
-              <span>Date</span>
-              <strong>{formatDateKey(selectedAppointment.appointmentDateKey)}</strong>
-            </div>
-
-            <div>
-              <span>Time Slot</span>
-              <strong>{selectedAppointment.timeSlot}</strong>
-            </div>
-
-            <div>
-              <span>Serial</span>
-              <strong>#{selectedAppointment.slotSerial || 'N/A'}</strong>
-            </div>
-
-            <div>
-              <span>Status</span>
-              <strong className={`badge badge-${getStatusColor(selectedAppointment.status)}`}>
-                {formatStatus(selectedAppointment.status)}
-              </strong>
-            </div>
-
-            <div>
-              <span>Booked At</span>
-              <strong>
-                {formatDateTime(selectedAppointment.bookedAt || selectedAppointment.createdAt)}
-              </strong>
-            </div>
-
-            <div>
-              <span>Completed At</span>
-              <strong>{formatDateTime(selectedAppointment.completedAt) || 'N/A'}</strong>
+              <strong>{centerName}</strong>
+              <small>{district}</small>
             </div>
           </div>
 
-          <label className="appointment-management__field">
+          <div className="appointment-management__modal-section">
+            <div className="appointment-management__modal-section-title">
+              <h3>Citizen & Appointment Information</h3>
+              <p>Only appointment-relevant information is shown here.</p>
+            </div>
+
+            <div className="appointment-management__details-grid appointment-management__details-grid--grouped">
+              <div>
+                <span>Application ID</span>
+                <strong>{applicationId}</strong>
+              </div>
+
+              <div>
+                <span>Citizen</span>
+                <strong>{citizenName}</strong>
+              </div>
+
+              <div>
+                <span>Phone</span>
+                <strong>{phone}</strong>
+              </div>
+
+              <div>
+                <span>Email</span>
+                <strong>{email}</strong>
+              </div>
+
+              <div>
+                <span>Center</span>
+                <strong>{centerName}</strong>
+              </div>
+
+              <div>
+                <span>District</span>
+                <strong>{district}</strong>
+              </div>
+
+              <div>
+                <span>Date</span>
+                <strong>{appointmentDate}</strong>
+              </div>
+
+              <div>
+                <span>Time Slot</span>
+                <strong>{selectedAppointment.timeSlot || 'N/A'}</strong>
+              </div>
+
+              {serialText ? (
+                <div>
+                  <span>Serial</span>
+                  <strong>{serialText}</strong>
+                </div>
+              ) : null}
+
+              <div>
+                <span>Status</span>
+                <strong className={`badge badge-${getStatusColor(selectedAppointment.status)}`}>
+                  {statusText}
+                </strong>
+              </div>
+
+              <div>
+                <span>Booked At</span>
+                <strong>{bookedAt}</strong>
+              </div>
+
+              <div>
+                <span>Completed At</span>
+                <strong>{completedAt}</strong>
+              </div>
+            </div>
+          </div>
+
+          <label className="appointment-management__field appointment-management__modal-note-field">
             <span>Status update reason / note</span>
             <textarea
               rows="3"
@@ -2069,7 +2253,7 @@ const AppointmentManagement = () => {
             />
           </label>
 
-          <div className="appointment-management__modal-actions">
+          <div className="appointment-management__modal-actions appointment-management__appointment-actions">
             <button
               type="button"
               className="btn btn-outline"
@@ -2132,7 +2316,7 @@ const AppointmentManagement = () => {
             </button>
           </div>
 
-          <div className="appointment-management__form-grid">
+          <div className="appointment-management__form-grid appointment-management__form-grid--center-modal">
             <label className="appointment-management__field">
               <span>Center Name</span>
               <input
@@ -2195,7 +2379,7 @@ const AppointmentManagement = () => {
               />
             </label>
 
-            <label className="appointment-management__switch-card">
+            <label className="appointment-management__switch-card appointment-management__switch-card--modal-inline">
               <input
                 name="isActive"
                 type="checkbox"
@@ -2245,23 +2429,18 @@ const AppointmentManagement = () => {
   return (
     <AdminLayout>
       <div className="appointment-management">
-        <div className="appointment-management__hero">
+        <div className="appointment-management__page-header">
           <div>
-            <span className="appointment-management__eyebrow">
-              <FaCalendarAlt />
-              Appointment Control Panel
-            </span>
-
             <h1>Appointment Management</h1>
             <p>
-              Manage citizen appointments, center schedule rules, dynamic weekday
-              slots, date exceptions and biometric completion.
+              Manage citizen appointments, center schedules, date exceptions and
+              biometric completion.
             </p>
           </div>
 
           <button
             type="button"
-            className="btn btn-primary"
+            className="appointment-management__primary-button"
             onClick={refreshPage}
             disabled={actionLoading || settingsLoading}
           >

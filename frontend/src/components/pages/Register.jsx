@@ -227,9 +227,9 @@ const Register = () => {
   };
 
   return (
-    <div className="register-page-wrapper min-h-[calc(100vh-140px)] px-4 py-10">
+    <div className={`register-page-wrapper ${isBangla ? 'register-page-bn' : 'register-page-en'} min-h-[calc(100vh-140px)] px-4 py-8`}>
       <div className="register-container mx-auto w-full max-w-[860px]">
-        <div className="register-card-panel rounded-[28px] bg-white p-6 sm:p-8 lg:p-10">
+        <div className="register-card-panel bg-white p-6 sm:p-7 lg:p-8">
           <div className="register-header-block text-center">
             <h1 className="register-title-text">{t('register.title')}</h1>
             <p className="register-subtitle-text">{t('register.subtitle')}</p>

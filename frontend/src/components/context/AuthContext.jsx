@@ -1,11 +1,12 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import api from '../api/axios';
+import api, { AUTH_LOGOUT_EVENT, AUTH_REFRESH_EVENT } from '../api/axios';
 import { isInternalUserRole } from '../utils/roles';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'token';
 const PENDING_VERIFICATION_KEY = 'pendingVerification';
 const PASSWORD_RESET_KEY = 'pendingPasswordReset';
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
@@ -15,12 +16,22 @@ export const useAuth = () => {
 
   return context;
 };
+
 const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+
+const setApiToken = (token) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    return;
+  }
+
+  delete api.defaults.headers.common.Authorization;
+};
 
 const storeTokenAndUser = (setters, token, user) => {
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    setApiToken(token);
   }
 
   setters.setToken(token || null);
@@ -30,7 +41,7 @@ const storeTokenAndUser = (setters, token, user) => {
 
 const clearAuthState = (setters) => {
   localStorage.removeItem(TOKEN_KEY);
-  delete api.defaults.headers.common.Authorization;
+  setApiToken(null);
   setters.setToken(null);
   setters.setUser(null);
   setters.setIsAuthenticated(false);
@@ -43,30 +54,67 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getStoredToken()));
 
   useEffect(() => {
+    const handleTokenRefresh = (event) => {
+      const nextToken = event.detail?.token || getStoredToken();
+      const refreshedUser = event.detail?.user || null;
+
+      if (nextToken) {
+        setToken(nextToken);
+        setApiToken(nextToken);
+        setIsAuthenticated(true);
+      }
+
+      if (refreshedUser) {
+        setUser(refreshedUser);
+      }
+    };
+
+    const handleForcedLogout = () => {
+      clearAuthState({ setToken, setUser, setIsAuthenticated });
+      setLoading(false);
+    };
+
+    window.addEventListener(AUTH_REFRESH_EVENT, handleTokenRefresh);
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+
+    return () => {
+      window.removeEventListener(AUTH_REFRESH_EVENT, handleTokenRefresh);
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+    };
+  }, []);
+
+  useEffect(() => {
     const loadUser = async () => {
-      if (!token) {
+      const activeToken = getStoredToken();
+
+      if (!activeToken) {
         setLoading(false);
         return;
       }
 
       try {
-        api.defaults.headers.common.Authorization = `Bearer ${token}`;
+        setApiToken(activeToken);
 
         const response = await api.get('/users/profile');
         const profileUser = response.data.user;
+        const latestToken = getStoredToken();
 
+        setToken(latestToken || activeToken);
         setUser(profileUser);
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Failed to load user:', error);
-        clearAuthState({ setToken, setUser, setIsAuthenticated });
+
+        if (error.response?.status === 401) {
+          clearAuthState({ setToken, setUser, setIsAuthenticated });
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadUser();
-  }, [token]);
+  }, []);
 
   const register = async (userData) => {
     try {
@@ -149,8 +197,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     clearAuthState({ setToken, setUser, setIsAuthenticated });
+
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      // Local logout should still complete even if the backend logout request fails.
+    }
   };
 
   const updateProfile = async (profileData) => {
@@ -170,38 +224,38 @@ export const AuthProvider = ({ children }) => {
   };
 
   const forgotPassword = async (identifier) => {
-  try {
-    const response = await api.post('/auth/forgot-password', { identifier });
-    const payload = response.data || {};
+    try {
+      const response = await api.post('/auth/forgot-password', { identifier });
+      const payload = response.data || {};
 
-    sessionStorage.setItem(
-      PASSWORD_RESET_KEY,
-      JSON.stringify({
-        email: payload.recipientEmail,
-        resetToken: payload.resetToken
-      })
-    );
+      sessionStorage.setItem(
+        PASSWORD_RESET_KEY,
+        JSON.stringify({
+          email: payload.recipientEmail,
+          resetToken: payload.resetToken
+        })
+      );
 
-    return payload;
-  } catch (error) {
-    throw error.response?.data || { message: 'Failed to send reset code' };
-  }
-};
+      return payload;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to send reset code' };
+    }
+  };
 
-const resetPassword = async ({ otp, password, resetToken }) => {
-  try {
-    const response = await api.post('/auth/reset-password', {
-      otp,
-      password,
-      resetToken
-    });
+  const resetPassword = async ({ otp, password, resetToken }) => {
+    try {
+      const response = await api.post('/auth/reset-password', {
+        otp,
+        password,
+        resetToken
+      });
 
-    sessionStorage.removeItem(PASSWORD_RESET_KEY);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Failed to reset password' };
-  }
-};
+      sessionStorage.removeItem(PASSWORD_RESET_KEY);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to reset password' };
+    }
+  };
 
   const resendOTP = async (verificationToken) => {
     try {
@@ -228,23 +282,23 @@ const resetPassword = async ({ otp, password, resetToken }) => {
     }
   };
 
-const value = {
-  user,
-  token,
-  loading,
-  isAuthenticated,
-  register,
-  verifyOTP,
-  login,
-  adminLogin,
-  logout,
-  updateProfile,
-  resendOTP,
-  forgotPassword,
-  resetPassword,
-  pendingVerificationKey: PENDING_VERIFICATION_KEY,
-  passwordResetKey: PASSWORD_RESET_KEY
-};
+  const value = {
+    user,
+    token,
+    loading,
+    isAuthenticated,
+    register,
+    verifyOTP,
+    login,
+    adminLogin,
+    logout,
+    updateProfile,
+    resendOTP,
+    forgotPassword,
+    resetPassword,
+    pendingVerificationKey: PENDING_VERIFICATION_KEY,
+    passwordResetKey: PASSWORD_RESET_KEY
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

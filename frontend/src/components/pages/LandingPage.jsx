@@ -160,11 +160,11 @@ const landingCopy = {
       ],
       items: [
         'Birth Registration',
-        'Recent passport-size photo',
-        'Clear signature image',
-        'Valid Bangladeshi mobile number',
-        "Parent's NID information",
-        'Address proof if required'
+        'Passport-size photo',
+        'Signature image',
+        'Valid mobile number',
+        "Parent NID info",
+        'Address proof'
       ]
     },
     cta: {
@@ -317,11 +317,11 @@ const landingCopy = {
       ],
       items: [
         'জন্ম নিবন্ধন',
-        'পাসপোর্ট সাইজ ছবি',
-        'পরিষ্কার স্বাক্ষরের ছবি',
-        'বৈধ বাংলাদেশি মোবাইল নম্বর',
-        'পিতা-মাতার এনআইডি তথ্য',
-        'প্রয়োজন হলে ঠিকানার প্রমাণ'
+        'পাসপোর্ট ছবি',
+        'স্বাক্ষরের ছবি',
+        'মোবাইল নম্বর',
+        'পিতা-মাতার NID',
+        'ঠিকানার প্রমাণ'
       ]
     },
     cta: {
@@ -433,7 +433,8 @@ const LandingPage = () => {
       `}</style>
 
     <div
-      className="landing-page has-cursor-pattern bg-slate-50 text-slate-900 overflow-x-hidden"
+      className={`landing-page lang-${language} has-cursor-pattern bg-slate-50 text-slate-900 overflow-x-hidden`}
+      lang={language === 'bn' ? 'bn' : 'en'}
       onMouseMove={handlePatternMove}
       onMouseLeave={handlePatternLeave}
     >
@@ -509,7 +510,7 @@ const LandingPage = () => {
                   height="600"
                   loading="eager"
                   decoding="async"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   className="hero-image h-[320px] sm:h-[390px] lg:h-[460px] w-full object-cover object-center"
                 />
 
@@ -739,13 +740,13 @@ const LandingPage = () => {
               {copy.requirements.items.map((title, index) => (
                 <div
                   key={title}
-                  className="requirement-item flex h-full min-h-[150px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                  className="requirement-item flex h-full min-h-[132px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-center shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
                 >
                   <div className="requirement-icon flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-600">
                     {requirementIcons[index]}
                   </div>
 
-                  <h3 className="mt-4 max-w-[150px] text-sm sm:text-base font-semibold leading-6 text-slate-900">
+                  <h3 className="requirement-title mt-3 max-w-[150px] text-sm sm:text-base font-semibold leading-6 text-slate-900">
                     {title}
                   </h3>
                 </div>

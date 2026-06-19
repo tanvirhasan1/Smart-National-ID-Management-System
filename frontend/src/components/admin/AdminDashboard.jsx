@@ -248,10 +248,99 @@ const normalizeSummaryData = (summaryData = {}, user = null) => {
 };
 
 const getDashboardTitle = (role, isMainAdmin) => {
-  if (role === 'support_staff') return 'Support Operations Dashboard';
-  if (role === 'system_supervisor') return 'System Supervision Dashboard';
-  if (role === 'admin' && isMainAdmin) return 'Super Admin Control Dashboard';
-  return 'Admin Operations Dashboard';
+  if (role === 'support_staff') return 'Support Dashboard';
+  if (role === 'system_supervisor') return 'Supervisor Dashboard';
+  if (role === 'admin' && isMainAdmin) return 'Super Admin Dashboard';
+  return 'Admin Dashboard';
+};
+
+const getDashboardSubtitle = (summary) => {
+  const role = summary?.access?.viewerRole;
+
+  if (role === 'support_staff') {
+    return 'Live support desk overview for citizen tickets and response workload';
+  }
+
+  if (role === 'system_supervisor') {
+    return 'Read-only supervision overview for operations, queues and audit activity';
+  }
+
+  if (summary?.access?.isMainAdmin) {
+    return 'Full operational overview for Smart NID administration';
+  }
+
+  return 'Live operational overview for Smart NID administration';
+};
+
+const getDashboardRoleLabel = (summary) => {
+  if (summary?.access?.viewerRole === 'admin' && summary?.access?.isMainAdmin) {
+    return 'Super Admin';
+  }
+
+  return formatStatus(summary?.access?.viewerRole || 'admin');
+};
+
+const getApplicantName = (application = {}) => {
+  const candidates = [
+    application.fullNameEnglish,
+    application.fullNameBangla,
+    application.applicant?.fullName,
+    application.applicant?.email,
+    application.email,
+    application.phone
+  ];
+
+  const value = candidates.find((item) => String(item || '').trim());
+
+  return value ? String(value).trim() : 'Unknown Citizen';
+};
+
+const getApplicationReference = (application = {}) =>
+  application.applicationNumber ||
+  application.applicationId ||
+  (application._id ? `#${application._id.slice(-6)}` : 'Application');
+
+const getSnapshotItems = (summary) => {
+  const items = [
+    {
+      key: 'today-applications',
+      label: 'New applications today',
+      value: summary.applications.newToday
+    },
+    {
+      key: 'today-appointments',
+      label: 'Appointments today',
+      value: summary.appointments.today
+    },
+    {
+      key: 'open-tickets',
+      label: 'Open support tickets',
+      value: summary.supportTickets.open
+    },
+    {
+      key: 'active-centers',
+      label: 'Active centers',
+      value: `${summary.centers.active}/${summary.centers.total}`
+    }
+  ];
+
+  if (summary.access.canManageUsers) {
+    items.push({
+      key: 'internal-users',
+      label: 'Internal users',
+      value: summary.users.internal
+    });
+  }
+
+  if (summary.access.canViewAudit) {
+    items.push({
+      key: 'audit-24h',
+      label: 'Audit events last 24h',
+      value: summary.governance.auditLogsLast24Hours
+    });
+  }
+
+  return items;
 };
 
 const getPrimaryCards = (summary) => {
@@ -739,16 +828,6 @@ const AdminDashboard = () => {
     summary.access.isMainAdmin
   );
 
-  const controlScope = [
-    summary.access.canManageApplications && 'Applications',
-    summary.access.canManageAppointments && 'Appointments',
-    summary.access.canManagePrinting && 'Printing',
-    summary.access.canManageDelivery && 'Delivery',
-    summary.access.canManageSupport && 'Support',
-    summary.access.canManageUsers && 'Users',
-    summary.access.canViewAudit && 'Audit'
-  ].filter(Boolean);
-
   const showRecentApplications = summary.access.canManageApplications;
 
   return (
@@ -759,15 +838,12 @@ const AdminDashboard = () => {
             <div className="dashboard-page-title-row">
               <h1>{dashboardTitle}</h1>
               <span className="dashboard-role-badge">
-                {summary.access.isMainAdmin
-                  ? 'Super Admin'
-                  : formatStatus(summary.access.viewerRole)}
+                {getDashboardRoleLabel(summary)}
               </span>
             </div>
 
             <p className="dashboard-page-subtitle">
-              {summary.roleFocus.headline} · Live operational summary for Smart
-              NID administration
+              {getDashboardSubtitle(summary)}
             </p>
           </div>
 
@@ -798,7 +874,7 @@ const AdminDashboard = () => {
         <div className="dashboard-priority-strip">
           <div className="dashboard-priority-strip-header">
             <FaExclamationTriangle />
-            <span>Priority control signals</span>
+            <span>Action Required</span>
           </div>
 
           <div className="dashboard-priority-chip-list">
@@ -832,7 +908,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="dashboard-chart-grid">
-          <div className="dashboard-panel-card">
+          <div className="dashboard-panel-card dashboard-analytics-card dashboard-distribution-card">
             <div className="dashboard-panel-header">
               <h3>{distributionConfig.title}</h3>
               <span className="dashboard-panel-meta">
@@ -840,22 +916,22 @@ const AdminDashboard = () => {
               </span>
             </div>
 
-            <div className="dashboard-panel-body">
+            <div className="dashboard-panel-body dashboard-analytics-body">
               {distributionConfig.data.every((item) => item.value === 0) ? (
                 <div className="dashboard-no-data">
                   No distribution data available yet
                 </div>
               ) : (
-                <>
-                  <div className="dashboard-chart-wrap">
-                    <ResponsiveContainer width="100%" height={280}>
+                <div className="dashboard-distribution-layout">
+                  <div className="dashboard-chart-wrap dashboard-distribution-chart">
+                    <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={distributionConfig.data}
                           cx="50%"
                           cy="50%"
-                          innerRadius={65}
-                          outerRadius={95}
+                          innerRadius="45%"
+                          outerRadius="68%"
                           paddingAngle={4}
                           dataKey="value"
                         >
@@ -871,7 +947,7 @@ const AdminDashboard = () => {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="dashboard-legend-list">
+                  <div className="dashboard-legend-list dashboard-distribution-legend">
                     {distributionConfig.data.map((item) => (
                       <div key={item.name} className="dashboard-legend-item">
                         <span
@@ -887,12 +963,12 @@ const AdminDashboard = () => {
                       </div>
                     ))}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="dashboard-panel-card">
+          <div className="dashboard-panel-card dashboard-analytics-card dashboard-load-card">
             <div className="dashboard-panel-header">
               <h3>Operational Load</h3>
               <span className="dashboard-panel-meta">
@@ -900,14 +976,14 @@ const AdminDashboard = () => {
               </span>
             </div>
 
-            <div className="dashboard-panel-body">
+            <div className="dashboard-panel-body dashboard-analytics-body dashboard-load-body">
               {operationalLoadData.every((item) => item.total === 0) ? (
                 <div className="dashboard-no-data">
                   No operational load data available yet
                 </div>
               ) : (
-                <div className="dashboard-chart-wrap">
-                  <ResponsiveContainer width="100%" height={280}>
+                <div className="dashboard-chart-wrap dashboard-operational-chart">
+                  <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={operationalLoadData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="name" stroke="#6B7280" />
@@ -922,8 +998,8 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="dashboard-panel-grid">
-          <div className="dashboard-panel-card">
+        <div className="dashboard-bottom-stack">
+          <div className="dashboard-panel-card dashboard-recent-panel">
             <div className="dashboard-panel-header">
               <h3>
                 {showRecentApplications
@@ -941,7 +1017,7 @@ const AdminDashboard = () => {
             <div className="dashboard-panel-body">
               {showRecentApplications ? (
                 recentApplications.length === 0 ? (
-                  <div className="dashboard-no-data">
+                  <div className="dashboard-no-data dashboard-no-data-compact">
                     No recent applications found in the latest load
                   </div>
                 ) : (
@@ -960,13 +1036,13 @@ const AdminDashboard = () => {
                           <tr key={app._id}>
                             <td>
                               <Link
-                                to={`/admin/applications?id=${app._id}`}
+                                to={`/admin/applications/review/${app._id}`}
                                 className="dashboard-table-link"
                               >
-                                #{app.applicationNumber || app._id?.slice(-6)}
+                                {getApplicationReference(app)}
                               </Link>
                             </td>
-                            <td>{app.userId?.fullName || 'N/A'}</td>
+                            <td>{getApplicantName(app)}</td>
                             <td>
                               <span className={`dashboard-status-badge ${app.status}`}>
                                 {formatStatus(app.status)}
@@ -980,7 +1056,7 @@ const AdminDashboard = () => {
                   </div>
                 )
               ) : (
-                <div className="dashboard-focus-list">
+                <div className="dashboard-focus-list dashboard-focus-grid">
                   {summary.roleFocus.priorityItems?.length ? (
                     summary.roleFocus.priorityItems.map((item) => (
                       <div key={item.key} className="dashboard-focus-item">
@@ -992,7 +1068,7 @@ const AdminDashboard = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="dashboard-no-data">
+                    <div className="dashboard-no-data dashboard-no-data-compact">
                       No role priority items available yet
                     </div>
                   )}
@@ -1001,14 +1077,15 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="dashboard-side-column">
-            <div className="dashboard-panel-card">
+          <div className="dashboard-action-snapshot-grid">
+            <div className="dashboard-panel-card dashboard-quick-panel">
               <div className="dashboard-panel-header">
                 <h3>Quick Actions</h3>
+                <span className="dashboard-panel-meta">Jump to common admin tasks</span>
               </div>
 
               <div className="dashboard-panel-body">
-                <div className="dashboard-quick-action-list">
+                <div className="dashboard-quick-action-grid">
                   {quickActions.map((action) => {
                     const Icon = action.icon;
 
@@ -1035,66 +1112,20 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="dashboard-panel-card">
+            <div className="dashboard-panel-card dashboard-snapshot-panel">
               <div className="dashboard-panel-header">
-                <h3>Control Scope</h3>
+                <h3>Today’s Snapshot</h3>
+                <span className="dashboard-panel-meta">Useful operational numbers</span>
               </div>
 
               <div className="dashboard-panel-body">
-                <div className="dashboard-scope-card">
-                  <div className="dashboard-scope-top">
-                    <span className="dashboard-scope-label">Role focus</span>
-                    <span className="dashboard-scope-value">
-                      {summary.roleFocus.headline}
-                    </span>
-                  </div>
-
-                  <div className="dashboard-scope-top">
-                    <span className="dashboard-scope-label">Access level</span>
-                    <span className="dashboard-scope-value">
-                      {summary.access.isMainAdmin
-                        ? 'Full internal admin control'
-                        : formatStatus(summary.access.viewerRole)}
-                    </span>
-                  </div>
-
-                  <div className="dashboard-scope-divider" />
-
-                  <div className="dashboard-scope-list">
-                    {controlScope.map((scopeItem) => (
-                      <span key={scopeItem} className="dashboard-scope-chip">
-                        {scopeItem}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="dashboard-scope-divider" />
-
-                  <div className="dashboard-control-metrics">
-                    <div className="dashboard-control-metric">
-                      <span>Centers</span>
-                      <strong>{summary.centers.active}/{summary.centers.total}</strong>
+                <div className="dashboard-snapshot-list dashboard-snapshot-grid">
+                  {getSnapshotItems(summary).map((item) => (
+                    <div key={item.key} className="dashboard-snapshot-item">
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
                     </div>
-
-                    <div className="dashboard-control-metric">
-                      <span>Appointments today</span>
-                      <strong>{summary.appointments.today}</strong>
-                    </div>
-
-                    {summary.access.canViewAudit ? (
-                      <div className="dashboard-control-metric">
-                        <span>Audit last 24h</span>
-                        <strong>{summary.governance.auditLogsLast24Hours}</strong>
-                      </div>
-                    ) : null}
-
-                    {summary.access.canManageUsers ? (
-                      <div className="dashboard-control-metric">
-                        <span>Internal users</span>
-                        <strong>{summary.users.internal}</strong>
-                      </div>
-                    ) : null}
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>

@@ -19,7 +19,7 @@ import '../styles/Login.css';
 
 const Login = () => {
   const { login } = useAuth();
-  const { t } = useLanguage();
+  const { t, isBangla } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,7 +53,7 @@ const Login = () => {
   };
 
   return (
-    <div className="login-page-wrapper">
+    <div className={`login-page-wrapper ${isBangla ? 'lang-bn' : 'lang-en'}`}>
       <div className="login-bg-orb login-bg-orb-one" aria-hidden="true" />
       <div className="login-bg-orb login-bg-orb-two" aria-hidden="true" />
 

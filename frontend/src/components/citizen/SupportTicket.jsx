@@ -1,17 +1,22 @@
 // Support Ticket Page Start
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
-  FaPlus,
-  FaTimes,
+  FaArrowRight,
+  FaCalendarCheck,
+  FaCheckCircle,
+  FaClock,
+  FaComments,
+  FaFileAlt,
+  FaLifeRing,
   FaPaperPlane,
+  FaPlus,
+  FaSearch,
   FaSpinner,
   FaTicketAlt,
-  FaComments,
-  FaClock,
-  FaCheckCircle,
-  FaArrowRight
+  FaTimes,
+  FaTruck
 } from 'react-icons/fa';
 import api from '../api/axios';
 import Loader from '../common/Loader';
@@ -19,13 +24,11 @@ import { useLanguage } from '../context/LanguageContext';
 import {
   formatDate,
   formatDateTime,
-  formatStatus,
-  getStatusColor
+  formatStatus
 } from '../utils/helpers';
 import '../styles/SupportTicket.css';
 
 const SupportTicket = () => {
-  // Main page state
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,12 +44,97 @@ const SupportTicket = () => {
     reset,
     formState: { errors }
   } = useForm();
-  const { getTranslation } = useLanguage();
+
+  const { getTranslation, isBangla } = useLanguage();
   const copy = getTranslation('support');
-  // Load all tickets on first render
+
+  const ui = useMemo(
+    () =>
+      isBangla
+        ? {
+            totalTickets: 'মোট টিকিট',
+            openTickets: 'খোলা টিকিট',
+            activeConversation: 'চলমান আলোচনা',
+            solvedTickets: 'সমাধান হয়েছে',
+            helpTitle: 'যেসব বিষয়ে সহায়তা পাবেন',
+            helpSubtitle: 'টিকিট তৈরি করার আগে আপনার সমস্যার ধরন দেখে নিন।',
+            helpTopics: [
+              {
+                icon: FaFileAlt,
+                title: 'আবেদন ও ডকুমেন্ট',
+                description: 'আবেদন স্ট্যাটাস, ডকুমেন্ট আপলোড বা তথ্য মিল না হলে সাহায্য নিন।'
+              },
+              {
+                icon: FaCalendarCheck,
+                title: 'অ্যাপয়েন্টমেন্ট',
+                description: 'বায়োমেট্রিক অ্যাপয়েন্টমেন্ট, সময়সূচি বা সেন্টার সংক্রান্ত প্রশ্ন।'
+              },
+              {
+                icon: FaTruck,
+                title: 'ডেলিভারি ও পেমেন্ট',
+                description: 'ডেলিভারি ফি, পেমেন্ট, ঠিকানা বা কার্ড গ্রহণ সংক্রান্ত সহায়তা।'
+              }
+            ],
+            latestActivity: 'সর্বশেষ আপডেট',
+            noConversation: 'এখনো কোনো উত্তর নেই',
+            ticketDetails: 'টিকিট বিস্তারিত',
+            emptyHint: 'প্রথম টিকিট তৈরি করলে এখানে কথোপকথন দেখা যাবে।',
+            categoryFallback: 'সাধারণ',
+            priority: 'অগ্রাধিকার',
+            status: 'স্ট্যাটাস'
+          }
+        : {
+            totalTickets: 'Total Tickets',
+            openTickets: 'Open Tickets',
+            activeConversation: 'In Progress',
+            solvedTickets: 'Resolved',
+            helpTitle: 'What support can help with',
+            helpSubtitle: 'Choose the right category before creating a ticket.',
+            helpTopics: [
+              {
+                icon: FaFileAlt,
+                title: 'Application & Documents',
+                description: 'Application status, uploaded documents, or information mismatch issues.'
+              },
+              {
+                icon: FaCalendarCheck,
+                title: 'Appointments',
+                description: 'Biometric appointment, schedule, center, or rescheduling related questions.'
+              },
+              {
+                icon: FaTruck,
+                title: 'Delivery & Payment',
+                description: 'Delivery fee, payment, address, or card receiving support.'
+              }
+            ],
+            latestActivity: 'Latest update',
+            noConversation: 'No replies yet',
+            ticketDetails: 'Ticket Details',
+            emptyHint: 'Create your first ticket and the conversation will appear here.',
+            categoryFallback: 'General',
+            priority: 'Priority',
+            status: 'Status'
+          },
+    [isBangla]
+  );
+
   useEffect(() => {
     fetchTickets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const ticketStats = useMemo(() => {
+    const open = tickets.filter((ticket) => ticket.status === 'open').length;
+    const inProgress = tickets.filter((ticket) => ticket.status === 'in_progress').length;
+    const solved = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
+
+    return {
+      total: tickets.length,
+      open,
+      inProgress,
+      solved
+    };
+  }, [tickets]);
 
   const fetchTickets = async (shouldKeepSelection = true) => {
     try {
@@ -73,15 +161,12 @@ const SupportTicket = () => {
       }
     } catch (error) {
       console.error('Error fetching tickets:', error);
-      toast.error(
-        error?.response?.data?.message || copy.toasts?.loadFailed
-      );
+      toast.error(error?.response?.data?.message || copy.toasts?.loadFailed);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load a single ticket with full conversation
   const handleSelectTicket = async (ticketId) => {
     try {
       setDetailsLoading(true);
@@ -90,15 +175,12 @@ const SupportTicket = () => {
       setSelectedTicket(ticketDetails);
     } catch (error) {
       console.error('Error fetching ticket details:', error);
-      toast.error(
-        error?.response?.data?.message || copy.toasts?.detailsFailed
-      );
+      toast.error(error?.response?.data?.message || copy.toasts?.detailsFailed);
     } finally {
       setDetailsLoading(false);
     }
   };
 
-  // Create a new support ticket
   const handleCreateTicket = async (data) => {
     setIsSubmitting(true);
 
@@ -118,15 +200,14 @@ const SupportTicket = () => {
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0]?.msg ||
-        copy.toasts?.createFailed
+          error?.response?.data?.errors?.[0]?.msg ||
+          copy.toasts?.createFailed
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Send reply to selected ticket without refreshing the whole page
   const handleSendMessage = async (event) => {
     event.preventDefault();
 
@@ -148,7 +229,6 @@ const SupportTicket = () => {
     setSendingMessage(true);
     setNewMessage('');
 
-    // Instant UI update: message appears immediately like a chat app.
     setSelectedTicket((currentTicket) => {
       if (!currentTicket || currentTicket._id !== ticketId) return currentTicket;
 
@@ -163,9 +243,9 @@ const SupportTicket = () => {
       currentTickets.map((ticket) =>
         ticket._id === ticketId
           ? {
-            ...ticket,
-            updatedAt: now
-          }
+              ...ticket,
+              updatedAt: now
+            }
           : ticket
       )
     );
@@ -190,10 +270,10 @@ const SupportTicket = () => {
           currentTickets.map((ticket) =>
             ticket._id === ticketId
               ? {
-                ...ticket,
-                status: serverTicket.status || ticket.status,
-                updatedAt: serverTicket.updatedAt || ticket.updatedAt
-              }
+                  ...ticket,
+                  status: serverTicket.status || ticket.status,
+                  updatedAt: serverTicket.updatedAt || ticket.updatedAt
+                }
               : ticket
           )
         );
@@ -219,17 +299,17 @@ const SupportTicket = () => {
         currentTickets.map((ticket) =>
           ticket._id === ticketId
             ? {
-              ...ticket,
-              updatedAt: previousTicket?.updatedAt || ticket.updatedAt
-            }
+                ...ticket,
+                updatedAt: previousTicket?.updatedAt || ticket.updatedAt
+              }
             : ticket
         )
       );
 
       toast.error(
         error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0]?.msg ||
-        copy.toasts?.messageFailed
+          error?.response?.data?.errors?.[0]?.msg ||
+          copy.toasts?.messageFailed
       );
     } finally {
       setSendingMessage(false);
@@ -239,25 +319,23 @@ const SupportTicket = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'open':
-        return <FaClock className="text-amber-500" />;
+        return <FaClock />;
       case 'in_progress':
-        return <FaComments className="text-sky-500" />;
+        return <FaComments />;
       case 'resolved':
       case 'closed':
-        return <FaCheckCircle className="text-green-600" />;
+        return <FaCheckCircle />;
       default:
-        return <FaClock className="text-gray-400" />;
+        return <FaClock />;
     }
   };
 
-  const getTranslatedStatus = (status) =>
-    copy.statuses?.[status] || formatStatus(status);
+  const getTranslatedStatus = (status) => copy.statuses?.[status] || formatStatus(status);
 
   const getTranslatedCategory = (category) =>
-    copy.categories?.[category] || formatStatus(category);
+    copy.categories?.[category] || formatStatus(category) || ui.categoryFallback;
 
-  const getTranslatedPriority = (priority) =>
-    copy.priorities?.[priority] || formatStatus(priority);
+  const getTranslatedPriority = (priority) => copy.priorities?.[priority] || formatStatus(priority);
 
   const renderTemplate = (template = '', variables = {}) =>
     Object.entries(variables).reduce(
@@ -265,384 +343,369 @@ const SupportTicket = () => {
       template
     );
 
-  // Loading state
+  const getTicketNumber = (ticket) => {
+    const number = ticket?.ticketNumber || ticket?._id?.slice(-8) || 'TICKET';
+    return String(number).startsWith('#') ? number : `#${number}`;
+  };
+
+  const renderTicketCard = (ticket) => {
+    const isActive = selectedTicket?._id === ticket._id;
+    const latestActivity = ticket.updatedAt || ticket.createdAt;
+
+    return (
+      <button
+        key={ticket._id}
+        type="button"
+        className={`support-ticket-card ${isActive ? 'is-active' : ''}`}
+        onClick={() => handleSelectTicket(ticket._id)}
+      >
+        <div className="support-ticket-card-top">
+          <span className="support-ticket-number">{getTicketNumber(ticket)}</span>
+          <span className={`support-status-icon status-${ticket.status || 'open'}`}>
+            {getStatusIcon(ticket.status)}
+          </span>
+        </div>
+
+        <h4>{ticket.subject}</h4>
+
+        <div className="support-ticket-meta-row">
+          <span className={`support-badge status-${ticket.status || 'open'}`}>
+            {getTranslatedStatus(ticket.status)}
+          </span>
+          {ticket.priority && (
+            <span className={`support-badge priority-${ticket.priority}`}>
+              {getTranslatedPriority(ticket.priority)}
+            </span>
+          )}
+        </div>
+
+        <p className="support-ticket-date">
+          {ui.latestActivity}: {formatDate(latestActivity)}
+        </p>
+      </button>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="support-loading-wrapper flex min-h-[60vh] items-center justify-center">
+      <div className="support-loading-wrapper">
         <Loader size="large" text={copy.loadingTickets} />
       </div>
     );
   }
 
   return (
-    <div className="support-page-wrapper min-h-[calc(100vh-140px)] bg-[#F9FAFB] px-4 py-8">
-      <div className="support-page-shell mx-auto w-full max-w-[1200px]">
-        {/* Page header */}
-        <div className="support-header-panel mb-8 flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)] md:flex-row md:items-center md:justify-between">
-          <div className="support-header-content">
-            <h1 className="support-page-title mb-1 text-[1.9rem] font-semibold text-[#1F2937]">
-              {copy.title}
-            </h1>
-            <p className="support-page-subtitle text-[#6B7280]">
-              {copy.subtitle}
-            </p>
+    <div className={`support-page-wrapper ${isBangla ? 'support-bn' : 'support-en'}`}>
+      <div className="support-page-shell">
+        <section className="support-page-head">
+          <div>
+            <h1 className="support-page-title">{copy.title}</h1>
+            <p className="support-page-subtitle">{copy.subtitle}</p>
           </div>
 
           <button
             type="button"
-            className="support-create-button inline-flex items-center justify-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
+            className="support-primary-button"
             onClick={() => setShowCreateModal(true)}
           >
             <FaPlus />
             <span>{copy.createNewTicket}</span>
           </button>
-        </div>
+        </section>
 
-        {/* Main support area */}
-        <div className="support-content-grid grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          {/* Ticket list */}
-          <div className="support-sidebar-panel rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-            <div className="support-sidebar-header mb-5 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-[#1F2937]">
-                {copy.myTickets} ({tickets.length})
-              </h3>
-              <span className="rounded-full bg-[#F0FDF4] px-3 py-1 text-xs font-medium text-[#16A34A]">
-                {copy.activeSupport}
-              </span>
+        <section className="support-stat-grid" aria-label="Support ticket summary">
+          <div className="support-stat-card">
+            <span className="support-stat-icon"><FaTicketAlt /></span>
+            <div>
+              <p>{ui.totalTickets}</p>
+              <strong>{ticketStats.total}</strong>
+            </div>
+          </div>
+          <div className="support-stat-card">
+            <span className="support-stat-icon"><FaClock /></span>
+            <div>
+              <p>{ui.openTickets}</p>
+              <strong>{ticketStats.open}</strong>
+            </div>
+          </div>
+          <div className="support-stat-card">
+            <span className="support-stat-icon"><FaComments /></span>
+            <div>
+              <p>{ui.activeConversation}</p>
+              <strong>{ticketStats.inProgress}</strong>
+            </div>
+          </div>
+          <div className="support-stat-card">
+            <span className="support-stat-icon"><FaCheckCircle /></span>
+            <div>
+              <p>{ui.solvedTickets}</p>
+              <strong>{ticketStats.solved}</strong>
+            </div>
+          </div>
+        </section>
+
+        {tickets.length === 0 ? (
+          <section className="support-empty-layout">
+            <div className="support-empty-card">
+              <div className="support-empty-icon">
+                <FaLifeRing />
+              </div>
+              <h2>{copy.noTicketsTitle}</h2>
+              <p>{copy.noTicketsDescription}</p>
+              <button
+                type="button"
+                className="support-primary-button"
+                onClick={() => setShowCreateModal(true)}
+              >
+                <FaPlus />
+                <span>{copy.createTicket}</span>
+              </button>
             </div>
 
-            {tickets.length === 0 ? (
-              <div className="support-empty-state rounded-xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-5 py-10 text-center">
-                <FaTicketAlt className="mx-auto mb-4 text-4xl text-[#D1D5DB]" />
-                <h4 className="mb-2 text-lg font-semibold text-[#374151]">
-                  {copy.noTicketsTitle}
-                </h4>
-                <p className="mb-5 text-sm text-[#6B7280]">
-                  {copy.noTicketsDescription}
-                </p>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  <FaPlus />
-                  <span>{copy.createTicket}</span>
-                </button>
+            <div className="support-help-card">
+              <div className="support-section-heading">
+                <h2>{ui.helpTitle}</h2>
+                <p>{ui.helpSubtitle}</p>
               </div>
-            ) : (
-              <div className="support-ticket-list flex flex-col gap-3">
-                {tickets.map((ticket) => (
-                  <button
-                    key={ticket._id}
-                    type="button"
-                    className={`support-ticket-card text-left rounded-xl border p-4 transition ${selectedTicket?._id === ticket._id
-                      ? 'border-[#16A34A] bg-[#F0FDF4]'
-                      : 'border-[#E5E7EB] bg-white hover:border-[#16A34A]'
-                      }`}
-                    onClick={() => handleSelectTicket(ticket._id)}
-                  >
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <span className="support-ticket-number text-sm font-semibold text-[#1F2937]">
-                        #{ticket.ticketNumber}
-                      </span>
-                      <span>{getStatusIcon(ticket.status)}</span>
+              <div className="support-help-list">
+                {ui.helpTopics.map((topic) => {
+                  const TopicIcon = topic.icon;
+                  return (
+                    <div className="support-help-item" key={topic.title}>
+                      <span><TopicIcon /></span>
+                      <div>
+                        <h3>{topic.title}</h3>
+                        <p>{topic.description}</p>
+                      </div>
                     </div>
-
-                    <h4 className="mb-2 line-clamp-2 text-sm font-semibold text-[#1F2937]">
-                      {ticket.subject}
-                    </h4>
-
-                    <div className="mb-2">
-                      <span
-                        className={`badge badge-sm badge-${getStatusColor(ticket.status)}`}
-                      >
-                        {getTranslatedStatus(ticket.status)}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-[#6B7280]">
-                      {formatDate(ticket.createdAt)}
-                    </p>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
-            )}
-          </div>
-
-          {/* Ticket details and conversation */}
-          <div className="support-details-panel rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.06)] sm:p-6">
-            {detailsLoading ? (
-              <div className="flex min-h-[320px] items-center justify-center">
-                <Loader size="medium" text={copy.loadingDetails} />
+            </div>
+          </section>
+        ) : (
+          <section className="support-workspace">
+            <aside className="support-ticket-panel">
+              <div className="support-panel-head">
+                <div>
+                  <h2>{copy.myTickets}</h2>
+                  <p>{tickets.length} {copy.activeSupport}</p>
+                </div>
+                <span className="support-soft-chip">{copy.activeSupport}</span>
               </div>
-            ) : selectedTicket ? (
-              <>
-                <div className="support-details-header mb-6 border-b border-[#E5E7EB] pb-5">
-                  <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+              <div className="support-ticket-list">
+                {tickets.map(renderTicketCard)}
+              </div>
+            </aside>
+
+            <main className="support-details-panel">
+              {detailsLoading ? (
+                <div className="support-details-loader">
+                  <Loader size="medium" text={copy.loadingDetails} />
+                </div>
+              ) : selectedTicket ? (
+                <>
+                  <div className="support-details-header">
                     <div>
-                      <h2 className="mb-1 text-2xl font-semibold text-[#1F2937]">
-                        #{selectedTicket.ticketNumber}
-                      </h2>
-                      <p className="text-sm text-[#6B7280]">
-                        {copy.category}: {getTranslatedCategory(selectedTicket.category)}
-                      </p>
+                      <p className="support-eyebrow">{ui.ticketDetails}</p>
+                      <h2>{getTicketNumber(selectedTicket)}</h2>
+                      <p>{selectedTicket.subject}</p>
                     </div>
-
-                    <span
-                      className={`badge badge-${getStatusColor(selectedTicket.status)}`}
-                    >
+                    <span className={`support-badge status-${selectedTicket.status || 'open'}`}>
                       {getTranslatedStatus(selectedTicket.status)}
                     </span>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">{copy.subject}</p>
-                      <p className="font-semibold text-[#1F2937]">
-                        {selectedTicket.subject}
-                      </p>
+                  <div className="support-info-grid">
+                    <div className="support-info-card">
+                      <span>{copy.category}</span>
+                      <strong>{getTranslatedCategory(selectedTicket.category)}</strong>
                     </div>
-
-                    <div className="rounded-xl bg-[#F9FAFB] p-4">
-                      <p className="mb-1 text-sm text-[#6B7280]">{copy.created}</p>
-                      <p className="font-semibold text-[#1F2937]">
-                        {formatDateTime(selectedTicket.createdAt)}
-                      </p>
+                    <div className="support-info-card">
+                      <span>{ui.priority}</span>
+                      <strong>{getTranslatedPriority(selectedTicket.priority || 'medium')}</strong>
+                    </div>
+                    <div className="support-info-card">
+                      <span>{copy.created}</span>
+                      <strong>{formatDateTime(selectedTicket.createdAt)}</strong>
+                    </div>
+                    <div className="support-info-card">
+                      <span>{ui.status}</span>
+                      <strong>{getTranslatedStatus(selectedTicket.status)}</strong>
                     </div>
                   </div>
-                </div>
 
-                <div className="support-conversation-section">
-                  <h3 className="mb-4 text-lg font-semibold text-[#1F2937]">
-                    {copy.conversation}
-                  </h3>
-
-                  <div className="support-messages-list mb-6 flex flex-col gap-4">
-                    <div className="support-message-item support-message-user max-w-[85%] rounded-2xl bg-[#F0FDF4] px-4 py-4">
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-sm font-semibold text-[#16A34A]">
-                          You
-                        </span>
-                        <span className="text-xs text-[#6B7280]">
-                          {formatDateTime(selectedTicket.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-7 text-[#1F2937]">
-                        {selectedTicket.description}
-                      </p>
+                  <div className="support-conversation-section">
+                    <div className="support-section-heading compact">
+                      <h3>{copy.conversation}</h3>
+                      <p>{selectedTicket.responses?.length ? `${selectedTicket.responses.length} replies` : ui.noConversation}</p>
                     </div>
 
-                    {selectedTicket.responses?.map((response, index) => {
-                      const isAdmin =
-                        response.responderRole === 'admin' ||
-                        response.responderRole === 'super_admin';
-
-                      return (
-                        <div
-                          key={`${response.createdAt}-${index}`}
-                          className={`support-message-item max-w-[85%] rounded-2xl px-4 py-4 ${isAdmin
-                            ? 'support-message-admin ml-auto bg-[#EFF6FF]'
-                            : 'support-message-user bg-[#F0FDF4]'
-                            }`}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <span
-                              className={`text-sm font-semibold ${isAdmin ? 'text-sky-600' : 'text-[#16A34A]'
-                                }`}
-                            >
-                              {isAdmin ? copy.supportTeam : copy.you}
-                            </span>
-                            <span className="text-xs text-[#6B7280]">
-                              {formatDateTime(response.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-sm leading-7 text-[#1F2937]">
-                            {response.message}
-                          </p>
+                    <div className="support-messages-list">
+                      <div className="support-message-item support-message-user">
+                        <div className="support-message-head">
+                          <span>{copy.you}</span>
+                          <time>{formatDateTime(selectedTicket.createdAt)}</time>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {!['resolved', 'closed'].includes(selectedTicket.status) ? (
-                    <form
-                      className="support-reply-form rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4"
-                      onSubmit={handleSendMessage}
-                    >
-                      <label className="mb-2 block text-sm font-medium text-[#374151]">
-                        {copy.replyMessage}
-                      </label>
-                      <textarea
-                        rows={4}
-                        value={newMessage}
-                        onChange={(event) => setNewMessage(event.target.value)}
-                        placeholder={copy.replyPlaceholder}
-                        className="support-reply-input w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-                      />
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          type="submit"
-                          className="support-send-button inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={sendingMessage || !newMessage.trim()}
-                        >
-                          {sendingMessage ? (
-                            <>
-                              <FaSpinner className="animate-spin" />
-                              <span>{copy.sending}</span>
-                            </>
-                          ) : (
-                            <>
-                              <FaPaperPlane />
-                              <span>{copy.sendMessage}</span>
-                            </>
-                          )}
-                        </button>
+                        <p>{selectedTicket.description}</p>
                       </div>
-                    </form>
-                  ) : (
-                    <div className="support-closed-note rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] px-5 py-5 text-center">
-                      <p className="text-sm text-[#6B7280]">
+
+                      {selectedTicket.responses?.map((response, index) => {
+                        const isAdmin =
+                          response.responderRole === 'admin' ||
+                          response.responderRole === 'super_admin';
+
+                        return (
+                          <div
+                            key={`${response.createdAt}-${index}`}
+                            className={`support-message-item ${isAdmin ? 'support-message-admin' : 'support-message-user'}`}
+                          >
+                            <div className="support-message-head">
+                              <span>{isAdmin ? copy.supportTeam : copy.you}</span>
+                              <time>{formatDateTime(response.createdAt)}</time>
+                            </div>
+                            <p>{response.message}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {!['resolved', 'closed'].includes(selectedTicket.status) ? (
+                      <form className="support-reply-form" onSubmit={handleSendMessage}>
+                        <label>{copy.replyMessage}</label>
+                        <textarea
+                          rows={4}
+                          value={newMessage}
+                          onChange={(event) => setNewMessage(event.target.value)}
+                          placeholder={copy.replyPlaceholder}
+                          className="support-reply-input"
+                        />
+                        <div className="support-reply-actions">
+                          <button
+                            type="submit"
+                            className="support-send-button"
+                            disabled={sendingMessage || !newMessage.trim()}
+                          >
+                            {sendingMessage ? (
+                              <>
+                                <FaSpinner className="animate-spin" />
+                                <span>{copy.sending}</span>
+                              </>
+                            ) : (
+                              <>
+                                <FaPaperPlane />
+                                <span>{copy.sendMessage}</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="support-closed-note">
                         {renderTemplate(copy.closedNote, {
                           status: getTranslatedStatus(selectedTicket.status)
                         })}
-                      </p>
-                    </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="support-no-selection">
+                  <FaComments />
+                  <h3>{copy.selectTicketTitle}</h3>
+                  <p>{copy.selectTicketDescription}</p>
+                  {tickets.length > 0 && (
+                    <button
+                      type="button"
+                      className="support-primary-button"
+                      onClick={() => handleSelectTicket(tickets[0]._id)}
+                    >
+                      <span>{copy.openFirstTicket}</span>
+                      <FaArrowRight />
+                    </button>
                   )}
                 </div>
-              </>
-            ) : (
-              <div className="support-no-selection flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-6 text-center">
-                <FaComments className="mb-4 text-5xl text-[#D1D5DB]" />
-                <h3 className="mb-2 text-xl font-semibold text-[#374151]">
-                  {copy.selectTicketTitle}
-                </h3>
-                <p className="mb-5 max-w-[420px] text-[#6B7280]">
-                  {copy.selectTicketDescription}
-                </p>
-                {tickets.length > 0 && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#16A34A] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#15803D]"
-                    onClick={() => handleSelectTicket(tickets[0]._id)}
-                  >
-                    <span>{copy.openFirstTicket}</span>
-                    <FaArrowRight />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </main>
+          </section>
+        )}
 
-        {/* Create ticket modal */}
         {showCreateModal && (
           <div
-            className="support-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm sm:px-6"
+            className="support-modal-overlay"
             onClick={() => setShowCreateModal(false)}
           >
             <div
-              className="support-modal-card w-full max-w-[640px] max-h-[calc(100dvh-48px)] overflow-hidden rounded-[24px] bg-white shadow-[0_28px_85px_rgba(15,23,42,0.30)] ring-1 ring-slate-200/80"
+              className="support-modal-card"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-400" />
-              <div className="support-modal-header flex items-start justify-between gap-4 border-b border-[#E5E7EB] bg-white px-6 py-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-sm">
-                    <FaTicketAlt className="text-lg" />
-                  </div>
+              <div className="support-modal-header">
+                <div className="support-modal-heading">
+                  <span><FaTicketAlt /></span>
                   <div>
-                    <h3 className="text-2xl font-semibold leading-tight text-[#1F2937]">
-                      {copy.modalTitle}
-                    </h3>
-                    <p className="mt-1 text-sm leading-6 text-[#6B7280]">
-                      {copy.modalSubtitle}
-                    </p>
+                    <h3>{copy.modalTitle}</h3>
+                    <p>{copy.modalSubtitle}</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  className="support-modal-close flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white p-0 text-[#6B7280] shadow-sm transition hover:border-[#D1D5DB] hover:bg-[#F9FAFB] hover:text-[#111827]"
+                  className="support-modal-close"
                   onClick={() => setShowCreateModal(false)}
+                  aria-label="Close"
                 >
                   <FaTimes />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit(handleCreateTicket)}>
-                <div className="support-modal-body max-h-[calc(100dvh-220px)] space-y-5 overflow-y-auto px-6 py-6">
-                  <div className="form-group">
-                    <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      {copy.subjectLabel}
-                    </label>
+                <div className="support-modal-body">
+                  <div className="support-form-group">
+                    <label>{copy.subjectLabel}</label>
                     <input
                       type="text"
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${errors.subject
-                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                        }`}
+                      className={errors.subject ? 'has-error' : ''}
                       placeholder={copy.subjectPlaceholder}
                       {...register('subject', { required: copy.validation?.subjectRequired })}
                     />
-                    {errors.subject && (
-                      <span className="mt-2 block text-sm text-red-600">
-                        {errors.subject.message}
-                      </span>
-                    )}
+                    {errors.subject && <span>{errors.subject.message}</span>}
                   </div>
 
-                  <div className="form-group">
-                    <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      {copy.categoryLabel}
-                    </label>
-                    <select
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:ring-4 ${errors.category
-                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                        }`}
-                      {...register('category', { required: copy.validation?.categoryRequired })}
-                    >
-                      <option value="">{copy.selectCategory}</option>
-                      <option value="application_issue">{copy.categories?.application_issue}</option>
-                      <option value="appointment">{copy.categories?.appointment}</option>
-                      <option value="payment">{copy.categories?.payment}</option>
-                      <option value="delivery">{copy.categories?.delivery}</option>
-                      <option value="technical">{copy.categories?.technical}</option>
-                      <option value="other">{copy.categories?.other}</option>
-                    </select>
-                    {errors.category && (
-                      <span className="mt-2 block text-sm text-red-600">
-                        {errors.category.message}
-                      </span>
-                    )}
+                  <div className="support-form-row">
+                    <div className="support-form-group">
+                      <label>{copy.categoryLabel}</label>
+                      <select
+                        className={errors.category ? 'has-error' : ''}
+                        {...register('category', { required: copy.validation?.categoryRequired })}
+                      >
+                        <option value="">{copy.selectCategory}</option>
+                        <option value="application_issue">{copy.categories?.application_issue}</option>
+                        <option value="appointment">{copy.categories?.appointment}</option>
+                        <option value="payment">{copy.categories?.payment}</option>
+                        <option value="delivery">{copy.categories?.delivery}</option>
+                        <option value="technical">{copy.categories?.technical}</option>
+                        <option value="other">{copy.categories?.other}</option>
+                      </select>
+                      {errors.category && <span>{errors.category.message}</span>}
+                    </div>
+
+                    <div className="support-form-group">
+                      <label>{copy.priorityLabel}</label>
+                      <select {...register('priority')} defaultValue="medium">
+                        <option value="low">{copy.priorities?.low}</option>
+                        <option value="medium">{copy.priorities?.medium}</option>
+                        <option value="high">{copy.priorities?.high}</option>
+                        <option value="urgent">{copy.priorities?.urgent}</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      {copy.priorityLabel}
-                    </label>
-                    <select
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition focus:border-[#16A34A] focus:ring-4 focus:ring-[#16A34A]/10"
-                      {...register('priority')}
-                      defaultValue="medium"
-                    >
-                      <option value="low">{copy.priorities?.low}</option>
-                      <option value="medium">{copy.priorities?.medium}</option>
-                      <option value="high">{copy.priorities?.high}</option>
-                      <option value="urgent">{copy.priorities?.urgent}</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="mb-2 block text-sm font-medium text-[#374151]">
-                      {copy.descriptionLabel}
-                    </label>
+                  <div className="support-form-group">
+                    <label>{copy.descriptionLabel}</label>
                     <textarea
                       rows={5}
-                      className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:ring-4 ${errors.description
-                        ? 'border-red-600 focus:border-red-600 focus:ring-red-600/10'
-                        : 'border-[#D1D5DB] focus:border-[#16A34A] focus:ring-[#16A34A]/10'
-                        }`}
+                      className={errors.description ? 'has-error' : ''}
                       placeholder={copy.descriptionPlaceholder}
                       {...register('description', {
                         required: copy.validation?.descriptionRequired,
@@ -652,25 +715,21 @@ const SupportTicket = () => {
                         }
                       })}
                     />
-                    {errors.description && (
-                      <span className="mt-2 block text-sm text-red-600">
-                        {errors.description.message}
-                      </span>
-                    )}
+                    {errors.description && <span>{errors.description.message}</span>}
                   </div>
                 </div>
 
-                <div className="support-modal-footer flex flex-col gap-3 border-t border-[#E5E7EB] bg-white/95 px-6 py-5 backdrop-blur sm:flex-row sm:justify-end">
+                <div className="support-modal-footer">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-xl border border-[#D1D5DB] bg-white px-5 py-3 text-sm font-semibold text-[#374151] transition hover:bg-[#F9FAFB] hover:text-[#111827]"
+                    className="support-secondary-button"
                     onClick={() => setShowCreateModal(false)}
                   >
                     {copy.cancel}
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="support-primary-button"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -679,7 +738,7 @@ const SupportTicket = () => {
                         <span>{copy.creating}</span>
                       </>
                     ) : (
-                      copy.createTicket
+                      <span>{copy.createTicket}</span>
                     )}
                   </button>
                 </div>

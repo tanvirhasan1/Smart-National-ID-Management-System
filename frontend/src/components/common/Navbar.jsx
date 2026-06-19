@@ -8,6 +8,7 @@ import {
   FaUser,
   FaSignOutAlt,
   FaHome,
+  FaThLarge,
   FaIdCard,
   FaSearch,
   FaHeadset,
@@ -91,6 +92,50 @@ const Navbar = () => {
   useEffect(() => {
     closeAllMenus();
   }, [location.pathname]);
+
+  const getUserDisplayName = () => {
+    const name = user?.fullName || user?.name || user?.email?.split('@')?.[0];
+    return name || t('nav.profile');
+  };
+
+  const getUserFirstName = () => {
+    const name = getUserDisplayName();
+    return name?.split(' ')?.[0] || name;
+  };
+
+  const getUserInitials = () => {
+    const name = getUserDisplayName();
+    const initials = name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+
+    return initials || 'AD';
+  };
+
+  const getRoleLabel = () => {
+    const normalizedRole = String(user?.role || '').toLowerCase();
+
+    if (selectedLanguage === 'bn') {
+      if (normalizedRole.includes('super')) return 'সুপার অ্যাডমিন';
+      if (normalizedRole.includes('support')) return 'সাপোর্ট স্টাফ';
+      if (normalizedRole.includes('supervisor')) return 'সিস্টেম সুপারভাইজার';
+      if (normalizedRole.includes('admin')) return 'অ্যাডমিন';
+      return 'ইন্টারনাল ইউজার';
+    }
+
+    if (normalizedRole.includes('super')) return 'Super Admin';
+    if (normalizedRole.includes('support')) return 'Support Staff';
+    if (normalizedRole.includes('supervisor')) return 'System Supervisor';
+    if (normalizedRole.includes('admin')) return 'Admin';
+    return 'Internal User';
+  };
+
+  const adminDashboardLabel =
+    selectedLanguage === 'bn' ? 'ড্যাশবোর্ড' : 'Dashboard';
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -312,25 +357,80 @@ const Navbar = () => {
     </>
   );
 
-  const renderFallbackMenu = () => (
+  const renderAdminMenu = () => (
     <>
-      {renderLanguageSelector()}
-
-      <button
-        type="button"
-        className="site-navbar-logout-button"
-        onClick={handleLogout}
+      <Link
+        to="/admin/dashboard"
+        className="site-navbar-admin-dashboard-link"
+        onClick={handleNavClick}
       >
         <span className="site-navbar-link-icon">
-          <FaSignOutAlt />
+          <FaThLarge />
         </span>
-        <span>{t('nav.logout')}</span>
-      </button>
+        <span>{adminDashboardLabel}</span>
+      </Link>
+
+      {renderLanguageSelector()}
+
+      <div className="site-navbar-profile-dropdown site-navbar-admin-profile-dropdown">
+        <button
+          type="button"
+          className={`site-navbar-admin-profile-button ${
+            isProfileDropdownOpen ? 'is-open' : ''
+          }`}
+          onClick={toggleProfileDropdown}
+          aria-haspopup="true"
+          aria-expanded={isProfileDropdownOpen}
+        >
+          <span className="site-navbar-admin-profile-icon">
+            <FaUser />
+          </span>
+
+          <span className="site-navbar-admin-profile-copy">
+            <span className="site-navbar-admin-profile-name">
+              {getUserDisplayName()}
+            </span>
+            <span className="site-navbar-admin-profile-role">
+              {getRoleLabel()}
+            </span>
+          </span>
+
+          <span className="site-navbar-desktop-chevron">
+            <FaChevronDown />
+          </span>
+
+          <span className="site-navbar-mobile-accordion-icon">
+            {isProfileDropdownOpen ? <FaMinus /> : <FaPlus />}
+          </span>
+        </button>
+
+        {isProfileDropdownOpen && (
+          <div className="site-navbar-dropdown-menu site-navbar-admin-dropdown-menu">
+            <Link
+              to="/admin/dashboard"
+              className="site-navbar-dropdown-item"
+              onClick={handleNavClick}
+            >
+              <FaThLarge />
+              <span>{adminDashboardLabel}</span>
+            </Link>
+
+            <button
+              type="button"
+              className="site-navbar-dropdown-item is-logout"
+              onClick={handleLogout}
+            >
+              <FaSignOutAlt />
+              <span>{t('nav.logout')}</span>
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 
   return (
-    <nav className="site-navbar" ref={navbarRef}>
+    <nav className={`site-navbar site-navbar-${selectedLanguage}`} ref={navbarRef}>
       <div className="site-navbar-container">
         <Link to="/" className="site-navbar-logo" onClick={handleNavClick}>
           <img
@@ -361,7 +461,7 @@ const Navbar = () => {
             ? renderGuestMenu()
             : user?.role === 'citizen'
               ? renderCitizenMenu()
-              : renderFallbackMenu()}
+              : renderAdminMenu()}
         </div>
       </div>
     </nav>

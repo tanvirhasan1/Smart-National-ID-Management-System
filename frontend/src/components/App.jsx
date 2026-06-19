@@ -19,7 +19,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import OTPVerification from './pages/OTPVerification';
 import ForgotPassword from './pages/ForgotPassword';
-import AdminLogin from './admin/AdminLogin';
+import PrivacyPolicy from './pages/PolicyPage';
+import TermsOfService from './pages/TermsOfService';
 import NotFound from './pages/NotFound';
 
 // Citizen pages
@@ -105,14 +106,9 @@ const AppShell = () => {
             }
           />
 
-          <Route
-            path="/admin/login"
-            element={
-              <PublicRoute>
-                <AdminLogin />
-              </PublicRoute>
-            }
-          />
+
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
 
           <Route path="/liveness/mobile/:sessionId" element={<MobileLivenessPage />} />
 

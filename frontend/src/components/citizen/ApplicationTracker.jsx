@@ -1542,7 +1542,32 @@ const ApplicationTracker = () => {
           </div>
         </div>
 
-        <div className="tracker-layout grid items-start gap-6 xl:grid-cols-[300px,1fr]">
+        {applications.length === 0 ? (
+          <div className="tracker-empty-state-card mx-auto flex min-h-[360px] w-full max-w-[760px] items-center justify-center rounded-[1.75rem] border border-[#E5E7EB] bg-white px-6 py-12 text-center shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+            <div className="mx-auto max-w-[420px]">
+              <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-[#F0FDF4] text-4xl text-[#16A34A]">
+                <FaIdCard />
+              </div>
+
+              <h2 className="text-2xl font-semibold text-[#111827]">
+                {trackerCopy.noApplicationsFound}
+              </h2>
+
+              <p className="mt-3 text-sm leading-7 text-[#6B7280]">
+                {trackerCopy.noApplicationsHint}
+              </p>
+
+              <Link
+                to="/apply"
+                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#16A34A] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(22,163,74,0.20)] transition hover:bg-[#15803D]"
+              >
+                {trackerCopy.applyNow}
+                <FaArrowRight />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="tracker-layout grid items-start gap-6 xl:grid-cols-[300px,1fr]">
           <div className="tracker-sidebar rounded-[1.5rem] border border-[#E5E7EB] bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] xl:sticky xl:top-28">
             <div className="tracker-sidebar-top mb-4">
               <h2 className="text-lg font-semibold text-[#111827]">{trackerCopy.myApplications}</h2>
@@ -1966,7 +1991,8 @@ const ApplicationTracker = () => {
               </div>
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
