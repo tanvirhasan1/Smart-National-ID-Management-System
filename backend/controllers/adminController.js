@@ -16,8 +16,14 @@ const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
 const { syncUserBuckets } = require('../utils/userBuckets');
 const {
   isNationalScope,
+  getAdminDistricts,
+  combineMongoFilters,
+  buildUserDistrictFilter,
   applyAdminJurisdictionFilter,
-  canAccessApplicationByJurisdiction
+  applyAdminDistrictFilter,
+  canAccessApplicationByJurisdiction,
+  canAccessUserByDistrict,
+  canAccessCenterByDistrict
 } = require('../utils/adminScope');
 const {
   LIVE_WINDOW_MINUTES,
@@ -215,6 +221,83 @@ const buildSupportTicketAuditState = (ticket) => ({
   resolvedAt: ticket.resolvedAt || null,
   closedAt: ticket.closedAt || null
 });
+
+const getScopedCitizenIdsForAdmin = async (req) => {
+  if (isNationalScope(req.user)) {
+    return null;
+  }
+
+  const districts = getAdminDistricts(req.user);
+
+  if (districts.length === 0) {
+    return [];
+  }
+
+  const citizens = await User.find(
+    combineMongoFilters(
+      { role: 'citizen', isArchived: { $ne: true } },
+      buildUserDistrictFilter(districts)
+    )
+  )
+    .select('_id')
+    .lean();
+
+  return citizens.map((citizen) => citizen._id);
+};
+
+const buildScopedSupportTicketFilter = async (req, baseFilter = {}) => {
+  const scopedCitizenIds = await getScopedCitizenIdsForAdmin(req);
+
+  if (scopedCitizenIds === null) {
+    return { ...baseFilter };
+  }
+
+  if (scopedCitizenIds.length === 0) {
+    return combineMongoFilters(baseFilter, { _id: null });
+  }
+
+  return combineMongoFilters(baseFilter, { citizen: { $in: scopedCitizenIds } });
+};
+
+const assertSupportTicketScope = (req, ticket) => {
+  const citizen = ticket?.citizen;
+
+  if (isNationalScope(req.user)) {
+    return true;
+  }
+
+  return Boolean(citizen && canAccessUserByDistrict(req, citizen));
+};
+
+const getScopedCenterIdsForAdmin = async (req) => {
+  if (isNationalScope(req.user)) {
+    return null;
+  }
+
+  const centers = await Center.find(applyAdminDistrictFilter(req, {}, 'district'))
+    .select('_id')
+    .lean();
+
+  return centers.map((center) => center._id);
+};
+
+const buildScopedAppointmentFilter = async (req, baseFilter = {}) => {
+  const scopedCenterIds = await getScopedCenterIdsForAdmin(req);
+
+  if (scopedCenterIds === null) {
+    return { ...baseFilter };
+  }
+
+  const districtFieldFilter = applyAdminDistrictFilter(req, {}, 'centerDistrict');
+  const centerIdFilter = scopedCenterIds.length
+    ? { center: { $in: scopedCenterIds } }
+    : null;
+  const accessFilter = centerIdFilter
+    ? { $or: [districtFieldFilter, centerIdFilter] }
+    : districtFieldFilter;
+
+  return combineMongoFilters(baseFilter, accessFilter);
+};
 
 const appendApplicationStatusHistory = (
   application,
@@ -420,8 +503,20 @@ const getAdminDashboardSummary = async (req, res) => {
     const canManageUsers = canManageInternalUsers(req.user);
     const appScopeFilter = (extra = {}) =>
       applyAdminJurisdictionFilter(req, extra);
+    const appointmentBaseScopeFilter = await buildScopedAppointmentFilter(req);
+    const appointmentScopeFilter = (extra = {}) =>
+      combineMongoFilters(appointmentBaseScopeFilter, extra);
+    const centerScopeFilter = (extra = {}) =>
+      applyAdminDistrictFilter(req, extra, 'district');
+    const supportScopeFilter = await buildScopedSupportTicketFilter(req);
 
     const activeUserFilter = { isArchived: { $ne: true } };
+    const districtScopedCitizenFilter = isNationalScope(req.user)
+      ? activeUserFilter
+      : combineMongoFilters(
+          { ...activeUserFilter, role: 'citizen' },
+          buildUserDistrictFilter(getAdminDistricts(req.user))
+        );
 
     const access = {
       viewerRole,
@@ -493,30 +588,30 @@ const getAdminDashboardSummary = async (req, res) => {
         updatedAt: { $gte: startOfToday }
       })),
 
-      Appointment.countDocuments(),
-      Appointment.countDocuments({ status: 'booked' }),
-      Appointment.countDocuments({ status: 'completed' }),
-      Appointment.countDocuments({ status: 'cancelled' }),
-      Appointment.countDocuments({
+      Appointment.countDocuments(appointmentScopeFilter()),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'booked' })),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'completed' })),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'cancelled' })),
+      Appointment.countDocuments(appointmentScopeFilter({
         appointmentDate: { $gte: startOfToday }
-      }),
+      })),
 
-      SupportTicket.countDocuments(),
-      SupportTicket.countDocuments({ status: 'open' }),
-      SupportTicket.countDocuments({ status: 'in_progress' }),
-      SupportTicket.countDocuments({ status: 'resolved' }),
-      SupportTicket.countDocuments({ status: 'closed' }),
-      SupportTicket.countDocuments({ priority: 'urgent' }),
-      SupportTicket.countDocuments({ priority: 'high' }),
-      SupportTicket.countDocuments({ assignedTo: null }),
-      SupportTicket.countDocuments({ createdAt: { $gte: startOfToday } }),
+      SupportTicket.countDocuments(supportScopeFilter),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'open' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'in_progress' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'resolved' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'closed' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { priority: 'urgent' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { priority: 'high' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { assignedTo: null })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { createdAt: { $gte: startOfToday } })),
 
-      Center.countDocuments(),
-      Center.countDocuments({ isActive: true }),
-      Center.countDocuments({ isActive: false }),
+      Center.countDocuments(centerScopeFilter()),
+      Center.countDocuments(centerScopeFilter({ isActive: true })),
+      Center.countDocuments(centerScopeFilter({ isActive: false })),
 
-      User.countDocuments(activeUserFilter),
-      User.countDocuments({ ...activeUserFilter, role: 'citizen' }),
+      User.countDocuments(districtScopedCitizenFilter),
+      User.countDocuments(combineMongoFilters(districtScopedCitizenFilter, { role: 'citizen' })),
       User.countDocuments({ ...activeUserFilter, role: { $in: INTERNAL_USER_ROLES } }),
       User.countDocuments({ ...activeUserFilter, role: 'admin' }),
       User.countDocuments({ ...activeUserFilter, role: 'system_supervisor' }),
@@ -1292,14 +1387,16 @@ const getAllSupportTickets = async (req, res) => {
       ];
     }
 
+    const scopedFilter = await buildScopedSupportTicketFilter(req, filter);
+
     const [tickets, total] = await Promise.all([
-      SupportTicket.find(filter)
+      SupportTicket.find(scopedFilter)
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('citizen', 'fullName email phone role')
-        .populate('assignedTo', 'fullName email role'),
-      SupportTicket.countDocuments(filter)
+        .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+        .populate('assignedTo', 'fullName email role adminScope'),
+      SupportTicket.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1319,6 +1416,7 @@ const getAllSupportTickets = async (req, res) => {
 
 const getSupportStats = async (req, res) => {
   try {
+    const scopedFilter = await buildScopedSupportTicketFilter(req);
     const [
       totalTickets,
       openTickets,
@@ -1329,14 +1427,14 @@ const getSupportStats = async (req, res) => {
       urgentTickets,
       unassignedTickets
     ] = await Promise.all([
-      SupportTicket.countDocuments(),
-      SupportTicket.countDocuments({ status: 'open' }),
-      SupportTicket.countDocuments({ status: 'in_progress' }),
-      SupportTicket.countDocuments({ status: 'resolved' }),
-      SupportTicket.countDocuments({ status: 'closed' }),
-      SupportTicket.countDocuments({ priority: 'high' }),
-      SupportTicket.countDocuments({ priority: 'urgent' }),
-      SupportTicket.countDocuments({ assignedTo: null })
+      SupportTicket.countDocuments(scopedFilter),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'open' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'in_progress' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'resolved' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'closed' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { priority: 'high' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { priority: 'urgent' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { assignedTo: null }))
     ]);
 
     res.status(200).json({
@@ -1369,12 +1467,22 @@ const assignSupportTicket = async (req, res) => {
       });
     }
 
-    const ticket = await SupportTicket.findById(req.params.id);
+    const ticket = await SupportTicket.findById(req.params.id).populate(
+      'citizen',
+      'fullName email phone role presentAddress permanentAddress'
+    );
 
     if (!ticket) {
       return res.status(404).json({
         success: false,
         message: 'Support ticket not found'
+      });
+    }
+
+    if (!assertSupportTicketScope(req, ticket)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this support ticket district'
       });
     }
 
@@ -1406,6 +1514,13 @@ const assignSupportTicket = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Cannot assign ticket to inactive internal user'
+        });
+      }
+
+      if (!canAccessUserByDistrict(assignee, ticket.citizen)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected assignee does not have access to this ticket district'
         });
       }
     }
@@ -1440,8 +1555,8 @@ const assignSupportTicket = async (req, res) => {
     });
 
     const updatedTicket = await SupportTicket.findById(ticket._id)
-      .populate('citizen', 'fullName email phone role')
-      .populate('assignedTo', 'fullName email role');
+      .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+      .populate('assignedTo', 'fullName email role adminScope');
 
     res.status(200).json({
       success: true,
@@ -1476,12 +1591,22 @@ const updateSupportTicketStatus = async (req, res) => {
       });
     }
 
-    const ticket = await SupportTicket.findById(req.params.id);
+    const ticket = await SupportTicket.findById(req.params.id).populate(
+      'citizen',
+      'fullName email phone role presentAddress permanentAddress'
+    );
 
     if (!ticket) {
       return res.status(404).json({
         success: false,
         message: 'Support ticket not found'
+      });
+    }
+
+    if (!assertSupportTicketScope(req, ticket)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this support ticket district'
       });
     }
 
@@ -1533,8 +1658,8 @@ const updateSupportTicketStatus = async (req, res) => {
     });
 
     const updatedTicket = await SupportTicket.findById(ticket._id)
-      .populate('citizen', 'fullName email phone role')
-      .populate('assignedTo', 'fullName email role')
+      .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+      .populate('assignedTo', 'fullName email role adminScope')
       .populate('responses.responder', 'fullName email role');
 
     res.status(200).json({
@@ -1566,6 +1691,13 @@ const createCenter = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Name, district and address are required'
+      });
+    }
+
+    if (!canAccessCenterByDistrict(req, { district })) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to create a center in this district'
       });
     }
 
@@ -1648,12 +1780,14 @@ const getAllCenters = async (req, res) => {
       ];
     }
 
+    const scopedFilter = applyAdminDistrictFilter(req, filter, 'district');
+
     const [centers, total] = await Promise.all([
-      Center.find(filter)
+      Center.find(scopedFilter)
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Center.countDocuments(filter)
+      Center.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1690,6 +1824,13 @@ const getSingleCenter = async (req, res) => {
       });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     res.status(200).json({
       success: true,
       center
@@ -1721,6 +1862,13 @@ const updateCenter = async (req, res) => {
       });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     const {
       name,
       district,
@@ -1729,6 +1877,13 @@ const updateCenter = async (req, res) => {
       officeHours,
       dailyCapacity
     } = req.body;
+
+    if (district !== undefined && !canAccessCenterByDistrict(req, { district })) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to move this center to that district'
+      });
+    }
 
     if (name !== undefined) center.name = name;
     if (district !== undefined) center.district = district;
@@ -1780,6 +1935,13 @@ const toggleCenterStatus = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Center not found'
+      });
+    }
+
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
       });
     }
 

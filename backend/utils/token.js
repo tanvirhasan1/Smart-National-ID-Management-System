@@ -11,7 +11,7 @@ const buildAccessPayload = (user) => ({
 
 const generateAccessToken = (user) =>
   jwt.sign(buildAccessPayload(user), ACCESS_SECRET(), {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '15m'
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '2h'
   });
 
 const generateRefreshToken = (user) =>
@@ -21,6 +21,15 @@ const generateRefreshToken = (user) =>
 
 const verifyAccessToken = (token) => jwt.verify(token, ACCESS_SECRET());
 const verifyRefreshToken = (token) => jwt.verify(token, REFRESH_SECRET());
+
+const getRefreshCookieMaxAgeMs = () => {
+  const configuredDays = Number(process.env.REFRESH_COOKIE_DAYS || 7);
+  const safeDays = Number.isFinite(configuredDays) && configuredDays > 0
+    ? configuredDays
+    : 7;
+
+  return safeDays * 24 * 60 * 60 * 1000;
+};
 
 const getRefreshCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -32,7 +41,7 @@ const getRefreshCookieOptions = () => {
       ? process.env.COOKIE_SAME_SITE || 'none'
       : process.env.COOKIE_SAME_SITE || 'lax',
     path: '/api/auth/refresh',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: getRefreshCookieMaxAgeMs()
   };
 };
 
