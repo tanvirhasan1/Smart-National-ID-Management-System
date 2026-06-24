@@ -143,7 +143,6 @@ const correctionApplicationSchema = new mongoose.Schema(
 
 correctionApplicationSchema.index({ applicant: 1, createdAt: -1 });
 correctionApplicationSchema.index({ status: 1, createdAt: -1, _id: -1 });
-correctionApplicationSchema.index({ correctionId: 1 }, { unique: true });
 correctionApplicationSchema.index({ baseApplication: 1, createdAt: -1 });
 correctionApplicationSchema.index({ nidNumber: 1, createdAt: -1 });
 

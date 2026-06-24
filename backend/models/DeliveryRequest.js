@@ -138,7 +138,7 @@ const deliveryRequestSchema = new mongoose.Schema(
   }
 );
 
-deliveryRequestSchema.index({ application: 1 });
+
 deliveryRequestSchema.index({ citizen: 1, createdAt: -1 });
 deliveryRequestSchema.index({ applicationId: 1 });
 deliveryRequestSchema.index({ 'payment.status': 1, createdAt: -1 });

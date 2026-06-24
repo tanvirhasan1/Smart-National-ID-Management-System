@@ -52,8 +52,7 @@ const documentVerificationSessionSchema = new mongoose.Schema(
     },
     expiresAt: {
       type: Date,
-      required: true,
-      index: true
+      required: true
     },
     usedAt: {
       type: Date,
