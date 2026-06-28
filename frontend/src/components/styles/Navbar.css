@@ -11,7 +11,7 @@
 
 .site-navbar-container {
   width: min(100%, 1180px);
-  min-height: 74px;
+  min-height: 60px;
   margin: 0 auto;
   padding: 0 1.25rem;
   display: flex;
@@ -28,7 +28,7 @@
 }
 
 .site-navbar-logo-image {
-  width: clamp(168px, 15vw, 190px);
+  width: clamp(164px, 15vw, 173px);
   height: auto;
   display: block;
   object-fit: contain;
