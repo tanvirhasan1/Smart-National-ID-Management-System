@@ -273,6 +273,187 @@ const getDocumentVerificationFailurePayload = (verification = {}) => {
   return statusMap[status] || statusMap.failed;
 };
 
+const OCR_BACKEND_VERIFICATION_FIELDS = [
+  'birthRegistrationNumber',
+  'fullNameEnglish',
+  'fullNameBangla',
+  'dateOfBirth',
+  'gender',
+  'fatherName',
+  'motherName'
+];
+
+const normalizeOcrComparableText = (value) =>
+  String(value ?? '')
+    .normalize('NFKC')
+    .replace(/\u09af\u09bc/g, '\u09df')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const normalizeOcrBirthNumber = (value) =>
+  String(value ?? '').replace(/\D/g, '').trim();
+
+const normalizeOcrDate = (value) => {
+  const rawValue = String(value ?? '').trim();
+
+  if (!rawValue) {
+    return '';
+  }
+
+  const dateOnlyMatch = rawValue.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (dateOnlyMatch) {
+    return `${dateOnlyMatch[1]}-${String(dateOnlyMatch[2]).padStart(2, '0')}-${String(dateOnlyMatch[3]).padStart(2, '0')}`;
+  }
+
+  const dayFirstMatch = rawValue.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dayFirstMatch) {
+    return `${dayFirstMatch[3]}-${String(dayFirstMatch[2]).padStart(2, '0')}-${String(dayFirstMatch[1]).padStart(2, '0')}`;
+  }
+
+  const parsedDate = new Date(rawValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizeOcrComparableText(rawValue);
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
+};
+
+const normalizeOcrGender = (value) => {
+  const normalized = normalizeOcrComparableText(value);
+
+  if (['m', 'male', 'পুরুষ'].includes(normalized)) {
+    return 'male';
+  }
+
+  if (['f', 'female', 'নারী', 'মহিলা'].includes(normalized)) {
+    return 'female';
+  }
+
+  return normalized;
+};
+
+const normalizeOcrFieldValue = (field, value) => {
+  if (field === 'birthRegistrationNumber') {
+    return normalizeOcrBirthNumber(value);
+  }
+
+  if (field === 'dateOfBirth') {
+    return normalizeOcrDate(value);
+  }
+
+  if (field === 'gender') {
+    return normalizeOcrGender(value);
+  }
+
+  return normalizeOcrComparableText(value);
+};
+
+const getExtractedBirthCertificateValue = (extractedFields = {}, field) => {
+  if (field === 'birthRegistrationNumber') {
+    return (
+      extractedFields.birthRegistrationNumber ||
+      extractedFields.birthCertificateNumber ||
+      extractedFields.birth_registration_number ||
+      extractedFields.birth_certificate_number ||
+      ''
+    );
+  }
+
+  return extractedFields[field] || '';
+};
+
+const buildBackendOcrComparison = ({ field, claimedFields, extractedFields }) => {
+  const submittedRaw = claimedFields[field] ?? '';
+  const extractedRaw = getExtractedBirthCertificateValue(extractedFields, field);
+  const submitted = normalizeOcrFieldValue(field, submittedRaw);
+  const extracted = normalizeOcrFieldValue(field, extractedRaw);
+
+  if (!submitted) {
+    return {
+      field,
+      submittedValue: String(submittedRaw ?? '').trim(),
+      extractedValue: String(extractedRaw ?? '').trim(),
+      matched: true,
+      confidence: 1,
+      note: 'optional_field_not_submitted'
+    };
+  }
+
+  if (!extracted) {
+    return {
+      field,
+      submittedValue: String(submittedRaw ?? '').trim(),
+      extractedValue: '',
+      matched: false,
+      confidence: 0,
+      note: 'not_extracted'
+    };
+  }
+
+  const matched = submitted === extracted;
+
+  return {
+    field,
+    submittedValue: String(submittedRaw ?? '').trim(),
+    extractedValue: String(extractedRaw ?? '').trim(),
+    matched,
+    confidence: matched ? 1 : 0,
+    note: matched ? '' : 'field_mismatch'
+  };
+};
+
+const verifyOcrExtractedFieldsAgainstApplication = ({ claimedFields, verification = {} }) => {
+  const extractedFields = verification.extractedFields || {};
+  const fieldComparisons = OCR_BACKEND_VERIFICATION_FIELDS
+    .map((field) =>
+      buildBackendOcrComparison({
+        field,
+        claimedFields,
+        extractedFields
+      })
+    )
+    .filter((item) => item.submittedValue || item.extractedValue);
+
+  const missingFields = fieldComparisons.filter(
+    (item) => !item.matched && item.note === 'not_extracted'
+  );
+  const mismatchedFields = fieldComparisons.filter(
+    (item) => !item.matched && item.note !== 'not_extracted'
+  );
+
+  if (missingFields.length > 0) {
+    return {
+      ...verification,
+      status: 'low_confidence',
+      message: 'Required certificate fields could not be extracted. Please upload a clearer image.',
+      fieldComparisons,
+      failureReason: 'CRITICAL_FIELD_MISSING',
+      blocksSubmission: true
+    };
+  }
+
+  if (mismatchedFields.length > 0) {
+    return {
+      ...verification,
+      status: 'mismatch',
+      message: 'Birth certificate information does not match your provided information.',
+      fieldComparisons,
+      failureReason: 'FIELD_MISMATCH',
+      blocksSubmission: true
+    };
+  }
+
+  return {
+    ...verification,
+    status: 'passed',
+    message: 'Birth certificate OCR data matched submitted application information.',
+    fieldComparisons,
+    failureReason: '',
+    blocksSubmission: false
+  };
+};
+
 const buildApiError = ({ status = 400, code, message }) => ({
   isApiError: true,
   status,
@@ -535,7 +716,7 @@ const verifyBirthCertificateDocument = async (req, res) => {
       birthCertificateFile: req.file,
       claimedFields
     });
-    const verification = ocrResult.verification || {};
+    let verification = ocrResult.verification || {};
 
     if (!ocrResult.available) {
       return res.status(503).json({
@@ -548,6 +729,26 @@ const verifyBirthCertificateDocument = async (req, res) => {
         verification
       });
     }
+
+    // Correct flow: OCR service only extracts certificate data. The backend is
+    // the authority that compares OCR-extracted values with the submitted form.
+    // Do not reject here just because the OCR service marked a field as
+    // low_confidence/mismatch; run the backend comparison first.
+    if (verification.status === 'failed' && !verification.extractedFields) {
+      const failurePayload = getDocumentVerificationFailurePayload(verification);
+
+      return res.status(422).json({
+        success: false,
+        code: failurePayload.code,
+        message: verification.message || failurePayload.message,
+        verification
+      });
+    }
+
+    verification = verifyOcrExtractedFieldsAgainstApplication({
+      claimedFields,
+      verification
+    });
 
     if (verification.status !== 'passed' || verification.blocksSubmission) {
       const failurePayload = getDocumentVerificationFailurePayload(verification);
