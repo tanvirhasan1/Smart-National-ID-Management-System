@@ -1,0 +1,1918 @@
+.application-form-page-wrapper.application-form-page {
+  min-height: calc(100vh - 140px);
+  background-color: #F9FAFB;
+  padding: 2rem 1rem;
+}
+
+.application-form-page-wrapper .form-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.application-form-page-wrapper .form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.application-form-page-wrapper .form-header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 0.5rem;
+}
+
+.application-form-page-wrapper .form-header p {
+  color: #6B7280;
+}
+
+/* Progress Steps */
+.application-form-page-wrapper .progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+  padding: 0 2rem;
+}
+
+.application-form-page-wrapper .progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.application-form-page-wrapper .step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #E5E7EB;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.application-form-page-wrapper .progress-step.active .step-circle {
+  background-color: #16A34A;
+  color: #ffffff;
+}
+
+.application-form-page-wrapper .progress-step.completed .step-circle {
+  background-color: #16A34A;
+  color: #ffffff;
+}
+
+.application-form-page-wrapper .progress-step span {
+  font-size: 0.75rem;
+  color: #6B7280;
+  white-space: nowrap;
+}
+
+.application-form-page-wrapper .progress-step.active span {
+  color: #16A34A;
+  font-weight: 600;
+}
+
+.application-form-page-wrapper .step-line {
+  flex: 1;
+  height: 2px;
+  background-color: #E5E7EB;
+  margin: 0 0.5rem;
+  margin-bottom: 1.5rem;
+  min-width: 50px;
+  max-width: 100px;
+}
+
+/* Application Form */
+.application-form-page-wrapper .application-form {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.application-form-page-wrapper .step-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 0.5rem;
+}
+
+.application-form-page-wrapper .step-title svg {
+  color: #16A34A;
+}
+
+.application-form-page-wrapper .step-description {
+  color: #6B7280;
+  margin-bottom: 2rem;
+}
+
+/* Application Types */
+.application-form-page-wrapper .application-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 280px));
+  justify-content: center;
+  justify-items: stretch;
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto 2rem;
+  align-items: stretch;
+}
+
+.application-form-page-wrapper .type-card {
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.application-form-page-wrapper .type-card input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.application-form-page-wrapper .type-content {
+  border: 2px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  /* Same height for New NID, Correction and Reissue cards */
+  height: 100%;
+  min-height: 180px;
+
+  /* Centering the icon/text makes the cards look balanced */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.application-form-page-wrapper .type-card.selected .type-content,
+.application-form-page-wrapper .type-card:hover .type-content {
+  border-color: #16A34A;
+  background-color: #F0FDF4;
+}
+
+.application-form-page-wrapper .type-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 1.5rem;
+}
+
+.application-form-page-wrapper .type-icon.new-icon {
+  background-color: #DBEAFE;
+  color: #2563EB;
+}
+
+.application-form-page-wrapper .type-icon.correction-icon {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.application-form-page-wrapper .type-icon.renewal-icon {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.application-form-page-wrapper .type-content h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 0.25rem;
+}
+
+.application-form-page-wrapper .type-content p {
+  font-size: 0.875rem;
+  color: #6B7280;
+  margin: 0;
+}
+
+.application-form-page-wrapper .locked-type {
+  cursor: not-allowed;
+}
+
+.application-form-page-wrapper .locked-type .type-content {
+  background-color: #F9FAFB;
+  border-color: #E5E7EB;
+  opacity: 0.78;
+}
+
+.application-form-page-wrapper .type-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  margin-bottom: 0.65rem;
+  background: #F3F4F6;
+  color: #6B7280;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.application-form-page-wrapper .application-type-lock-note,
+.application-form-page-wrapper .application-eligibility-note {
+  margin: -0.5rem 0 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #D1D5DB;
+  background: #F9FAFB;
+  padding: 0.9rem 1rem;
+  color: #374151;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.application-form-page-wrapper .application-eligibility-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.application-form-page-wrapper .application-eligibility-note strong {
+  color: #1F2937;
+  font-size: 0.92rem;
+}
+
+.application-form-page-wrapper .application-eligibility-note.blocked {
+  border-color: #FECACA;
+  background: #FEF2F2;
+  color: #7F1D1D;
+}
+
+.application-form-page-wrapper .application-eligibility-note.blocked strong {
+  color: #991B1B;
+}
+
+.application-form-page-wrapper .application-eligibility-note.pending {
+  border-color: #FDE68A;
+  background: #FFFBEB;
+  color: #78350F;
+}
+
+.application-form-page-wrapper .application-eligibility-note.pending strong {
+  color: #92400E;
+}
+
+.application-form-page-wrapper .application-eligibility-note.resubmission {
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+  color: #1E3A8A;
+}
+
+.application-form-page-wrapper .application-eligibility-note.resubmission strong {
+  color: #1D4ED8;
+}
+
+.application-form-page-wrapper .application-eligibility-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.application-form-page-wrapper .application-eligibility-meta span {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  padding: 0.25rem 0.55rem;
+  color: #1E40AF;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* User Info Card */
+.application-form-page-wrapper .user-info-card {
+  background-color: #F9FAFB;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.application-form-page-wrapper .user-info-card h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.application-form-page-wrapper .info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.application-form-page-wrapper .info-item label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6B7280;
+  margin-bottom: 0.25rem;
+}
+
+.application-form-page-wrapper .info-item p {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1F2937;
+  margin: 0;
+}
+
+/* Info Sections */
+.application-form-page-wrapper .info-section {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.application-form-page-wrapper .info-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.application-form-page-wrapper .info-section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+}
+
+/* Upload Section */
+.application-form-page-wrapper .upload-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.application-form-page-wrapper .upload-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.application-form-page-wrapper .upload-card:first-child {
+  grid-column: span 2;
+}
+
+.application-form-page-wrapper .upload-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.application-form-page-wrapper .upload-icon {
+  font-size: 1.5rem;
+  color: #16A34A;
+}
+
+.application-form-page-wrapper .upload-header h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 0.125rem;
+}
+
+.application-form-page-wrapper .upload-header p {
+  font-size: 0.8rem;
+  color: #6B7280;
+  margin: 0;
+}
+
+.application-form-page-wrapper .upload-area {
+  border: 2px dashed #D1D5DB;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.application-form-page-wrapper .upload-area:hover {
+  border-color: #16A34A;
+  background-color: #F0FDF4;
+}
+
+.application-form-page-wrapper .upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6B7280;
+}
+
+.application-form-page-wrapper .upload-placeholder svg {
+  font-size: 2rem;
+  color: #9CA3AF;
+}
+
+.application-form-page-wrapper .upload-placeholder small {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+}
+
+.application-form-page-wrapper .preview-container {
+  position: relative;
+}
+
+.application-form-page-wrapper .photo-preview {
+  width: 150px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.application-form-page-wrapper .signature-preview {
+  max-width: 200px;
+  max-height: 80px;
+  object-fit: contain;
+}
+
+.application-form-page-wrapper .change-btn {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #16A34A;
+  color: #ffffff;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.application-form-page-wrapper .file-uploaded {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #16A34A;
+}
+
+.application-form-page-wrapper .success-icon {
+  font-size: 1.25rem;
+}
+
+.application-form-page-wrapper .remove-btn {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.application-form-page-wrapper .upload-guidelines {
+  background-color: #FEF3C7;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.application-form-page-wrapper .upload-guidelines h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #92400E;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.application-form-page-wrapper .upload-guidelines ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #78350F;
+  font-size: 0.875rem;
+}
+
+.application-form-page-wrapper .upload-guidelines li {
+  margin-bottom: 0.25rem;
+  list-style-type: disc;
+}
+
+/* Review Section */
+.application-form-page-wrapper .review-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.application-form-page-wrapper .review-card {
+  background-color: #F9FAFB;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.application-form-page-wrapper .review-card h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+}
+
+.application-form-page-wrapper .review-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #16A34A;
+  margin: 0;
+}
+
+.application-form-page-wrapper .review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.application-form-page-wrapper .review-item label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6B7280;
+  margin-bottom: 0.125rem;
+}
+
+.application-form-page-wrapper .review-item p {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1F2937;
+  margin: 0;
+}
+
+.application-form-page-wrapper .documents-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.application-form-page-wrapper .doc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.application-form-page-wrapper .doc-item span {
+  font-size: 0.875rem;
+  color: #4B5563;
+}
+
+.application-form-page-wrapper .doc-thumb {
+  width: 80px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 0.375rem;
+  border: 1px solid #E5E7EB;
+}
+
+.application-form-page-wrapper .signature-thumb {
+  width: 120px;
+  height: 50px;
+}
+
+.application-form-page-wrapper .doc-missing {
+  color: #DC2626 !important;
+  font-size: 0.8rem !important;
+}
+
+.application-form-page-wrapper .doc-optional {
+  color: #9CA3AF !important;
+  font-size: 0.8rem !important;
+}
+
+.application-form-page-wrapper .doc-uploaded {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #16A34A !important;
+  font-size: 0.8rem !important;
+}
+
+/* Declaration */
+.application-form-page-wrapper .declaration {
+  background-color: #FEF3C7;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.application-form-page-wrapper .declaration .checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.application-form-page-wrapper .declaration input[type="checkbox"] {
+  margin-top: 0.25rem;
+  width: 18px;
+  height: 18px;
+  accent-color: #16A34A;
+}
+
+.application-form-page-wrapper .declaration span {
+  font-size: 0.875rem;
+  color: #78350F;
+  line-height: 1.5;
+}
+
+.application-form-page-wrapper .submit-progress-panel {
+  border: 1px solid #DCE8E1;
+  border-radius: 10px;
+  background: #F8FBF9;
+  padding: 0.85rem 0.95rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.application-form-page-wrapper .submit-progress-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.application-form-page-wrapper .submit-progress-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.application-form-page-wrapper .submit-thinking-indicator {
+  width: 32px;
+  height: 24px;
+  border-radius: 999px;
+  background: #ECFDF5;
+  border: 1px solid #CDEBDD;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  flex: 0 0 auto;
+  animation: applicationSubmitPulse 1.8s ease-in-out infinite;
+}
+
+.application-form-page-wrapper .submit-thinking-indicator span,
+.application-form-page-wrapper .submit-button-thinking span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #15803D;
+  animation: applicationSubmitDot 1.2s ease-in-out infinite;
+}
+
+.application-form-page-wrapper .submit-thinking-indicator span:nth-child(2),
+.application-form-page-wrapper .submit-button-thinking span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.application-form-page-wrapper .submit-thinking-indicator span:nth-child(3),
+.application-form-page-wrapper .submit-button-thinking span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.application-form-page-wrapper .submit-progress-label {
+  margin: 0 0 0.18rem;
+  color: #102A1C;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.application-form-page-wrapper .submit-progress-subtext {
+  margin: 0;
+  color: #52615A;
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.application-form-page-wrapper .submit-button-thinking {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  width: 24px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+@keyframes applicationSubmitDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes applicationSubmitPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(22, 163, 74, 0);
+  }
+}
+
+/* Form Actions */
+.application-form-page-wrapper .form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 2rem;
+  border-top: 1px solid #E5E7EB; /* Single clean divider above the buttons */
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .form-actions .btn {
+  min-width: 150px;
+}
+
+.application-form-page-wrapper .form-actions .btn.submit-disabled-by-active-application:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.18);
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .locked-input {
+  background-color: rgb(249, 250, 251);
+  cursor: not-allowed;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.biometric-qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(17, 24, 39, 0.72);
+}
+
+.biometric-qr-panel {
+  width: min(100%, 460px);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1.25rem;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.biometric-qr-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.biometric-qr-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  color: #111827;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.biometric-qr-header h2 svg {
+  color: #16A34A;
+}
+
+.biometric-qr-header p {
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.biometric-qr-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  color: #374151;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.biometric-qr-code {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #F9FAFB;
+}
+
+.biometric-qr-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  color: #166534;
+  font-weight: 600;
+  text-align: center;
+}
+
+.biometric-qr-error {
+  margin-top: 1rem;
+  border-radius: 8px;
+  background: #FEF2F2;
+  color: #B91C1C;
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+}
+
+.biometric-method-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(17, 24, 39, 0.72);
+}
+
+.biometric-method-panel {
+  width: min(100%, 520px);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1.25rem;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.biometric-method-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.biometric-method-header h2 {
+  margin: 0 0 0.35rem;
+  color: #111827;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.biometric-method-header p {
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.biometric-method-warning {
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: #FEF2F2;
+  color: #B91C1C;
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.biometric-method-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.biometric-method-button {
+  min-height: 92px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    color 0.2s ease, transform 0.2s ease;
+}
+
+.biometric-method-button:hover {
+  border-color: #16A34A;
+  color: #166534;
+  background: #F0FDF4;
+  transform: translateY(-1px);
+}
+
+.biometric-method-button svg {
+  font-size: 1.6rem;
+}
+
+.biometric-method-button.primary {
+  border-color: #16A34A;
+  background: #F0FDF4;
+  color: #166534;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .application-form-page-wrapper .application-types {
+    grid-template-columns: 1fr;
+  }
+
+  .application-form-page-wrapper .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .application-form-page-wrapper .upload-section {
+    grid-template-columns: 1fr;
+  }
+
+  .application-form-page-wrapper .upload-card:first-child {
+    grid-column: span 1;
+  }
+
+  .application-form-page-wrapper .review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-form-page-wrapper .progress-steps {
+    padding: 0;
+  }
+
+  .application-form-page-wrapper .progress-step span {
+    display: none;
+  }
+
+  .application-form-page-wrapper .step-line {
+    min-width: 30px;
+  }
+}
+
+@media (max-width: 576px) {
+  .biometric-method-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .biometric-method-button {
+    min-height: 76px;
+  }
+
+  .application-form-page-wrapper .application-form {
+    padding: 1.5rem;
+  }
+
+  .application-form-page-wrapper .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-form-page-wrapper .application-type-lock-note,
+  .application-form-page-wrapper .application-eligibility-note {
+    margin-bottom: 1.15rem;
+    padding: 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .application-form-page-wrapper .application-eligibility-meta {
+    gap: 0.3rem;
+  }
+
+  .application-form-page-wrapper .application-eligibility-meta span {
+    width: 100%;
+    border-radius: 0.55rem;
+  }
+
+  .application-form-page-wrapper .submit-progress-panel {
+    padding: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .application-form-page-wrapper .submit-progress-main {
+    gap: 0.65rem;
+  }
+
+  .application-form-page-wrapper .submit-thinking-indicator {
+    width: 28px;
+    height: 22px;
+  }
+
+  .application-form-page-wrapper .submit-progress-label {
+    font-size: 0.88rem;
+  }
+
+  .application-form-page-wrapper .submit-progress-subtext {
+    font-size: 0.8rem;
+  }
+
+  .application-form-page-wrapper .form-actions {
+    flex-direction: column;
+  }
+
+  .application-form-page-wrapper .form-actions .btn {
+    width: 100%;
+  }
+}
+
+.application-form-page-wrapper .form-step > .form-row:last-of-type {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.application-form-page-wrapper .form-actions::before,
+.application-form-page-wrapper .form-actions::after {
+  display: none;
+  content: none;
+}
+.application-form-page-wrapper .applicant-info-section {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.application-form-page-wrapper .applicant-info-section + .form-actions {
+  padding-top: 2rem;
+  border-top: 1px solid #E5E7EB;
+  box-shadow: none;
+}
+
+.correction-prefill-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.09), rgba(59, 130, 246, 0.07));
+  color: #14532d;
+}
+
+.correction-prefill-note strong {
+  font-size: 0.98rem;
+  color: #166534;
+}
+
+.correction-prefill-note span,
+.correction-prefill-note small {
+  color: #374151;
+}
+
+.correction-photo-change-toggle {
+  margin: 0 0 1rem;
+  border: 1px solid #D1FAE5;
+  border-radius: 1rem;
+  background: #F0FDF4;
+  padding: 1rem 1.15rem;
+}
+
+.correction-photo-change-toggle strong,
+.correction-photo-change-toggle small {
+  display: block;
+}
+
+.correction-photo-change-toggle strong {
+  color: #14532d;
+  font-size: 0.95rem;
+}
+
+.correction-photo-change-toggle small {
+  color: #4B5563;
+  line-height: 1.5;
+  margin-top: 0.2rem;
+}
+
+.correction-proof-list {
+  display: grid;
+  width: 100%;
+  gap: 0.6rem;
+}
+
+.correction-proof-list .file-uploaded {
+  justify-content: space-between;
+}
+
+.correction-proof-add-more {
+  display: block;
+  color: #16a34a;
+  font-weight: 600;
+  text-align: center;
+}
+
+.application-form-page-wrapper .type-lock-badge {
+  gap: 0.35rem;
+}
+
+.application-form-page-wrapper .locked-type:hover .type-content {
+  background-color: #F9FAFB;
+  border-color: #E5E7EB;
+}
+.application-form-page-wrapper .form-row {
+  align-items: start;
+}
+
+.application-form-page-wrapper .form-group {
+  margin-bottom: 1rem;
+}
+
+.application-form-page-wrapper .form-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.application-form-page-wrapper .form-label .form-label-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.application-form-page-wrapper .form-label .form-label-icon {
+  flex-shrink: 0;
+  color: #16A34A;
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.application-form-page-wrapper .form-label .form-label-text {
+  display: inline;
+}
+
+.application-form-page-wrapper .input-field,
+.application-form-page-wrapper .application-form-input,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-input,
+.application-form-page-wrapper .form-select,
+.application-form-page-wrapper .form-textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #D5DCE7;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  color: #0F172A;
+  padding: 0.82rem 1rem;
+  font-size: 0.94rem;
+  font-weight: 500;
+  line-height: 1.35;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.application-form-page-wrapper textarea.input-field,
+.application-form-page-wrapper textarea.application-form-input,
+.application-form-page-wrapper textarea.form-input,
+.application-form-page-wrapper textarea.form-textarea {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.application-form-page-wrapper select.input-field,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2364758B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1.1rem;
+  padding-right: 2.75rem;
+}
+
+.application-form-page-wrapper .input-field:focus,
+.application-form-page-wrapper .application-form-input:focus,
+.application-form-page-wrapper .application-form-select:focus,
+.application-form-page-wrapper .form-input:focus,
+.application-form-page-wrapper .form-select:focus,
+.application-form-page-wrapper .form-textarea:focus {
+  border-color: #16A34A;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.11);
+}
+
+.application-form-page-wrapper .input-field.error,
+.application-form-page-wrapper .application-form-input.error,
+.application-form-page-wrapper .application-form-select.error,
+.application-form-page-wrapper .form-input.error,
+.application-form-page-wrapper .form-select.error,
+.application-form-page-wrapper .form-textarea.error {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08);
+}
+
+.application-form-page-wrapper .locked-input,
+.application-form-page-wrapper .input-field[readonly],
+.application-form-page-wrapper .application-form-input[readonly],
+.application-form-page-wrapper .form-input[readonly],
+.application-form-page-wrapper select[aria-disabled='true'] {
+  background-color: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #334155;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper select.locked-input,
+.application-form-page-wrapper select[aria-disabled='true'] {
+  pointer-events: none;
+}
+
+.application-form-page-wrapper .form-error {
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #DC2626;
+}
+
+@media (max-width: 768px) {
+  .application-form-page-wrapper .input-field,
+  .application-form-page-wrapper .application-form-input,
+  .application-form-page-wrapper .application-form-select,
+  .application-form-page-wrapper .form-input,
+  .application-form-page-wrapper .form-select,
+  .application-form-page-wrapper .form-textarea {
+    min-height: 46px;
+    font-size: 0.9rem;
+  }
+}
+
+.application-form-page-wrapper .locked-input,
+.application-form-page-wrapper .input-field[readonly],
+.application-form-page-wrapper .application-form-input[readonly],
+.application-form-page-wrapper .form-input[readonly],
+.application-form-page-wrapper select[aria-disabled='true'] {
+  background-color: #F8FAFC;
+  border-color: #D8E0EA;
+  color: #334155;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .locked-input:focus,
+.application-form-page-wrapper .application-form-input[readonly]:focus,
+.application-form-page-wrapper .form-input[readonly]:focus,
+.application-form-page-wrapper select[aria-disabled='true']:focus {
+  border-color: #CBD5E1;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+}
+
+@media (max-width: 640px) {}
+
+/* --------------------------------------------------------------------------
+   Users-page aligned polish for Apply NID
+   Keeps the citizen form workflow, but makes typography, spacing, inputs,
+   badges and cards consistent with the Admin Users page design rhythm.
+---------------------------------------------------------------------------- */
+.application-form-page-wrapper.application-form-page {
+  min-height: calc(100vh - 140px);
+  background: #f4f6f8;
+  padding: 1.45rem 1rem 2.25rem;
+  color: #172033;
+}
+
+.application-form-page-wrapper .form-container {
+  max-width: 820px;
+}
+
+.application-form-page-wrapper .form-header {
+  margin-bottom: 1rem;
+}
+
+.application-form-page-wrapper .form-header h1,
+.application-form-page-wrapper .application-form-title {
+  margin: 0 0 0.32rem;
+  color: #172033;
+  font-size: 1.55rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.application-form-page-wrapper .form-header p,
+.application-form-page-wrapper .application-form-subtitle {
+  margin: 0;
+  color: #687386 !important;
+  font-size: 0.86rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.application-form-page-wrapper .progress-steps,
+.application-form-page-wrapper .application-progress-steps {
+  margin: 1.15rem auto 1.55rem !important;
+  padding: 0 0.3rem !important;
+  max-width: 560px;
+}
+
+.application-form-page-wrapper .progress-step {
+  gap: 0.25rem;
+}
+
+.application-form-page-wrapper .step-circle {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 0.22rem;
+  border: 1px solid transparent;
+  background: #e9edf3;
+  color: #7a8597;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .progress-step.active .step-circle,
+.application-form-page-wrapper .progress-step.completed .step-circle {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+  box-shadow: 0 5px 14px rgba(22, 163, 74, 0.16);
+}
+
+.application-form-page-wrapper .progress-step span {
+  color: #687386;
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.application-form-page-wrapper .progress-step.active span {
+  color: #167647;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .step-line {
+  min-width: 42px;
+  max-width: 78px;
+  height: 1px;
+  margin: 0 0.55rem 1.28rem;
+  background: #dfe4eb;
+}
+
+.application-form-page-wrapper .application-form {
+  padding: 1.15rem 1.25rem !important;
+  border: 1px solid #dfe4eb;
+  border-radius: 10px !important;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05) !important;
+}
+
+.application-form-page-wrapper .form-step,
+.application-form-page-wrapper .application-step-panel {
+  display: block;
+}
+
+.application-form-page-wrapper .step-title {
+  margin: 0 0 0.35rem;
+  gap: 0.48rem;
+  color: #172033;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.application-form-page-wrapper .step-title svg {
+  width: 0.95rem;
+  color: #167647;
+}
+
+.application-form-page-wrapper .step-description {
+  margin: 0 0 1.05rem;
+  color: #687386;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.application-form-page-wrapper .application-types {
+  max-width: 520px;
+  gap: 0.85rem;
+  margin: 0 auto 1.15rem !important;
+  grid-template-columns: repeat(2, minmax(190px, 1fr));
+}
+
+.application-form-page-wrapper .type-content {
+  min-height: 128px;
+  padding: 0.85rem 0.8rem;
+  border: 1px solid #dfe4eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.application-form-page-wrapper .type-card.selected .type-content,
+.application-form-page-wrapper .type-card:hover .type-content {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
+}
+
+.application-form-page-wrapper .locked-type .type-content,
+.application-form-page-wrapper .locked-type:hover .type-content {
+  border-color: #dfe4eb;
+  background: #f8fafc;
+  opacity: 0.86;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .type-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 0.62rem;
+  font-size: 1.05rem;
+}
+
+.application-form-page-wrapper .type-content h4 {
+  margin-bottom: 0.18rem;
+  color: #172033;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.application-form-page-wrapper .type-content p {
+  color: #687386;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.application-form-page-wrapper .type-lock-badge {
+  gap: 0.28rem;
+  padding: 0.18rem 0.45rem;
+  margin-bottom: 0.42rem;
+  background: #eef2f7;
+  color: #687386;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.application-form-page-wrapper .application-type-lock-note,
+.application-form-page-wrapper .application-eligibility-note,
+.application-form-page-wrapper .correction-prefill-note {
+  margin: 0 0 1rem;
+  padding: 0.72rem 0.82rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .application-eligibility-note strong,
+.application-form-page-wrapper .correction-prefill-note strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .application-eligibility-meta span {
+  padding: 0.22rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.application-form-page-wrapper .info-section {
+  margin-bottom: 0.8rem;
+  padding-bottom: 0;
+}
+
+.application-form-page-wrapper .info-section h3 {
+  margin: 0 0 0.72rem;
+  color: #172033;
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.application-form-page-wrapper .form-row {
+  gap: 0.72rem !important;
+  align-items: start;
+}
+
+.application-form-page-wrapper .form-group {
+  margin-bottom: 0.72rem;
+}
+
+.application-form-page-wrapper .form-label {
+  margin-bottom: 0.32rem;
+  color: #556276;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.application-form-page-wrapper .form-label .form-label-content {
+  gap: 0.34rem;
+}
+
+.application-form-page-wrapper .form-label .form-label-icon {
+  width: 0.8rem;
+  color: #167647;
+  font-size: 0.78rem;
+}
+
+.application-form-page-wrapper .input-field,
+.application-form-page-wrapper .application-form-input,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-input,
+.application-form-page-wrapper .form-select,
+.application-form-page-wrapper .form-textarea,
+.application-form-page-wrapper .locked-input {
+  min-height: 40px;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid #ced5df;
+  border-radius: 6px;
+  color: #172033;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.35;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper select.input-field,
+.application-form-page-wrapper .application-form-select,
+.application-form-page-wrapper .form-select {
+  background-position: right 0.68rem center;
+  background-size: 0.95rem;
+  padding-right: 2.15rem;
+}
+
+.application-form-page-wrapper textarea.input-field,
+.application-form-page-wrapper textarea.application-form-input,
+.application-form-page-wrapper textarea.form-input,
+.application-form-page-wrapper textarea.form-textarea {
+  min-height: 92px;
+}
+
+.application-form-page-wrapper .input-field::placeholder,
+.application-form-page-wrapper .application-form-input::placeholder,
+.application-form-page-wrapper .form-input::placeholder,
+.application-form-page-wrapper .form-textarea::placeholder {
+  color: #9aa4b2;
+  font-weight: 400;
+}
+
+.application-form-page-wrapper .input-field:focus,
+.application-form-page-wrapper .application-form-input:focus,
+.application-form-page-wrapper .application-form-select:focus,
+.application-form-page-wrapper .form-input:focus,
+.application-form-page-wrapper .form-select:focus,
+.application-form-page-wrapper .form-textarea:focus {
+  border-color: #167647;
+  box-shadow: 0 0 0 3px rgba(22, 118, 71, 0.1);
+}
+
+.application-form-page-wrapper .locked-input,
+.application-form-page-wrapper .input-field[readonly],
+.application-form-page-wrapper .application-form-input[readonly],
+.application-form-page-wrapper .form-input[readonly],
+.application-form-page-wrapper select[aria-disabled='true'] {
+  background: #f5f7fa;
+  border-color: #dfe4eb;
+  color: #334155;
+  cursor: not-allowed;
+}
+
+.application-form-page-wrapper .form-error {
+  margin-top: 0.28rem;
+  color: #b42318;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.application-form-page-wrapper .user-info-card,
+.application-form-page-wrapper .review-card,
+.application-form-page-wrapper .upload-card {
+  padding: 0.9rem;
+  border: 1px solid #dfe4eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .user-info-card {
+  margin-top: 1rem;
+}
+
+.application-form-page-wrapper .user-info-card h4,
+.application-form-page-wrapper .upload-header h4 {
+  color: #172033;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .upload-section {
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.application-form-page-wrapper .upload-header {
+  gap: 0.65rem;
+  margin-bottom: 0.8rem;
+}
+
+.application-form-page-wrapper .upload-icon,
+.application-form-page-wrapper .upload-header svg {
+  color: #167647;
+}
+
+.application-form-page-wrapper .upload-header p {
+  color: #687386;
+  font-size: 0.76rem;
+}
+
+.application-form-page-wrapper .upload-area {
+  min-height: 122px;
+  padding: 1.2rem;
+  border-width: 1px;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.application-form-page-wrapper .upload-area:hover {
+  border-color: #167647;
+  background: #f0fdf4;
+}
+
+.application-form-page-wrapper .upload-placeholder {
+  gap: 0.4rem;
+  color: #687386;
+  font-size: 0.84rem;
+}
+
+.application-form-page-wrapper .upload-placeholder svg {
+  color: #8a95a5;
+  font-size: 1.45rem;
+}
+
+.application-form-page-wrapper .upload-placeholder small {
+  font-size: 0.7rem;
+}
+
+.application-form-page-wrapper .upload-guidelines,
+.application-form-page-wrapper .declaration,
+.application-form-page-wrapper .correction-photo-change-toggle,
+.application-form-page-wrapper .submit-progress-panel {
+  padding: 0.78rem 0.86rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .upload-guidelines {
+  margin-bottom: 1rem;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+}
+
+.application-form-page-wrapper .upload-guidelines h4,
+.application-form-page-wrapper .declaration h4 {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .upload-guidelines ul,
+.application-form-page-wrapper .upload-guidelines li,
+.application-form-page-wrapper .declaration span {
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.application-form-page-wrapper .review-section {
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.application-form-page-wrapper .review-card h4 {
+  margin-bottom: 0.55rem;
+  color: #556276;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.application-form-page-wrapper .review-value {
+  color: #167647;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .review-item label,
+.application-form-page-wrapper .info-item label {
+  color: #687386;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.application-form-page-wrapper .review-item p,
+.application-form-page-wrapper .info-item p {
+  color: #172033;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.application-form-page-wrapper .doc-thumb {
+  border-radius: 6px;
+}
+
+.application-form-page-wrapper .submit-progress-panel {
+  border-color: #dfe4eb;
+  background: #f8fafc;
+}
+
+.application-form-page-wrapper .submit-progress-label {
+  color: #172033;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .submit-progress-subtext {
+  color: #687386;
+  font-size: 0.78rem;
+}
+
+.application-form-page-wrapper .form-actions {
+  margin-top: 0.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dfe4eb;
+  gap: 0.6rem;
+}
+
+.application-form-page-wrapper .form-actions .btn,
+.application-form-page-wrapper .btn {
+  min-height: 38px;
+  min-width: 112px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.application-form-page-wrapper .btn-primary {
+  background: #167647;
+  color: #fff;
+  box-shadow: none;
+}
+
+.application-form-page-wrapper .btn-primary:hover:not(:disabled) {
+  background: #105d37;
+}
+
+.application-form-page-wrapper .btn-outline,
+.application-form-page-wrapper .btn-secondary {
+  border: 1px solid #ced5df;
+  background: #fff;
+  color: #334155;
+}
+
+.application-form-page-wrapper .btn-outline:hover:not(:disabled),
+.application-form-page-wrapper .btn-secondary:hover:not(:disabled) {
+  background: #f5f7fa;
+}
+
+.application-form-page-wrapper .photo-preview {
+  width: 118px;
+  height: 144px;
+  border-radius: 7px;
+}
+
+.application-form-page-wrapper .signature-preview {
+  max-width: 170px;
+  max-height: 62px;
+}
+
+.application-form-page-wrapper .change-btn,
+.application-form-page-wrapper .remove-btn {
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .file-uploaded,
+.application-form-page-wrapper .doc-uploaded,
+.application-form-page-wrapper .correction-proof-add-more {
+  color: #167647 !important;
+  font-size: 0.78rem !important;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .biometric-method-panel,
+.application-form-page-wrapper .biometric-qr-panel {
+  border: 1px solid #dfe4eb;
+  border-radius: 10px;
+  box-shadow: 0 20px 70px rgba(15, 23, 42, 0.24);
+}
+
+.application-form-page-wrapper .biometric-method-header h2,
+.application-form-page-wrapper .biometric-qr-header h2 {
+  color: #172033;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.application-form-page-wrapper .biometric-method-header p,
+.application-form-page-wrapper .biometric-qr-header p {
+  color: #687386;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 768px) {
+  .application-form-page-wrapper.application-form-page {
+    padding: 1.1rem 0.75rem 1.8rem;
+  }
+
+  .application-form-page-wrapper .form-header h1,
+  .application-form-page-wrapper .application-form-title {
+    font-size: 1.35rem !important;
+  }
+
+  .application-form-page-wrapper .application-types {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+
+  .application-form-page-wrapper .type-content {
+    min-height: 112px;
+  }
+
+  .application-form-page-wrapper .progress-steps,
+  .application-form-page-wrapper .application-progress-steps {
+    margin-bottom: 1.2rem !important;
+  }
+
+  .application-form-page-wrapper .step-line {
+    min-width: 22px;
+    margin-left: 0.35rem;
+    margin-right: 0.35rem;
+  }
+
+  .application-form-page-wrapper .application-form {
+    padding: 1rem !important;
+  }
+
+  .application-form-page-wrapper .input-field,
+  .application-form-page-wrapper .application-form-input,
+  .application-form-page-wrapper .application-form-select,
+  .application-form-page-wrapper .form-input,
+  .application-form-page-wrapper .form-select,
+  .application-form-page-wrapper .form-textarea,
+  .application-form-page-wrapper .locked-input {
+    min-height: 40px;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .application-form-page-wrapper .form-actions {
+    flex-direction: column;
+  }
+
+  .application-form-page-wrapper .form-actions .btn,
+  .application-form-page-wrapper .btn {
+    width: 100%;
+  }
+
+  .application-form-page-wrapper .progress-step span {
+    display: none;
+  }
+}

@@ -1,0 +1,32 @@
+.admin-login-page-wrapper .admin-login-card-panel {
+  backdrop-filter: blur(2px);
+}
+
+.admin-login-page-wrapper .admin-login-password-toggle {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.admin-login-page-wrapper .admin-login-submit-button:focus-visible,
+.admin-login-page-wrapper .admin-login-password-toggle:focus-visible,
+.admin-login-page-wrapper .admin-login-back-link:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .admin-login-page-wrapper .admin-login-card-panel {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .admin-login-page-wrapper .admin-login-title-text {
+    font-size: 1.5rem;
+  }
+
+  .admin-login-page-wrapper .admin-login-subtitle-text {
+    font-size: 0.9rem;
+  }
+}

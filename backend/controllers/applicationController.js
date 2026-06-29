@@ -29,6 +29,18 @@ const {
   isNewNidBlockingApplication
 } = require('../utils/applicationLifecycle');
 
+const BIOMETRIC_FAILURE_MESSAGE =
+  'Face verification failed. Please upload a recent passport-size photo and try again.';
+const APPLICATION_ERROR_CODES = {
+  BIOMETRIC_SESSION_REQUIRED: 'APPLICATION_BIOMETRIC_SESSION_REQUIRED',
+  BIOMETRIC_SESSION_NOT_FOUND: 'APPLICATION_BIOMETRIC_SESSION_NOT_FOUND',
+  BIOMETRIC_SESSION_NOT_PASSED: 'APPLICATION_BIOMETRIC_SESSION_NOT_PASSED',
+  BIOMETRIC_SESSION_EXPIRED: 'APPLICATION_BIOMETRIC_SESSION_EXPIRED',
+  BIOMETRIC_SESSION_ALREADY_USED: 'APPLICATION_BIOMETRIC_SESSION_ALREADY_USED',
+  BIOMETRIC_OWNER_MISMATCH: 'APPLICATION_BIOMETRIC_OWNER_MISMATCH',
+  VALIDATION_FAILED: 'APPLICATION_VALIDATION_FAILED'
+};
+
 const generateApplicationId = () => {
   const shortId = randomUUID().split('-')[0].toUpperCase();
   return `APP-${Date.now()}-${shortId}`;
@@ -800,8 +812,16 @@ const createApplication = async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: Boolean(req.body?.biometricSessionId),
+        applicationValidationErrorCode: APPLICATION_ERROR_CODES.VALIDATION_FAILED
+      });
+
       return res.status(400).json({
         success: false,
+        code: APPLICATION_ERROR_CODES.VALIDATION_FAILED,
+        message: 'Application validation failed',
         errors: errors.array()
       });
     }
@@ -824,7 +844,8 @@ const createApplication = async (req, res) => {
       occupation,
       presentAddress,
       permanentAddress,
-      documents
+      documents,
+      biometricSessionId
     } = req.body;
     const normalizedApplicationType = applicationType || 'new';
     let newApplicationPrerequisites = {
@@ -856,6 +877,145 @@ const createApplication = async (req, res) => {
       }
     }
 
+    if (!biometricSessionId) {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: false,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_REQUIRED
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_REQUIRED,
+        message: 'Biometric verification is required before application submission'
+      });
+    }
+
+    const now = new Date();
+
+    const biometricSession = await BiometricVerificationSession.findOne({
+      sessionId: biometricSessionId
+    });
+
+    if (!biometricSession) {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_FOUND
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_FOUND,
+        message: 'Valid biometric verification session was not found'
+      });
+    }
+
+    const biometricSessionCitizenMatches =
+      String(biometricSession.citizen) === String(req.user._id);
+
+    if (!biometricSessionCitizenMatches) {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        biometricSessionStatus: biometricSession.status,
+        biometricSessionCitizenMatches,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_OWNER_MISMATCH
+      });
+
+      return res.status(403).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_OWNER_MISMATCH,
+        message: 'Biometric verification session does not belong to this citizen'
+      });
+    }
+
+    if (biometricSession.expiresAt <= now) {
+      biometricSession.status = 'expired';
+      biometricSession.failureReason =
+        biometricSession.failureReason || 'Biometric session expired';
+      biometricSession.qrTokenHash = '';
+      biometricSession.passportPhoto = undefined;
+      await biometricSession.save();
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_EXPIRED,
+        message: 'Biometric verification session expired. Please try again.'
+      });
+    }
+
+    if (biometricSession.status === 'failed') {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        biometricSessionStatus: biometricSession.status,
+        biometricSessionCitizenMatches,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_PASSED
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_PASSED,
+        message: BIOMETRIC_FAILURE_MESSAGE
+      });
+    }
+
+    if (biometricSession.status === 'used') {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        biometricSessionStatus: biometricSession.status,
+        biometricSessionCitizenMatches,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_ALREADY_USED
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_ALREADY_USED,
+        message: 'Biometric verification session has already been used'
+      });
+    }
+
+    if (biometricSession.usedAt) {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        biometricSessionStatus: biometricSession.status,
+        biometricSessionCitizenMatches,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_ALREADY_USED
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_ALREADY_USED,
+        message: 'Biometric verification session has already been used'
+      });
+    }
+
+    if (biometricSession.status !== 'passed') {
+      logApplicationCreateDebug({
+        userExists: Boolean(req.user),
+        biometricSessionIdExists: true,
+        biometricSessionStatus: biometricSession.status,
+        biometricSessionCitizenMatches,
+        applicationValidationErrorCode:
+          APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_PASSED
+      });
+
+      return res.status(400).json({
+        success: false,
+        code: APPLICATION_ERROR_CODES.BIOMETRIC_SESSION_NOT_PASSED,
+        message: 'Application can be submitted only after biometric verification passes'
+      });
+    }
+
     const submittedAt = new Date();
     const birthCertificateVerification =
       newApplicationPrerequisites.documentVerificationSession?.verification || null;
@@ -878,7 +1038,7 @@ const createApplication = async (req, res) => {
         }
       : undefined;
 
-    const application = await Application.create({
+    const applicationPayload = {
       applicant: req.user._id,
       applicationId: generateApplicationId(),
       applicationType: normalizedApplicationType,
@@ -889,12 +1049,12 @@ const createApplication = async (req, res) => {
       spouseName,
       dateOfBirth,
       gender,
-      bloodGroup,
+      bloodGroup: normalizeOptionalString(bloodGroup),
       maritalStatus,
       birthRegistrationNumber,
       existingNidNumber,
       phone,
-      email,
+      email: normalizeOptionalString(email),
       occupation,
       presentAddress,
       permanentAddress,
@@ -924,6 +1084,13 @@ const createApplication = async (req, res) => {
           changedByRole: req.user.role
         }
       ]
+    };
+
+    const { application } = await createApplicationWithBiometricSession({
+      biometricSession,
+      citizenId: req.user._id,
+      applicationPayload,
+      now
     });
 
     if (isNewApplicationType(normalizedApplicationType)) {
@@ -960,7 +1127,30 @@ const createApplication = async (req, res) => {
       message: `Citizen submitted application ${application.applicationId}`,
       meta: {
         applicationId: application.applicationId,
-        applicationType: application.applicationType
+        applicationType: application.applicationType,
+        biometricVerification: {
+          sessionId: biometricSession.sessionId,
+          provider: biometricSession.provider,
+          verifiedAt: biometricSession.verifiedAt,
+          deviceType: biometricSession.deviceType,
+          qrFlow: biometricSession.qrFlow
+        }
+      }
+    });
+
+    await createAuditLog({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'APPLICATION_BIOMETRIC_VERIFIED',
+      entityType: 'Application',
+      entityId: application._id,
+      message: `Biometric verification accepted for application ${application.applicationId}`,
+      meta: {
+        applicationId: application.applicationId,
+        biometricSessionId: biometricSession.sessionId,
+        provider: biometricSession.provider,
+        deviceType: biometricSession.deviceType,
+        qrFlow: biometricSession.qrFlow
       }
     });
 

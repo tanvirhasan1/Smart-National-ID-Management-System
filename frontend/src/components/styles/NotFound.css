@@ -1,0 +1,51 @@
+.not-found-minimal-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 24px;
+}
+
+.not-found-minimal-content {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.not-found-minimal-code {
+  margin: 0;
+  font-size: clamp(96px, 16vw, 170px);
+  line-height: 0.85;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+  color: #050505;
+}
+
+.not-found-minimal-title {
+  margin: 28px 0 0;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.2;
+  font-weight: 700;
+  color: #111827;
+}
+
+.not-found-minimal-message {
+  margin: 20px auto 0;
+  max-width: 360px;
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+@media (max-width: 480px) {
+  .not-found-minimal-page {
+    padding: 20px;
+  }
+
+  .not-found-minimal-message {
+    font-size: 13px;
+  }
+}

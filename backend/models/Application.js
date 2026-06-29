@@ -245,6 +245,69 @@ const documentAssetsSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const biometricVerificationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['pending', 'passed', 'failed', 'expired', 'used'],
+      default: 'pending'
+    },
+    sessionId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    provider: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    livenessScore: {
+      type: Number,
+      default: null
+    },
+    faceMatchScore: {
+      type: Number,
+      default: null
+    },
+    livenessThreshold: {
+      type: Number,
+      default: null
+    },
+    faceMatchThreshold: {
+      type: Number,
+      default: null
+    },
+    challengePassed: {
+      type: Boolean,
+      default: false
+    },
+    singleFaceDetected: {
+      type: Boolean,
+      default: false
+    },
+    failureReason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    verifiedAt: {
+      type: Date,
+      default: null
+    },
+    deviceType: {
+      type: String,
+      enum: ['mobile', 'desktop', ''],
+      default: ''
+    },
+    qrFlow: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { _id: false }
+);
+
 const statusHistorySchema = new mongoose.Schema(
   {
     fromStatus: {

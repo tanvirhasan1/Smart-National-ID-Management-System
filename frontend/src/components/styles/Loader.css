@@ -1,0 +1,79 @@
+/* Shared Loader Component */
+
+.loader-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 2rem;
+}
+
+.loader-wrapper-fullscreen {
+  min-height: 100vh;
+}
+
+.loader-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #16A34A;
+}
+
+.loader-spinner {
+  animation: loader-spin 0.8s linear infinite;
+}
+
+.loader-text {
+  margin-top: 0.75rem;
+  color: #6B7280;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.loader-small .loader-spinner {
+  font-size: 1rem;
+}
+
+.loader-small .loader-text {
+  font-size: 0.8rem;
+}
+
+.loader-medium .loader-spinner {
+  font-size: 1.5rem;
+}
+
+.loader-medium .loader-text {
+  font-size: 0.9rem;
+}
+
+.loader-large .loader-spinner {
+  font-size: 2rem;
+}
+
+.loader-large .loader-text {
+  font-size: 1rem;
+}
+
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.page-loader p {
+  margin-top: 1rem;
+  color: #6B7280;
+}
+
+@keyframes loader-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

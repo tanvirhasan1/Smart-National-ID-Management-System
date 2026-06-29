@@ -21,6 +21,7 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const applicationRoutes = require('./routes/applications');
+const biometricRoutes = require('./routes/biometric');
 const supportRoutes = require('./routes/support');
 const correctionRoutes = require('./routes/corrections');
 const cookieParser = require('cookie-parser');

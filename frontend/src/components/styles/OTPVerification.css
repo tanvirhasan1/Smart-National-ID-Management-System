@@ -1,0 +1,30 @@
+.otp-page-wrapper .otp-card-panel {
+  backdrop-filter: blur(2px);
+}
+
+.otp-page-wrapper .otp-resend-button,
+.otp-page-wrapper .otp-submit-button {
+  border: none;
+}
+
+.otp-page-wrapper .otp-submit-button:focus-visible,
+.otp-page-wrapper .otp-resend-button:focus-visible,
+.otp-page-wrapper .otp-digit-input:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .otp-page-wrapper .otp-card-panel {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .otp-page-wrapper .otp-title-text {
+    font-size: 1.5rem;
+  }
+
+  .otp-page-wrapper .otp-subtitle-text {
+    font-size: 0.9rem;
+  }
+}
