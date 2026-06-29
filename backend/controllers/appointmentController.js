@@ -9,6 +9,12 @@ const {
   createAuditLog,
   getRequestAuditContext
 } = require('../utils/auditLogger');
+const {
+  combineMongoFilters,
+  applyAdminDistrictFilter,
+  canAccessAppointmentByDistrict,
+  canAccessCenterByDistrict
+} = require('../utils/adminScope');
 
 const BUSINESS_TIME_ZONE = process.env.APPOINTMENT_TIME_ZONE || 'Asia/Dhaka';
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -57,6 +63,41 @@ const buildPaginationMeta = ({ page, limit, total }) => {
     hasPrevPage: page > 1,
     hasNextPage: page < pages
   };
+};
+
+const getAdminAppointmentSort = (hasStatusFilter = false) => {
+  const fifoSort = {
+    appointmentDateKey: 1,
+    timeSlotStart: 1,
+    slotSerial: 1,
+    bookedAt: 1,
+    createdAt: 1,
+    _id: 1
+  };
+
+  return hasStatusFilter ? fifoSort : { status: 1, ...fifoSort };
+};
+
+const buildScopedAppointmentFilter = async (req, baseFilter = {}) => {
+  const districtFieldFilter = applyAdminDistrictFilter(req, {}, 'centerDistrict');
+
+  if (districtFieldFilter === undefined || Object.keys(districtFieldFilter).length === 0) {
+    return { ...baseFilter };
+  }
+
+  if (!districtFieldFilter.centerDistrict) {
+    return combineMongoFilters(baseFilter, districtFieldFilter);
+  }
+
+  const centers = await Center.find(applyAdminDistrictFilter(req, {}, 'district'))
+    .select('_id')
+    .lean();
+  const centerFilter = centers.length ? { center: { $in: centers.map((center) => center._id) } } : null;
+  const accessFilter = centerFilter
+    ? { $or: [districtFieldFilter, centerFilter] }
+    : districtFieldFilter;
+
+  return combineMongoFilters(baseFilter, accessFilter);
 };
 
 const getBusinessDateKey = (date = new Date()) => {
@@ -967,6 +1008,7 @@ const getAllAppointmentsForAdmin = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationOptions(req.query);
     const filter = {};
+    const hasStatusFilter = Boolean(req.query.status);
 
     if (req.query.status) filter.status = req.query.status;
     if (req.query.centerDistrict) filter.centerDistrict = req.query.centerDistrict;
@@ -981,15 +1023,17 @@ const getAllAppointmentsForAdmin = async (req, res) => {
 
     if (dateKey) filter.appointmentDateKey = dateKey;
 
+    const scopedFilter = await buildScopedAppointmentFilter(req, filter);
+
     const [appointments, total] = await Promise.all([
-      Appointment.find(filter)
+      Appointment.find(scopedFilter)
         .populate('applicant', 'fullName email phone role')
         .populate('center', 'name district address')
         .populate('application', 'applicationId fullNameEnglish applicationType status')
-        .sort({ appointmentDateKey: -1, timeSlotStart: 1, createdAt: -1 })
+        .sort(getAdminAppointmentSort(hasStatusFilter))
         .skip(skip)
         .limit(limit),
-      Appointment.countDocuments(filter)
+      Appointment.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1021,6 +1065,13 @@ const getSingleAppointmentForAdmin = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
 
+    if (!canAccessAppointmentByDistrict(req, appointment)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this appointment district'
+      });
+    }
+
     res.status(200).json({ success: true, appointment });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -1031,6 +1082,7 @@ const getAppointmentStatsForAdmin = async (req, res) => {
   try {
     const todayKey = getBusinessDateKey();
 
+    const scopedFilter = await buildScopedAppointmentFilter(req);
     const [
       totalAppointments,
       bookedAppointments,
@@ -1038,11 +1090,13 @@ const getAppointmentStatsForAdmin = async (req, res) => {
       cancelledAppointments,
       todayAppointments
     ] = await Promise.all([
-      Appointment.countDocuments(),
-      Appointment.countDocuments({ status: 'booked' }),
-      Appointment.countDocuments({ status: 'completed' }),
-      Appointment.countDocuments({ status: 'cancelled' }),
-      Appointment.countDocuments({ appointmentDateKey: todayKey, status: 'booked' })
+      Appointment.countDocuments(scopedFilter),
+      Appointment.countDocuments(combineMongoFilters(scopedFilter, { status: 'booked' })),
+      Appointment.countDocuments(combineMongoFilters(scopedFilter, { status: 'completed' })),
+      Appointment.countDocuments(combineMongoFilters(scopedFilter, { status: 'cancelled' })),
+      Appointment.countDocuments(
+        combineMongoFilters(scopedFilter, { appointmentDateKey: todayKey, status: 'booked' })
+      )
     ]);
 
     res.status(200).json({
@@ -1073,10 +1127,17 @@ const updateAppointmentStatusByAdmin = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid appointment status' });
     }
 
-    const appointment = await Appointment.findById(req.params.id);
+    const appointment = await Appointment.findById(req.params.id).populate('center', 'name district');
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    if (!canAccessAppointmentByDistrict(req, appointment)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this appointment district'
+      });
     }
 
     if (
@@ -1147,6 +1208,13 @@ const getAppointmentConfigForAdmin = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Center not found' });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     res.status(200).json({
       success: true,
       center: buildCenterSnapshot(center),
@@ -1169,6 +1237,13 @@ const upsertAppointmentConfigForAdmin = async (req, res) => {
 
     if (!center) {
       return res.status(404).json({ success: false, message: 'Center not found' });
+    }
+
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
     }
 
     const minLeadDays = parseNonNegativeInteger(req.body.minLeadDays, -1);

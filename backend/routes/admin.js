@@ -4,6 +4,7 @@ const {
   getAdminDashboard,
   getAdminDashboardSummary,
   getInternalUsers,
+  getInternalUserDetails,
   createInternalUser,
   updateInternalUser,
   archiveInternalUser,
@@ -17,9 +18,13 @@ const {
   updateCenter,
   toggleCenterStatus,
   getDeliveryQueue,
+  getDeliveryQueueDetails,
   markApplicationAsDelivered,
   getRecentAuditLogs,
+  getPrintingQueue,
+  getPrintingQueueDetails,
   getPrintingStats,
+  markApplicationAsPrinted,
   getDeliveryStats,
   getAuditStats,
   bulkMarkApplicationsAsPrinted,
@@ -38,6 +43,13 @@ const {
   getApplicationReviewDetails,
   updateApplicationReviewDecision
 } = require('../controllers/adminApplicationReviewController');
+
+const {
+  getAdminCorrectionStats,
+  getAdminCorrectionQueue,
+  getAdminCorrectionDetails,
+  updateAdminCorrectionDecision
+} = require('../controllers/correctionController');
 
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -69,7 +81,7 @@ router.get(
 router.get(
   '/applications/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationStatsForAdmin
 );
 
@@ -77,14 +89,14 @@ router.get(
 router.get(
   '/applications',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getAllApplicationsForAdmin
 );
 
 router.get(
   '/applications/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getSingleApplicationForAdmin
 );
 
@@ -99,14 +111,14 @@ router.patch(
 router.get(
   '/application-review/queue',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationReviewQueue
 );
 
 router.get(
   '/application-review/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getApplicationReviewDetails
 );
 
@@ -117,25 +129,61 @@ router.patch(
   updateApplicationReviewDecision
 );
 
+// Correction review workspace
+router.get(
+  '/corrections/stats',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionStats
+);
+
+router.get(
+  '/corrections/queue',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionQueue
+);
+
+router.get(
+  '/corrections/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getAdminCorrectionDetails
+);
+
+router.patch(
+  '/corrections/:id/decision',
+  protect,
+  authorize('admin'),
+  updateAdminCorrectionDecision
+);
+
 // Internal users
 router.get(
   '/users',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getInternalUsers
 );
 
 router.post(
   '/users',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   createInternalUser
+);
+
+router.get(
+  '/users/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getInternalUserDetails
 );
 
 router.put(
   '/users/:id',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   updateInternalUser
 );
 
@@ -215,7 +263,7 @@ router.patch(
 router.get(
   '/delivery/queue',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getDeliveryQueue
 );
 
@@ -243,10 +291,24 @@ router.get(
 
 // Printing
 router.get(
+  '/printing/queue',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getPrintingQueue
+);
+
+router.get(
   '/printing/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getPrintingStats
+);
+
+router.patch(
+  '/printing/:id/mark-printed',
+  protect,
+  authorize('admin'),
+  markApplicationAsPrinted
 );
 
 router.patch(
@@ -259,15 +321,22 @@ router.patch(
 router.get(
   '/printing/export',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   exportPrintingReport
+);
+
+router.get(
+  '/printing/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getPrintingQueueDetails
 );
 
 // Delivery extra
 router.get(
   '/delivery/stats',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   getDeliveryStats
 );
 
@@ -281,8 +350,15 @@ router.patch(
 router.get(
   '/delivery/export',
   protect,
-  authorize('admin'),
+  authorize('admin', 'system_supervisor'),
   exportDeliveryReport
+);
+
+router.get(
+  '/delivery/:id',
+  protect,
+  authorize('admin', 'system_supervisor'),
+  getDeliveryQueueDetails
 );
 
 // Exports

@@ -115,6 +115,29 @@ The project should adopt these configuration conventions:
 - enable graceful shutdown handling
 - maintain a real `.env.example`
 
+## Document OCR timeout notes
+
+Document OCR is slower than face/liveness verification because Tesseract may need
+more time for first-request startup and image OCR. Keep these services separate:
+
+- `DOCUMENT_OCR_TIMEOUT_MS` controls only document OCR verification.
+- `AI_SERVICE_TIMEOUT_MS` controls only face/liveness verification.
+- Local development and Render cold-start testing should use
+  `DOCUMENT_OCR_TIMEOUT_MS=90000`.
+- Frontend clients should use `VITE_API_TIMEOUT_MS=180000` so the browser waits
+  longer than the backend OCR timeout and can display structured backend errors.
+- Production with a warm OCR service should use `45000-90000` based on measured
+  performance.
+- Render web services should bind to `0.0.0.0` and the `PORT` environment
+  variable; Docker OCR deployments should not hard-code `8002` at runtime.
+- Free or idle Render instances can add cold-start delay before OCR begins.
+  Keep the OCR service warm for demos, use a paid/always-on instance for
+  production, or move OCR to an asynchronous worker/queue if synchronous request
+  limits become unreliable.
+- If the backend is moved to a serverless platform, confirm the platform request
+  duration exceeds the full OCR path. Otherwise, synchronous OCR can fail before
+  the backend timeout fires.
+
 ## Final policy
 
 A backend is not production-ready if configuration is tribal knowledge.  

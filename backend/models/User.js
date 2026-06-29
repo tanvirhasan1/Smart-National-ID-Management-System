@@ -38,6 +38,30 @@ const addressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const adminScopeSchema = new mongoose.Schema(
+  {
+    scopeType: {
+      type: String,
+      enum: ['national', 'district'],
+      default: 'national'
+    },
+    districts: {
+      type: [String],
+      default: []
+    },
+    primaryDistrict: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    scopeUpdatedAt: {
+      type: Date,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     fullName: {
@@ -98,6 +122,10 @@ const userSchema = new mongoose.Schema(
     permissions: {
       type: [String],
       default: []
+    },
+    adminScope: {
+      type: adminScopeSchema,
+      default: () => ({})
     },
     isVerified: {
       type: Boolean,
@@ -173,6 +201,7 @@ userSchema.index(
 
 // Speed up internal admin directory lookups.
 userSchema.index({ role: 1, status: 1, isArchived: 1, createdAt: -1 });
+userSchema.index({ role: 1, 'adminScope.scopeType': 1, 'adminScope.districts': 1 });
 
 userSchema.pre('validate', function syncPermissions() {
   if (!Array.isArray(this.permissions) || this.permissions.length === 0) {

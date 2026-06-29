@@ -6,6 +6,7 @@ const AdminPresence = require('../models/AdminPresence');
 const Center = require('../models/Center');
 const Application = require('../models/Application');
 const Appointment = require('../models/Appointment');
+const DeliveryRequest = require('../models/DeliveryRequest');
 const AuditLog = require('../models/AuditLog');
 const {
   createAuditLog,
@@ -14,9 +15,25 @@ const {
 const { getDefaultPermissions, isMainAdminUser } = require('../utils/roles');
 const { syncUserBuckets } = require('../utils/userBuckets');
 const {
+  isNationalScope,
+  getAdminDistricts,
+  combineMongoFilters,
+  buildUserDistrictFilter,
+  applyAdminJurisdictionFilter,
+  applyAdminDistrictFilter,
+  canAccessApplicationByJurisdiction,
+  canAccessUserByDistrict,
+  canAccessCenterByDistrict
+} = require('../utils/adminScope');
+const {
+  LIVE_WINDOW_MINUTES,
   buildInternalPresenceMap,
   markInternalUserOffline
 } = require('../utils/internalPresence');
+const { isCompletedAppointment } = require('../utils/applicationLifecycle');
+const {
+  getOrCreateNidNumberAssignment
+} = require('../services/nidNumberProvider');
 
 // Allowed internal roles for manually created staff users.
 const INTERNAL_USER_ROLES = ['admin', 'system_supervisor', 'support_staff'];
@@ -46,6 +63,7 @@ const buildPaginationMeta = ({ page, limit, total }) => {
     limit,
     total,
     pages,
+    totalPages: pages,
     hasPrevPage: page > 1,
     hasNextPage: page < pages
   };
@@ -53,6 +71,66 @@ const buildPaginationMeta = ({ page, limit, total }) => {
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const normalizeAdminScope = (value = {}, fallback = null) => {
+  const incoming = value && typeof value === 'object' ? value : {};
+  const base = fallback && typeof fallback === 'object' ? fallback : {};
+  const scopeType =
+    (incoming.scopeType || base.scopeType) === 'district'
+      ? 'district'
+      : 'national';
+  const rawDistricts =
+    incoming.districts !== undefined ? incoming.districts : base.districts;
+  const districtValues = Array.isArray(rawDistricts)
+    ? rawDistricts
+    : String(rawDistricts || '')
+        .split(',');
+  const districtMap = new Map();
+
+  districtValues.forEach((district) => {
+    const trimmed = String(district || '').trim();
+    if (!trimmed) return;
+    districtMap.set(trimmed.toLowerCase(), trimmed);
+  });
+
+  const primaryDistrict = String(
+    incoming.primaryDistrict ?? base.primaryDistrict ?? ''
+  ).trim();
+
+  if (primaryDistrict) {
+    districtMap.set(primaryDistrict.toLowerCase(), primaryDistrict);
+  }
+
+  return {
+    scopeType,
+    districts: scopeType === 'district' ? [...districtMap.values()] : [],
+    primaryDistrict: scopeType === 'district' ? primaryDistrict : '',
+    scopeUpdatedAt:
+      incoming.scopeUpdatedAt || base.scopeUpdatedAt || null
+  };
+};
+
+const validateAdminScope = (scope) => {
+  if (scope.scopeType === 'district' && scope.districts.length === 0) {
+    return 'At least one district is required for district-scoped admins';
+  }
+
+  if (
+    scope.scopeType === 'district' &&
+    scope.primaryDistrict &&
+    !scope.districts.includes(scope.primaryDistrict)
+  ) {
+    return 'Primary district must be included in assigned districts';
+  }
+
+  return '';
+};
+
+const canManageInternalUsers = (user) =>
+  ['admin', 'system_supervisor'].includes(user?.role) && isNationalScope(user);
+
+const serializeAdminScope = (scope) =>
+  JSON.stringify(normalizeAdminScope(scope));
 
 const getSafeSort = (sortValue, fallback = { createdAt: -1 }, allowed = []) => {
   if (!sortValue || typeof sortValue !== 'string') {
@@ -77,6 +155,7 @@ const mapInternalUserResponse = (user) => ({
   phone: user.phone,
   role: user.role,
   permissions: user.permissions || [],
+  adminScope: normalizeAdminScope(user.adminScope),
   status: user.status,
   accountStatus: user.status,
   isVerified: user.isVerified,
@@ -88,12 +167,11 @@ const mapInternalUserResponse = (user) => ({
   updatedAt: user.updatedAt
 });
 
-// Only the first admin account should manage internal users.
 const ensureMainAdminAccess = (req, res) => {
-  if (!isMainAdminUser(req.user)) {
+  if (!canManageInternalUsers(req.user)) {
     res.status(403).json({
       success: false,
-      message: 'Only main admin can manage internal users'
+      message: 'Only national-scope admin users can manage internal users'
     });
     return false;
   }
@@ -106,6 +184,7 @@ const buildInternalUserSnapshot = (user) => ({
   email: user.email,
   phone: user.phone,
   role: user.role,
+  adminScope: normalizeAdminScope(user.adminScope),
   status: user.status,
   isVerified: user.isVerified,
   isArchived: user.isArchived,
@@ -131,7 +210,8 @@ const buildApplicationAuditState = (application) => ({
   dispatchedAt: application.dispatchedAt || null,
   deliveredAt: application.deliveredAt || null,
   cancelledAt: application.cancelledAt || null,
-  latestStatusChangedAt: application.latestStatusChangedAt || null
+  latestStatusChangedAt: application.latestStatusChangedAt || null,
+  nidNumber: application.nidNumber || ''
 });
 
 const buildSupportTicketAuditState = (ticket) => ({
@@ -141,6 +221,83 @@ const buildSupportTicketAuditState = (ticket) => ({
   resolvedAt: ticket.resolvedAt || null,
   closedAt: ticket.closedAt || null
 });
+
+const getScopedCitizenIdsForAdmin = async (req) => {
+  if (isNationalScope(req.user)) {
+    return null;
+  }
+
+  const districts = getAdminDistricts(req.user);
+
+  if (districts.length === 0) {
+    return [];
+  }
+
+  const citizens = await User.find(
+    combineMongoFilters(
+      { role: 'citizen', isArchived: { $ne: true } },
+      buildUserDistrictFilter(districts)
+    )
+  )
+    .select('_id')
+    .lean();
+
+  return citizens.map((citizen) => citizen._id);
+};
+
+const buildScopedSupportTicketFilter = async (req, baseFilter = {}) => {
+  const scopedCitizenIds = await getScopedCitizenIdsForAdmin(req);
+
+  if (scopedCitizenIds === null) {
+    return { ...baseFilter };
+  }
+
+  if (scopedCitizenIds.length === 0) {
+    return combineMongoFilters(baseFilter, { _id: null });
+  }
+
+  return combineMongoFilters(baseFilter, { citizen: { $in: scopedCitizenIds } });
+};
+
+const assertSupportTicketScope = (req, ticket) => {
+  const citizen = ticket?.citizen;
+
+  if (isNationalScope(req.user)) {
+    return true;
+  }
+
+  return Boolean(citizen && canAccessUserByDistrict(req, citizen));
+};
+
+const getScopedCenterIdsForAdmin = async (req) => {
+  if (isNationalScope(req.user)) {
+    return null;
+  }
+
+  const centers = await Center.find(applyAdminDistrictFilter(req, {}, 'district'))
+    .select('_id')
+    .lean();
+
+  return centers.map((center) => center._id);
+};
+
+const buildScopedAppointmentFilter = async (req, baseFilter = {}) => {
+  const scopedCenterIds = await getScopedCenterIdsForAdmin(req);
+
+  if (scopedCenterIds === null) {
+    return { ...baseFilter };
+  }
+
+  const districtFieldFilter = applyAdminDistrictFilter(req, {}, 'centerDistrict');
+  const centerIdFilter = scopedCenterIds.length
+    ? { center: { $in: scopedCenterIds } }
+    : null;
+  const accessFilter = centerIdFilter
+    ? { $or: [districtFieldFilter, centerIdFilter] }
+    : districtFieldFilter;
+
+  return combineMongoFilters(baseFilter, accessFilter);
+};
 
 const appendApplicationStatusHistory = (
   application,
@@ -177,6 +334,148 @@ const appendApplicationStatusHistory = (
   }
 };
 
+const getCompletedAppointmentMap = async (applications = []) => {
+  const approvedApplicationIds = applications
+    .filter((application) => application?.status === 'approved' && application?._id)
+    .map((application) => application._id);
+
+  if (approvedApplicationIds.length === 0) {
+    return new Map();
+  }
+
+  const completedAppointments = await Appointment.find({
+    application: { $in: approvedApplicationIds },
+    status: 'completed'
+  })
+    .select('application status completedAt appointmentDate appointmentDateKey timeSlot centerName updatedAt createdAt')
+    .lean();
+
+  return new Map(
+    completedAppointments
+      .filter(isCompletedAppointment)
+      .map((appointment) => [String(appointment.application), appointment])
+  );
+};
+
+const getCompletedAppointmentApplicationIdSet = async (applications = []) =>
+  new Set((await getCompletedAppointmentMap(applications)).keys());
+
+const filterApplicationsReadyForPrinting = async (applications = []) => {
+  const completedApplicationIds =
+    await getCompletedAppointmentApplicationIdSet(applications);
+
+  return applications.filter(
+    (application) =>
+      application?.status !== 'approved' ||
+      completedApplicationIds.has(String(application._id))
+  );
+};
+
+const hasCompletedBiometricAppointment = async (applicationId) => {
+  const appointment = await Appointment.findOne({
+    application: applicationId,
+    status: 'completed'
+  })
+    .select('_id status')
+    .lean();
+
+  return isCompletedAppointment(appointment);
+};
+
+const buildMongoCoalesce = (...values) =>
+  values.reduceRight(
+    (fallback, value) => ({ $ifNull: [value, fallback] }),
+    null
+  );
+
+const mapPrintingQueueApplication = (application = {}, appointment = null) => {
+  const appointmentCompleted = isCompletedAppointment(appointment);
+  const isReady = application.status === 'approved' && appointmentCompleted;
+  const appointmentCompletedAt =
+    appointmentCompleted
+      ? appointment?.completedAt || appointment?.updatedAt || appointment?.createdAt || null
+      : null;
+
+  return {
+    ...application,
+    biometricAppointment: appointment
+      ? {
+          status: appointment.status,
+          completedAt: appointmentCompletedAt,
+          appointmentDate: appointment.appointmentDate || null,
+          appointmentDateKey: appointment.appointmentDateKey || '',
+          timeSlot: appointment.timeSlot || '',
+          centerName: appointment.centerName || ''
+        }
+      : null,
+    printQueueState: isReady ? 'ready' : 'completed',
+    printStatus: isReady
+      ? 'ready_for_print'
+      : ['printed', 'dispatched', 'delivered'].includes(application.status)
+        ? 'printed'
+        : ['rejected', 'cancelled'].includes(application.status)
+          ? application.status
+          : 'not_printable',
+    printReadyAt:
+      appointmentCompletedAt ||
+      application.approvedAt ||
+      application.submittedAt ||
+      application.createdAt ||
+      null
+  };
+};
+
+const isDeliveryPaymentComplete = (deliveryRequest = null) =>
+  ['paid', 'waived'].includes(deliveryRequest?.payment?.status);
+
+const isActiveDeliveryRequest = (application = {}, deliveryRequest = null) =>
+  application.status === 'printed' &&
+  Boolean(deliveryRequest?.delivery?.requested) &&
+  isDeliveryPaymentComplete(deliveryRequest) &&
+  !['delivered', 'cancelled'].includes(deliveryRequest?.delivery?.status);
+
+const mapDeliveryQueueApplication = (application = {}, deliveryRequest = null) => {
+  const deliveryRequestedAt = deliveryRequest?.delivery?.requestedAt || null;
+  const paymentCompletedAt = deliveryRequest?.payment?.completedAt || null;
+  const activeDeliveryRequest = isActiveDeliveryRequest(application, deliveryRequest);
+
+  return {
+    ...application,
+    deliveryQueueState: activeDeliveryRequest ? 'active' : 'completed',
+    deliveryQueueAt:
+      paymentCompletedAt ||
+      deliveryRequestedAt ||
+      application.printedAt ||
+      application.updatedAt ||
+      application.createdAt ||
+      null,
+    deliveryInfo: deliveryRequest
+      ? {
+          requestId: deliveryRequest._id,
+          requested: Boolean(deliveryRequest.delivery?.requested),
+          requestedAt: deliveryRequestedAt,
+          status: deliveryRequest.delivery?.status || 'not_requested',
+          dispatchedAt: deliveryRequest.delivery?.dispatchedAt || null,
+          deliveredAt: deliveryRequest.delivery?.deliveredAt || null,
+          address: deliveryRequest.delivery?.address || '',
+          contactPhone: deliveryRequest.delivery?.contactPhone || '',
+          note: deliveryRequest.delivery?.note || '',
+          paymentStatus: deliveryRequest.payment?.status || 'pending',
+          paymentMethod: deliveryRequest.payment?.method || '',
+          paymentCompletedAt,
+          transactionId: deliveryRequest.payment?.transactionId || '',
+          amount: deliveryRequest.payment?.amount || 0,
+          currency: deliveryRequest.payment?.currency || 'BDT',
+          history: deliveryRequest.history || []
+        }
+      : null,
+    deliveryStatus:
+      application.status === 'delivered' || application.status === 'cancelled'
+        ? application.status
+        : deliveryRequest?.delivery?.status || application.status || 'not_requested'
+  };
+};
+
 const getAdminDashboard = async (req, res) => {
   try {
     res.status(200).json({
@@ -201,13 +500,28 @@ const getAdminDashboardSummary = async (req, res) => {
     const last24HoursStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const isMainAdmin = isMainAdminUser(req.user);
     const viewerRole = req.user?.role || 'admin';
+    const canManageUsers = canManageInternalUsers(req.user);
+    const appScopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
+    const appointmentBaseScopeFilter = await buildScopedAppointmentFilter(req);
+    const appointmentScopeFilter = (extra = {}) =>
+      combineMongoFilters(appointmentBaseScopeFilter, extra);
+    const centerScopeFilter = (extra = {}) =>
+      applyAdminDistrictFilter(req, extra, 'district');
+    const supportScopeFilter = await buildScopedSupportTicketFilter(req);
 
     const activeUserFilter = { isArchived: { $ne: true } };
+    const districtScopedCitizenFilter = isNationalScope(req.user)
+      ? activeUserFilter
+      : combineMongoFilters(
+          { ...activeUserFilter, role: 'citizen' },
+          buildUserDistrictFilter(getAdminDistricts(req.user))
+        );
 
     const access = {
       viewerRole,
       isMainAdmin,
-      canManageUsers: viewerRole === 'admin' && isMainAdmin,
+      canManageUsers,
       canManageApplications: viewerRole === 'admin',
       canManageAppointments: viewerRole === 'admin',
       canManagePrinting: viewerRole === 'admin',
@@ -260,44 +574,44 @@ const getAdminDashboardSummary = async (req, res) => {
 
       auditLogsLast24Hours
     ] = await Promise.all([
-      Application.countDocuments(),
-      Application.countDocuments({ status: 'submitted' }),
-      Application.countDocuments({ status: 'under_review' }),
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'rejected' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({ status: 'cancelled' }),
-      Application.countDocuments({ createdAt: { $gte: startOfToday } }),
-      Application.countDocuments({
+      Application.countDocuments(appScopeFilter()),
+      Application.countDocuments(appScopeFilter({ status: 'submitted' })),
+      Application.countDocuments(appScopeFilter({ status: 'under_review' })),
+      Application.countDocuments(appScopeFilter({ status: 'approved' })),
+      Application.countDocuments(appScopeFilter({ status: 'rejected' })),
+      Application.countDocuments(appScopeFilter({ status: 'printed' })),
+      Application.countDocuments(appScopeFilter({ status: 'delivered' })),
+      Application.countDocuments(appScopeFilter({ status: 'cancelled' })),
+      Application.countDocuments(appScopeFilter({ createdAt: { $gte: startOfToday } })),
+      Application.countDocuments(appScopeFilter({
         status: 'rejected',
         updatedAt: { $gte: startOfToday }
-      }),
+      })),
 
-      Appointment.countDocuments(),
-      Appointment.countDocuments({ status: 'booked' }),
-      Appointment.countDocuments({ status: 'completed' }),
-      Appointment.countDocuments({ status: 'cancelled' }),
-      Appointment.countDocuments({
+      Appointment.countDocuments(appointmentScopeFilter()),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'booked' })),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'completed' })),
+      Appointment.countDocuments(appointmentScopeFilter({ status: 'cancelled' })),
+      Appointment.countDocuments(appointmentScopeFilter({
         appointmentDate: { $gte: startOfToday }
-      }),
+      })),
 
-      SupportTicket.countDocuments(),
-      SupportTicket.countDocuments({ status: 'open' }),
-      SupportTicket.countDocuments({ status: 'in_progress' }),
-      SupportTicket.countDocuments({ status: 'resolved' }),
-      SupportTicket.countDocuments({ status: 'closed' }),
-      SupportTicket.countDocuments({ priority: 'urgent' }),
-      SupportTicket.countDocuments({ priority: 'high' }),
-      SupportTicket.countDocuments({ assignedTo: null }),
-      SupportTicket.countDocuments({ createdAt: { $gte: startOfToday } }),
+      SupportTicket.countDocuments(supportScopeFilter),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'open' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'in_progress' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'resolved' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { status: 'closed' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { priority: 'urgent' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { priority: 'high' })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { assignedTo: null })),
+      SupportTicket.countDocuments(combineMongoFilters(supportScopeFilter, { createdAt: { $gte: startOfToday } })),
 
-      Center.countDocuments(),
-      Center.countDocuments({ isActive: true }),
-      Center.countDocuments({ isActive: false }),
+      Center.countDocuments(centerScopeFilter()),
+      Center.countDocuments(centerScopeFilter({ isActive: true })),
+      Center.countDocuments(centerScopeFilter({ isActive: false })),
 
-      User.countDocuments(activeUserFilter),
-      User.countDocuments({ ...activeUserFilter, role: 'citizen' }),
+      User.countDocuments(districtScopedCitizenFilter),
+      User.countDocuments(combineMongoFilters(districtScopedCitizenFilter, { role: 'citizen' })),
       User.countDocuments({ ...activeUserFilter, role: { $in: INTERNAL_USER_ROLES } }),
       User.countDocuments({ ...activeUserFilter, role: 'admin' }),
       User.countDocuments({ ...activeUserFilter, role: 'system_supervisor' }),
@@ -308,8 +622,16 @@ const getAdminDashboardSummary = async (req, res) => {
       AuditLog.countDocuments({ createdAt: { $gte: last24HoursStart } })
     ]);
 
+    const approvedForPrintApplications = await Application.find(
+      appScopeFilter({ status: 'approved' })
+    )
+      .select('_id status')
+      .lean();
+    const approvedForPrintCount =
+      (await getCompletedAppointmentApplicationIdSet(approvedForPrintApplications)).size;
+
     const reviewQueue = submittedApplications + underReviewApplications;
-    const printingQueue = approvedApplications;
+    const printingQueue = approvedForPrintCount;
     const deliveryQueue = printedApplications;
 
     let roleFocus;
@@ -448,6 +770,7 @@ const getInternalUsers = async (req, res) => {
       return;
     }
 
+    const { page, limit, skip } = getPaginationOptions(req.query);
     const sort = getSafeSort(req.query.sort, { createdAt: -1 }, [
       'createdAt',
       'updatedAt',
@@ -461,13 +784,26 @@ const getInternalUsers = async (req, res) => {
       role: { $in: INTERNAL_USER_ROLES },
       isArchived: { $ne: true }
     };
+    const liveCutoff = new Date(
+      Date.now() - LIVE_WINDOW_MINUTES * 60 * 1000
+    );
+    const liveUserIds = await AdminPresence.distinct('userId', {
+      isOnline: true,
+      lastSeenAt: { $gte: liveCutoff }
+    });
 
-    if (req.query.role) {
+    if (INTERNAL_USER_ROLES.includes(req.query.role)) {
       filter.role = req.query.role;
     }
 
-    if (req.query.status) {
+    if (['active', 'blocked', 'pending'].includes(req.query.status)) {
       filter.status = req.query.status;
+    }
+
+    if (req.query.workingStatus === 'live') {
+      filter._id = { $in: liveUserIds };
+    } else if (req.query.workingStatus === 'offline') {
+      filter._id = { $nin: liveUserIds };
     }
 
     if (req.query.search) {
@@ -475,14 +811,40 @@ const getInternalUsers = async (req, res) => {
       filter.$or = [
         { fullName: regex },
         { email: regex },
-        { phone: regex }
+        { phone: regex },
+        { role: regex }
       ];
     }
 
-    const users = await User.find(filter)
-      .select('-password')
-      .populate('createdBy', 'fullName email')
-      .sort(sort);
+    const baseInternalFilter = {
+      role: { $in: INTERNAL_USER_ROLES },
+      isArchived: { $ne: true }
+    };
+    const [
+      total,
+      users,
+      totalInternalUsers,
+      totalAdmins,
+      totalSupervisors,
+      totalSupportStaff,
+      liveNow
+    ] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select('-password')
+        .populate('createdBy', 'fullName email')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(baseInternalFilter),
+      User.countDocuments({ ...baseInternalFilter, role: 'admin' }),
+      User.countDocuments({ ...baseInternalFilter, role: 'system_supervisor' }),
+      User.countDocuments({ ...baseInternalFilter, role: 'support_staff' }),
+      User.countDocuments({
+        ...baseInternalFilter,
+        _id: { $in: liveUserIds }
+      })
+    ]);
 
     const presenceMap = await buildInternalPresenceMap(users.map((user) => user._id));
 
@@ -496,11 +858,64 @@ const getInternalUsers = async (req, res) => {
       data: mappedUsers,
       users: mappedUsers,
       meta: {
-        total: mappedUsers.length
+        ...buildPaginationMeta({ page, limit, total }),
+        stats: {
+          total: totalInternalUsers,
+          admins: totalAdmins,
+          supervisors: totalSupervisors,
+          supportStaff: totalSupportStaff,
+          liveNow,
+          offline: Math.max(0, totalInternalUsers - liveNow)
+        }
       }
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getInternalUserDetails = async (req, res) => {
+  try {
+    if (!ensureMainAdminAccess(req, res)) {
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid internal user id'
+      });
+    }
+
+    const internalUser = await User.findById(req.params.id)
+      .select('-password')
+      .populate('createdBy', 'fullName email');
+
+    if (
+      !internalUser ||
+      !INTERNAL_USER_ROLES.includes(internalUser.role) ||
+      internalUser.isArchived
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Internal user not found'
+      });
+    }
+
+    const presenceMap = await buildInternalPresenceMap([internalUser._id]);
+
+    return res.status(200).json({
+      success: true,
+      data: buildInternalUserResponse(
+        internalUser,
+        presenceMap[internalUser._id.toString()]
+      )
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -518,6 +933,8 @@ const createInternalUser = async (req, res) => {
     const phone = String(req.body.phone || '').trim();
     const password = String(req.body.password || '');
     const role = String(req.body.role || '').trim();
+    const adminScope = normalizeAdminScope(req.body.adminScope);
+    const adminScopeError = validateAdminScope(adminScope);
 
     if (!fullName || !email || !phone || !password || !role) {
       return res.status(400).json({
@@ -530,6 +947,20 @@ const createInternalUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid internal user role'
+      });
+    }
+
+    if (adminScopeError) {
+      return res.status(400).json({
+        success: false,
+        message: adminScopeError
+      });
+    }
+
+    if (adminScope.scopeType === 'national' && !isNationalScope(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only national-scope admins can create national-scope users'
       });
     }
 
@@ -563,6 +994,10 @@ const createInternalUser = async (req, res) => {
       password,
       role,
       permissions: getDefaultPermissions(role),
+      adminScope: {
+        ...adminScope,
+        scopeUpdatedAt: new Date()
+      },
       isVerified: true,
       status: 'active',
       createdBy: req.user._id,
@@ -582,11 +1017,12 @@ const createInternalUser = async (req, res) => {
       entityId: user._id,
       message: `Created internal user ${user.fullName}`,
       meta: {
-        reason: 'Internal user created by main admin',
+        reason: 'Internal user created by national-scope admin',
         before: null,
         after: buildInternalUserSnapshot(user),
         createdUserRole: user.role,
-        createdUserEmail: user.email
+        createdUserEmail: user.email,
+        adminScope: normalizeAdminScope(user.adminScope)
       }
     });
 
@@ -664,9 +1100,14 @@ const updateInternalUser = async (req, res) => {
       req.body.status !== undefined
         ? String(req.body.status || '').trim()
         : targetUser.status;
+    const adminScope = normalizeAdminScope(
+      req.body.adminScope,
+      targetUser.adminScope
+    );
+    const adminScopeError = validateAdminScope(adminScope);
 
     const updateReason = String(
-      req.body.updateReason || 'Internal user updated by main admin'
+      req.body.updateReason || 'Internal user updated by national-scope admin'
     ).trim();
 
     if (!fullName || !email || !phone || !role || !status) {
@@ -687,6 +1128,20 @@ const updateInternalUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid account status'
+      });
+    }
+
+    if (adminScopeError) {
+      return res.status(400).json({
+        success: false,
+        message: adminScopeError
+      });
+    }
+
+    if (adminScope.scopeType === 'national' && !isNationalScope(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only national-scope admins can assign national scope'
       });
     }
 
@@ -721,6 +1176,15 @@ const updateInternalUser = async (req, res) => {
     targetUser.phone = phone;
     targetUser.role = role;
     targetUser.status = status;
+    const beforeScope = normalizeAdminScope(before.adminScope);
+    const nextScope = {
+      ...adminScope,
+      scopeUpdatedAt:
+        serializeAdminScope(beforeScope) === serializeAdminScope(adminScope)
+          ? beforeScope.scopeUpdatedAt
+          : new Date()
+    };
+    targetUser.adminScope = nextScope;
 
     // Reset permissions when role changes so access stays clean.
     if (before.role !== role) {
@@ -763,6 +1227,22 @@ const updateInternalUser = async (req, res) => {
         after: buildInternalUserSnapshot(updatedUser)
       }
     });
+
+    if (serializeAdminScope(beforeScope) !== serializeAdminScope(nextScope)) {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'ADMIN_SCOPE_UPDATED',
+        entityType: 'User',
+        entityId: updatedUser._id,
+        message: `Updated admin scope for ${updatedUser.fullName}`,
+        meta: {
+          reason: updateReason,
+          before: beforeScope,
+          after: normalizeAdminScope(updatedUser.adminScope)
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -907,14 +1387,16 @@ const getAllSupportTickets = async (req, res) => {
       ];
     }
 
+    const scopedFilter = await buildScopedSupportTicketFilter(req, filter);
+
     const [tickets, total] = await Promise.all([
-      SupportTicket.find(filter)
+      SupportTicket.find(scopedFilter)
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('citizen', 'fullName email phone role')
-        .populate('assignedTo', 'fullName email role'),
-      SupportTicket.countDocuments(filter)
+        .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+        .populate('assignedTo', 'fullName email role adminScope'),
+      SupportTicket.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -934,6 +1416,7 @@ const getAllSupportTickets = async (req, res) => {
 
 const getSupportStats = async (req, res) => {
   try {
+    const scopedFilter = await buildScopedSupportTicketFilter(req);
     const [
       totalTickets,
       openTickets,
@@ -944,14 +1427,14 @@ const getSupportStats = async (req, res) => {
       urgentTickets,
       unassignedTickets
     ] = await Promise.all([
-      SupportTicket.countDocuments(),
-      SupportTicket.countDocuments({ status: 'open' }),
-      SupportTicket.countDocuments({ status: 'in_progress' }),
-      SupportTicket.countDocuments({ status: 'resolved' }),
-      SupportTicket.countDocuments({ status: 'closed' }),
-      SupportTicket.countDocuments({ priority: 'high' }),
-      SupportTicket.countDocuments({ priority: 'urgent' }),
-      SupportTicket.countDocuments({ assignedTo: null })
+      SupportTicket.countDocuments(scopedFilter),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'open' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'in_progress' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'resolved' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { status: 'closed' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { priority: 'high' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { priority: 'urgent' })),
+      SupportTicket.countDocuments(combineMongoFilters(scopedFilter, { assignedTo: null }))
     ]);
 
     res.status(200).json({
@@ -984,12 +1467,22 @@ const assignSupportTicket = async (req, res) => {
       });
     }
 
-    const ticket = await SupportTicket.findById(req.params.id);
+    const ticket = await SupportTicket.findById(req.params.id).populate(
+      'citizen',
+      'fullName email phone role presentAddress permanentAddress'
+    );
 
     if (!ticket) {
       return res.status(404).json({
         success: false,
         message: 'Support ticket not found'
+      });
+    }
+
+    if (!assertSupportTicketScope(req, ticket)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this support ticket district'
       });
     }
 
@@ -1021,6 +1514,13 @@ const assignSupportTicket = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Cannot assign ticket to inactive internal user'
+        });
+      }
+
+      if (!canAccessUserByDistrict(assignee, ticket.citizen)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected assignee does not have access to this ticket district'
         });
       }
     }
@@ -1055,8 +1555,8 @@ const assignSupportTicket = async (req, res) => {
     });
 
     const updatedTicket = await SupportTicket.findById(ticket._id)
-      .populate('citizen', 'fullName email phone role')
-      .populate('assignedTo', 'fullName email role');
+      .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+      .populate('assignedTo', 'fullName email role adminScope');
 
     res.status(200).json({
       success: true,
@@ -1091,12 +1591,22 @@ const updateSupportTicketStatus = async (req, res) => {
       });
     }
 
-    const ticket = await SupportTicket.findById(req.params.id);
+    const ticket = await SupportTicket.findById(req.params.id).populate(
+      'citizen',
+      'fullName email phone role presentAddress permanentAddress'
+    );
 
     if (!ticket) {
       return res.status(404).json({
         success: false,
         message: 'Support ticket not found'
+      });
+    }
+
+    if (!assertSupportTicketScope(req, ticket)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this support ticket district'
       });
     }
 
@@ -1148,8 +1658,8 @@ const updateSupportTicketStatus = async (req, res) => {
     });
 
     const updatedTicket = await SupportTicket.findById(ticket._id)
-      .populate('citizen', 'fullName email phone role')
-      .populate('assignedTo', 'fullName email role')
+      .populate('citizen', 'fullName email phone role presentAddress permanentAddress')
+      .populate('assignedTo', 'fullName email role adminScope')
       .populate('responses.responder', 'fullName email role');
 
     res.status(200).json({
@@ -1181,6 +1691,13 @@ const createCenter = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Name, district and address are required'
+      });
+    }
+
+    if (!canAccessCenterByDistrict(req, { district })) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to create a center in this district'
       });
     }
 
@@ -1263,12 +1780,14 @@ const getAllCenters = async (req, res) => {
       ];
     }
 
+    const scopedFilter = applyAdminDistrictFilter(req, filter, 'district');
+
     const [centers, total] = await Promise.all([
-      Center.find(filter)
+      Center.find(scopedFilter)
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Center.countDocuments(filter)
+      Center.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1305,6 +1824,13 @@ const getSingleCenter = async (req, res) => {
       });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     res.status(200).json({
       success: true,
       center
@@ -1336,6 +1862,13 @@ const updateCenter = async (req, res) => {
       });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     const {
       name,
       district,
@@ -1344,6 +1877,13 @@ const updateCenter = async (req, res) => {
       officeHours,
       dailyCapacity
     } = req.body;
+
+    if (district !== undefined && !canAccessCenterByDistrict(req, { district })) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to move this center to that district'
+      });
+    }
 
     if (name !== undefined) center.name = name;
     if (district !== undefined) center.district = district;
@@ -1398,6 +1938,13 @@ const toggleCenterStatus = async (req, res) => {
       });
     }
 
+    if (!canAccessCenterByDistrict(req, center)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this center district'
+      });
+    }
+
     center.isActive = !center.isActive;
     await center.save();
 
@@ -1428,22 +1975,188 @@ const toggleCenterStatus = async (req, res) => {
 
 const getPrintingQueue = async (req, res) => {
   try {
+    const { page, limit, skip } = getPaginationOptions(req.query);
     const filter = {};
 
-    if (req.query.status) {
+    if (req.query.status === 'printed') {
+      filter.status = { $in: ['printed', 'dispatched', 'delivered'] };
+    } else if (req.query.status) {
       filter.status = req.query.status;
     } else {
-      filter.status = { $in: ['approved', 'printed'] };
+      filter.status = { $in: ['approved', 'printed', 'dispatched', 'delivered'] };
     }
 
-    const applications = await Application.find(filter)
-      .populate('applicant', 'fullName email phone role')
-      .sort({ approvedAt: 1, createdAt: 1 });
+    if (req.query.applicationType) {
+      filter.applicationType = req.query.applicationType;
+    }
+
+    if (req.query.search) {
+      const regex = new RegExp(escapeRegex(req.query.search), 'i');
+      filter.$or = [
+        { applicationId: regex },
+        { fullNameEnglish: regex },
+        { fullNameBangla: regex },
+        { phone: regex },
+        { email: regex },
+        { birthRegistrationNumber: regex },
+        { existingNidNumber: regex },
+        { nidNumber: regex }
+      ];
+    }
+
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+    const activeQueueDate = buildMongoCoalesce(
+      { $arrayElemAt: ['$completedAppointments.completedAt', 0] },
+      '$approvedAt',
+      '$submittedAt',
+      '$createdAt'
+    );
+    const completedQueueDate = buildMongoCoalesce(
+      '$printedAt',
+      '$dispatchedAt',
+      '$deliveredAt',
+      '$latestStatusChangedAt',
+      '$updatedAt',
+      '$createdAt'
+    );
+
+    const [result = {}] = await Application.aggregate([
+      { $match: scopedFilter },
+      {
+        $lookup: {
+          from: Appointment.collection.name,
+          let: { applicationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$application', '$$applicationId'] },
+                    { $eq: ['$status', 'completed'] }
+                  ]
+                }
+              }
+            },
+            { $sort: { completedAt: 1, updatedAt: 1, createdAt: 1, _id: 1 } },
+            { $limit: 1 },
+            {
+              $project: {
+                status: 1,
+                completedAt: 1,
+                appointmentDate: 1,
+                appointmentDateKey: 1,
+                timeSlot: 1,
+                centerName: 1,
+                updatedAt: 1,
+                createdAt: 1
+              }
+            }
+          ],
+          as: 'completedAppointments'
+        }
+      },
+      {
+        $match: {
+          $or: [
+            { status: { $ne: 'approved' } },
+            { 'completedAppointments.0': { $exists: true } }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          queueGroup: { $cond: [{ $eq: ['$status', 'approved'] }, 0, 1] },
+          queueDate: {
+            $cond: [
+              { $eq: ['$status', 'approved'] },
+              activeQueueDate,
+              completedQueueDate
+            ]
+          }
+        }
+      },
+      { $sort: { queueGroup: 1, queueDate: 1, applicationId: 1, _id: 1 } },
+      {
+        $facet: {
+          rows: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: 'value' }]
+        }
+      }
+    ]);
+
+    const populatedRows = await Application.populate(result.rows || [], {
+      path: 'applicant',
+      select: 'fullName email phone role'
+    });
+    const queueApplications = populatedRows.map((row) => {
+      const {
+        completedAppointments = [],
+        queueGroup,
+        queueDate,
+        ...application
+      } = row;
+
+      return mapPrintingQueueApplication(
+        application,
+        completedAppointments[0] || null
+      );
+    });
+    const total = result.total?.[0]?.value || 0;
 
     res.status(200).json({
       success: true,
-      count: applications.length,
-      applications
+      count: queueApplications.length,
+      applications: queueApplications,
+      data: queueApplications,
+      meta: buildPaginationMeta({ page, limit, total })
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getPrintingQueueDetails = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role')
+      .lean();
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
+    const appointment = await Appointment.findOne({
+      application: application._id
+    })
+      .sort({ completedAt: -1, updatedAt: -1, createdAt: -1, _id: -1 })
+      .select('status completedAt appointmentDate appointmentDateKey timeSlot centerName updatedAt createdAt')
+      .lean();
+    const queueApplication = mapPrintingQueueApplication(application, appointment);
+
+    res.status(200).json({
+      success: true,
+      application: queueApplication,
+      data: queueApplication
     });
   } catch (error) {
     res.status(500).json({
@@ -1471,10 +2184,27 @@ const markApplicationAsPrinted = async (req, res) => {
       });
     }
 
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
     if (application.status !== 'approved') {
       return res.status(400).json({
         success: false,
         message: 'Only approved applications can be marked as printed'
+      });
+    }
+
+    const appointmentCompleted = await hasCompletedBiometricAppointment(application._id);
+
+    if (!appointmentCompleted) {
+      return res.status(400).json({
+        success: false,
+        code: 'BIOMETRIC_APPOINTMENT_NOT_COMPLETED',
+        message: 'Application can be printed only after the biometric appointment is completed.'
       });
     }
 
@@ -1483,6 +2213,13 @@ const markApplicationAsPrinted = async (req, res) => {
     const requestContext = getRequestAuditContext(req);
     const printNote = String(req.body.printNote || '').trim();
     const batchReference = String(req.body.batchReference || '').trim();
+    const assignmentResult = await getOrCreateNidNumberAssignment(application, {
+      metadata: {
+        source: 'admin.printing',
+        action: 'mark_printed',
+        assignedBy: req.user?._id || null
+      }
+    });
 
     application.status = 'printed';
     application.printedAt = new Date();
@@ -1497,33 +2234,46 @@ const markApplicationAsPrinted = async (req, res) => {
     const updatedApplication = await application.save();
     const afterState = buildApplicationAuditState(updatedApplication);
 
-    await createAuditLog({
-      actor: req.user._id,
-      actorRole: req.user.role,
-      action: 'MARK_APPLICATION_PRINTED',
-      entityType: 'Application',
-      entityId: updatedApplication._id,
-      message: `Marked application ${updatedApplication.applicationId} as printed`,
-      reason: printNote || batchReference || 'Application marked as printed',
-      severity: 'info',
-      sourceModule: 'admin.printing',
-      requestContext,
-      beforeState,
-      afterState,
-      meta: {
-        status: updatedApplication.status,
-        printNote,
-        batchReference
-      }
-    });
+    try {
+      await createAuditLog({
+        actor: req.user._id,
+        actorRole: req.user.role,
+        action: 'MARK_APPLICATION_PRINTED',
+        entityType: 'Application',
+        entityId: updatedApplication._id,
+        message: `Marked application ${updatedApplication.applicationId} as printed`,
+        reason: printNote || batchReference || 'Application marked as printed',
+        severity: 'info',
+        sourceModule: 'admin.printing',
+        requestContext,
+        beforeState,
+        afterState,
+        meta: {
+          status: updatedApplication.status,
+          nidNumber: updatedApplication.nidNumber,
+          nidNumberProvider: assignmentResult.provider,
+          printNote,
+          batchReference
+        }
+      });
+    } catch (auditError) {
+      console.error('Failed to create printing audit log:', auditError);
+    }
 
     res.status(200).json({
       success: true,
       message: 'Application marked as printed successfully',
-      application: updatedApplication
+      application: updatedApplication,
+      nidNumber: updatedApplication.nidNumber,
+      nidNumberAssignment: {
+        nidNumber: assignmentResult.nidNumber,
+        provider: assignmentResult.provider,
+        created: assignmentResult.created,
+        assignedAt: assignmentResult.assignment.assignedAt
+      }
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(error?.code === 'NID_NUMBER_ASSIGNMENT_FAILED' ? 409 : 500).json({
       success: false,
       message: error.message
     });
@@ -1533,20 +2283,12 @@ const markApplicationAsPrinted = async (req, res) => {
 const getDeliveryQueue = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationOptions(req.query);
-    const sort = getSafeSort(req.query.sort, { printedAt: 1, createdAt: 1 }, [
-      'createdAt',
-      'updatedAt',
-      'printedAt',
-      'deliveredAt',
-      'status'
-    ]);
-
     const filter = {};
 
     if (req.query.status) {
       filter.status = req.query.status;
     } else {
-      filter.status = { $in: ['printed', 'delivered'] };
+      filter.status = { $in: ['printed', 'delivered', 'cancelled'] };
     }
 
     if (req.query.applicationType) {
@@ -1562,25 +2304,166 @@ const getDeliveryQueue = async (req, res) => {
         { phone: regex },
         { email: regex },
         { birthRegistrationNumber: regex },
-        { existingNidNumber: regex }
+        { existingNidNumber: regex },
+        { nidNumber: regex }
       ];
     }
 
-    const [applications, total] = await Promise.all([
-      Application.find(filter)
-        .populate('applicant', 'fullName email phone role')
-        .sort(sort)
-        .skip(skip)
-        .limit(limit),
-      Application.countDocuments(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+    const activeDeliveryExpression = {
+      $and: [
+        { $eq: ['$status', 'printed'] },
+        { $eq: ['$deliveryRequest.delivery.requested', true] },
+        { $in: ['$deliveryRequest.payment.status', ['paid', 'waived']] },
+        {
+          $not: [
+            {
+              $in: [
+                '$deliveryRequest.delivery.status',
+                ['delivered', 'cancelled']
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const activeQueueDate = buildMongoCoalesce(
+      '$deliveryRequest.payment.completedAt',
+      '$deliveryRequest.delivery.requestedAt',
+      '$printedAt',
+      '$updatedAt',
+      '$createdAt'
+    );
+    const completedQueueDate = buildMongoCoalesce(
+      '$deliveredAt',
+      '$printedAt',
+      '$updatedAt',
+      '$createdAt'
+    );
+
+    const [result = {}] = await Application.aggregate([
+      { $match: scopedFilter },
+      {
+        $lookup: {
+          from: DeliveryRequest.collection.name,
+          localField: '_id',
+          foreignField: 'application',
+          as: 'deliveryRequests'
+        }
+      },
+      {
+        $addFields: {
+          deliveryRequest: { $arrayElemAt: ['$deliveryRequests', 0] }
+        }
+      },
+      {
+        $addFields: {
+          activeDeliveryRequest: activeDeliveryExpression
+        }
+      },
+      {
+        $match: {
+          $expr: {
+            $or: [
+              { $ne: ['$status', 'printed'] },
+              { $eq: ['$activeDeliveryRequest', true] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          queueGroup: { $cond: ['$activeDeliveryRequest', 0, 1] },
+          queueDate: {
+            $cond: [
+              '$activeDeliveryRequest',
+              activeQueueDate,
+              completedQueueDate
+            ]
+          }
+        }
+      },
+      { $sort: { queueGroup: 1, queueDate: 1, applicationId: 1, _id: 1 } },
+      {
+        $facet: {
+          rows: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: 'value' }]
+        }
+      }
     ]);
+
+    const populatedRows = await Application.populate(result.rows || [], {
+      path: 'applicant',
+      select: 'fullName email phone role'
+    });
+    const pagedApplications = populatedRows.map((row) => {
+      const {
+        deliveryRequests,
+        deliveryRequest,
+        activeDeliveryRequest,
+        queueGroup,
+        queueDate,
+        ...application
+      } = row;
+
+      return mapDeliveryQueueApplication(application, deliveryRequest || null);
+    });
+    const total = result.total?.[0]?.value || 0;
 
     res.status(200).json({
       success: true,
-      count: applications.length,
-      applications,
-      data: applications,
+      count: pagedApplications.length,
+      applications: pagedApplications,
+      data: pagedApplications,
       meta: buildPaginationMeta({ page, limit, total })
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getDeliveryQueueDetails = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application id'
+      });
+    }
+
+    const application = await Application.findById(req.params.id)
+      .populate('applicant', 'fullName email phone role')
+      .lean();
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
+    const deliveryRequest = await DeliveryRequest.findOne({
+      application: application._id
+    }).lean();
+    const queueApplication = mapDeliveryQueueApplication(
+      application,
+      deliveryRequest
+    );
+
+    res.status(200).json({
+      success: true,
+      application: queueApplication,
+      data: queueApplication
     });
   } catch (error) {
     res.status(500).json({
@@ -1605,6 +2488,13 @@ const markApplicationAsDelivered = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1706,13 +2596,15 @@ const getAllApplicationsForAdmin = async (req, res) => {
       ];
     }
 
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
     const [applications, total] = await Promise.all([
-      Application.find(filter)
+      Application.find(scopedFilter)
         .populate('applicant', 'fullName email phone role')
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Application.countDocuments(filter)
+      Application.countDocuments(scopedFilter)
     ]);
 
     res.status(200).json({
@@ -1746,6 +2638,13 @@ const getSingleApplicationForAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1787,6 +2686,13 @@ const reviewApplicationByAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
+      });
+    }
+
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
       });
     }
 
@@ -1835,6 +2741,7 @@ const reviewApplicationByAdmin = async (req, res) => {
     if (status === 'approved') {
       application.approvedAt = new Date();
       application.rejectionReason = '';
+      // TODO: Apply approved correction changes to a stable issued-NID profile model when that model exists.
     }
 
     if (status === 'rejected') {
@@ -1851,7 +2758,9 @@ const reviewApplicationByAdmin = async (req, res) => {
       reason:
         rejectionReason ||
         decisionNote ||
-        `Application review moved to ${status}`,
+        (status === 'approved'
+          ? 'Application approved. Biometric appointment is required.'
+          : `Application review moved to ${status}`),
       note: decisionNote
     });
 
@@ -1897,6 +2806,9 @@ const reviewApplicationByAdmin = async (req, res) => {
 
 const getApplicationStatsForAdmin = async (req, res) => {
   try {
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
+
     const [
       totalApplications,
       submittedApplications,
@@ -1907,14 +2819,14 @@ const getApplicationStatsForAdmin = async (req, res) => {
       deliveredApplications,
       cancelledApplications
     ] = await Promise.all([
-      Application.countDocuments(),
-      Application.countDocuments({ status: 'submitted' }),
-      Application.countDocuments({ status: 'under_review' }),
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'rejected' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({ status: 'cancelled' })
+      Application.countDocuments(scopeFilter()),
+      Application.countDocuments(scopeFilter({ status: 'submitted' })),
+      Application.countDocuments(scopeFilter({ status: 'under_review' })),
+      Application.countDocuments(scopeFilter({ status: 'approved' })),
+      Application.countDocuments(scopeFilter({ status: 'rejected' })),
+      Application.countDocuments(scopeFilter({ status: 'printed' })),
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({ status: 'cancelled' }))
     ]);
 
     res.status(200).json({
@@ -1966,8 +2878,22 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
     const applications = await Application.find({
       _id: { $in: validIds }
     });
+    const inaccessibleApplication = applications.find(
+      (application) => !canAccessApplicationByJurisdiction(req, application)
+    );
+
+    if (inaccessibleApplication) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to one or more application jurisdictions'
+      });
+    }
+
+    const completedApplicationIds =
+      await getCompletedAppointmentApplicationIdSet(applications);
 
     let updatedCount = 0;
+    const assignedNidNumbers = [];
     const skipped = [];
 
     for (const application of applications) {
@@ -1980,45 +2906,86 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
         continue;
       }
 
+      if (!completedApplicationIds.has(String(application._id))) {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: 'Biometric appointment is not completed'
+        });
+        continue;
+      }
+
       const previousStatus = application.status;
       const beforeState = buildApplicationAuditState(application);
+      let assignmentResult;
 
-      application.status = 'printed';
-      application.printedAt = new Date();
+      try {
+        assignmentResult = await getOrCreateNidNumberAssignment(application, {
+          metadata: {
+            source: 'admin.printing',
+            action: 'bulk_mark_printed',
+            assignedBy: req.user?._id || null
+          }
+        });
 
-      appendApplicationStatusHistory(application, req, {
-        fromStatus: previousStatus,
-        toStatus: 'printed',
-        reason:
-          actionNote || batchReference || 'Application marked as printed in bulk',
-        note: actionNote || batchReference
-      });
+        application.status = 'printed';
+        application.printedAt = new Date();
 
-      await application.save();
+        appendApplicationStatusHistory(application, req, {
+          fromStatus: previousStatus,
+          toStatus: 'printed',
+          reason:
+            actionNote || batchReference || 'Application marked as printed in bulk',
+          note: actionNote || batchReference
+        });
+
+        await application.save();
+      } catch (error) {
+        skipped.push({
+          id: application._id,
+          applicationId: application.applicationId,
+          reason: error.message || 'NID number assignment or print update failed'
+        });
+        continue;
+      }
+
       updatedCount += 1;
+      assignedNidNumbers.push({
+        id: application._id,
+        applicationId: application.applicationId,
+        nidNumber: application.nidNumber,
+        provider: assignmentResult.provider,
+        created: assignmentResult.created
+      });
 
       const afterState = buildApplicationAuditState(application);
 
-      await createAuditLog({
-        actor: req.user._id,
-        actorRole: req.user.role,
-        action: 'BULK_MARK_APPLICATION_PRINTED',
-        entityType: 'Application',
-        entityId: application._id,
-        message: `Marked application ${application.applicationId} as printed`,
-        reason:
-          actionNote || batchReference || 'Bulk print action completed',
-        severity: 'info',
-        sourceModule: 'admin.printing',
-        requestContext,
-        beforeState,
-        afterState,
-        meta: {
-          status: application.status,
-          actionNote,
-          batchReference
-        }
-      });
+      try {
+        await createAuditLog({
+          actor: req.user._id,
+          actorRole: req.user.role,
+          action: 'BULK_MARK_APPLICATION_PRINTED',
+          entityType: 'Application',
+          entityId: application._id,
+          message: `Marked application ${application.applicationId} as printed`,
+          reason:
+            actionNote || batchReference || 'Bulk print action completed',
+          severity: 'info',
+          sourceModule: 'admin.printing',
+          requestContext,
+          beforeState,
+          afterState,
+          meta: {
+            status: application.status,
+            nidNumber: application.nidNumber,
+            nidNumberProvider: assignmentResult.provider,
+            actionNote,
+            batchReference
+          }
+        });
+      } catch (auditError) {
+        console.error('Failed to create bulk printing audit log:', auditError);
+      }
     }
 
     res.status(200).json({
@@ -2027,6 +2994,7 @@ const bulkMarkApplicationsAsPrinted = async (req, res) => {
       totalRequested: applicationIds.length,
       processed: applications.length,
       updatedCount,
+      assignedNidNumbers,
       skipped
     });
   } catch (error) {
@@ -2065,6 +3033,16 @@ const bulkMarkApplicationsAsDelivered = async (req, res) => {
     const applications = await Application.find({
       _id: { $in: validIds }
     });
+    const inaccessibleApplication = applications.find(
+      (application) => !canAccessApplicationByJurisdiction(req, application)
+    );
+
+    if (inaccessibleApplication) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to one or more application jurisdictions'
+      });
+    }
 
     let updatedCount = 0;
     const skipped = [];
@@ -2210,19 +3188,22 @@ const getPrintingStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
 
-    const [
-      approvedForPrint,
-      printedCount,
-      deliveredAfterPrint,
-      printedToday
-    ] = await Promise.all([
-      Application.countDocuments({ status: 'approved' }),
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({
+    const approvedApplications = await Application.find(scopeFilter({ status: 'approved' }))
+      .select('_id status')
+      .lean();
+    const approvedForPrint =
+      (await getCompletedAppointmentApplicationIdSet(approvedApplications)).size;
+
+    const [printedCount, printedToday] = await Promise.all([
+      Application.countDocuments(
+        scopeFilter({ status: { $in: ['printed', 'dispatched', 'delivered'] } })
+      ),
+      Application.countDocuments(scopeFilter({
         printedAt: { $gte: today }
-      })
+      }))
     ]);
 
     res.status(200).json({
@@ -2230,7 +3211,6 @@ const getPrintingStats = async (req, res) => {
       data: {
         approvedForPrint,
         printedCount,
-        deliveredAfterPrint,
         printedToday
       }
     });
@@ -2244,29 +3224,36 @@ const getPrintingStats = async (req, res) => {
 
 const getDeliveryStats = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const scopeFilter = (extra = {}) =>
+      applyAdminJurisdictionFilter(req, extra);
 
-    const [
-      readyForDelivery,
-      deliveredCount,
-      deliveredToday,
-      cancelledCount
-    ] = await Promise.all([
-      Application.countDocuments({ status: 'printed' }),
-      Application.countDocuments({ status: 'delivered' }),
-      Application.countDocuments({
-        deliveredAt: { $gte: today }
-      }),
-      Application.countDocuments({ status: 'cancelled' })
+    const printedApplications = await Application.find(scopeFilter({ status: 'printed' }))
+      .select('_id status')
+      .lean();
+    const readyDeliveryRequests = printedApplications.length
+      ? await DeliveryRequest.find({
+          application: { $in: printedApplications.map((application) => application._id) },
+          'delivery.requested': true,
+          'delivery.status': { $nin: ['delivered', 'cancelled'] },
+          'payment.status': { $in: ['paid', 'waived'] }
+        })
+          .select('application payment delivery')
+          .lean()
+      : [];
+    const activeDeliveryRequests = readyDeliveryRequests.filter((deliveryRequest) =>
+      isActiveDeliveryRequest({ status: 'printed' }, deliveryRequest)
+    ).length;
+
+    const [deliveredCount, cancelledCount] = await Promise.all([
+      Application.countDocuments(scopeFilter({ status: 'delivered' })),
+      Application.countDocuments(scopeFilter({ status: 'cancelled' }))
     ]);
 
     res.status(200).json({
       success: true,
       data: {
-        readyForDelivery,
+        activeDeliveryRequests,
         deliveredCount,
-        deliveredToday,
         cancelledCount
       }
     });
@@ -2325,11 +3312,14 @@ const exportPrintingReport = async (req, res) => {
       filter.status = { $in: ['approved', 'printed', 'delivered'] };
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone')
       .sort({ createdAt: -1 });
+    const reportApplications = await filterApplicationsReadyForPrinting(applications);
 
-    const rows = applications.map((item) => ({
+    const rows = reportApplications.map((item) => ({
       applicationId: item.applicationId,
       applicantName: item.fullNameEnglish,
       userName: item.applicant?.fullName || '',
@@ -2366,7 +3356,9 @@ const exportDeliveryReport = async (req, res) => {
       filter.status = { $in: ['printed', 'delivered', 'cancelled'] };
     }
 
-    const applications = await Application.find(filter)
+    const scopedFilter = applyAdminJurisdictionFilter(req, filter);
+
+    const applications = await Application.find(scopedFilter)
       .populate('applicant', 'fullName email phone')
       .sort({ createdAt: -1 });
 
@@ -2440,6 +3432,7 @@ module.exports = {
   getAdminDashboard,
   getAdminDashboardSummary,
   getInternalUsers,
+  getInternalUserDetails,
   createInternalUser,
   updateInternalUser,
   archiveInternalUser,
@@ -2453,8 +3446,10 @@ module.exports = {
   updateCenter,
   toggleCenterStatus,
   getPrintingQueue,
+  getPrintingQueueDetails,
   markApplicationAsPrinted,
   getDeliveryQueue,
+  getDeliveryQueueDetails,
   markApplicationAsDelivered,
   getRecentAuditLogs,
   getPrintingStats,

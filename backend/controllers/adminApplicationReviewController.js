@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 const Application = require('../models/Application');
+const {
+  applyAdminJurisdictionFilter,
+  canAccessApplicationByJurisdiction
+} = require('../utils/adminScope');
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -84,19 +88,64 @@ const toManagedAsset = (key, label, record = {}) => {
     verifiedAt: record?.verifiedAt || null,
     originalFilename:
       record?.cloudinary?.originalFilename || record?.cloudinary?.publicId || '',
-    rejectionReason: record?.rejectionReason || ''
+    rejectionReason: record?.rejectionReason || '',
+    verification: key === 'birthCertificate' ? record?.verification || null : null
   };
 };
 
-const buildReviewAssets = (application) => [
-  toManagedAsset('photograph', 'Photograph', application?.documentAssets?.photograph),
-  toManagedAsset('signature', 'Signature', application?.documentAssets?.signature),
-  toManagedAsset(
-    'birthCertificate',
-    'Birth Certificate',
-    application?.documentAssets?.birthCertificate
-  )
-];
+const buildBirthCertificateVerificationData = (application) => {
+  const verification =
+    application?.documentAssets?.birthCertificate?.verification || null;
+  const status = verification?.status || 'not_started';
+
+  return {
+    status,
+    isVerified: status === 'passed',
+    tag:
+      status === 'passed'
+        ? {
+            label: 'Document information matched',
+            tone: 'green'
+          }
+        : null,
+    provider: verification?.provider || '',
+    confidence: verification?.confidence ?? null,
+    checkedAt: verification?.checkedAt || null,
+    message: verification?.message || '',
+    extractedFields: verification?.extractedFields || {},
+    fieldComparisons: Array.isArray(verification?.fieldComparisons)
+      ? verification.fieldComparisons
+      : []
+  };
+};
+
+const buildReviewAssets = (application) => {
+  const assets = [
+    toManagedAsset('photograph', 'Photograph', application?.documentAssets?.photograph),
+    toManagedAsset('signature', 'Signature', application?.documentAssets?.signature),
+    toManagedAsset(
+      'birthCertificate',
+      'Birth Certificate',
+      application?.documentAssets?.birthCertificate
+    )
+  ];
+
+  if (
+    application?.applicationType === 'correction' ||
+    application?.documentAssets?.correctionProof?.cloudinary?.secureUrl ||
+    application?.documents?.correctionProof
+  ) {
+    assets.push(
+      toManagedAsset(
+        'correctionProof',
+        'Correction Proof',
+        application?.documentAssets?.correctionProof
+      )
+    );
+  }
+
+  return assets;
+};
 
 const buildSupportingReferences = (application) =>
   [
@@ -125,8 +174,28 @@ const buildSupportingReferences = (application) =>
 const buildDocumentSummary = (application) => ({
   photograph: Boolean(application?.documentAssets?.photograph?.cloudinary?.secureUrl),
   signature: Boolean(application?.documentAssets?.signature?.cloudinary?.secureUrl),
-  birthCertificate: Boolean(application?.documentAssets?.birthCertificate?.cloudinary?.secureUrl)
+  birthCertificate: Boolean(application?.documentAssets?.birthCertificate?.cloudinary?.secureUrl),
+  correctionProof: Boolean(application?.documentAssets?.correctionProof?.cloudinary?.secureUrl),
+  birthCertificateVerification: buildBirthCertificateVerificationData(application)
 });
+
+const buildCorrectionSummary = (application) => {
+  if (application?.applicationType !== 'correction') {
+    return null;
+  }
+
+  const correctionInfo = application?.correctionInfo || {};
+
+  return {
+    correctionOf: correctionInfo.correctionOf || null,
+    baseApplicationId: correctionInfo.baseApplicationId || '',
+    reason: correctionInfo.reason || '',
+    proofStatus: correctionInfo.proofStatus || 'not_uploaded',
+    requestedChanges: Array.isArray(correctionInfo.requestedChanges)
+      ? correctionInfo.requestedChanges
+      : []
+  };
+};
 
 const buildActorInfo = (req) => ({
   userId: req.user?._id || null,
@@ -171,20 +240,23 @@ const getApplicationReviewQueue = async (req, res) => {
       search: String(req.query.search || '').trim()
     });
 
+    const scopedBaseFilter = applyAdminJurisdictionFilter(req, baseFilter);
     const cursor = decodeCursor(req.query.cursor);
     const cursorClause = buildCursorClause(cursor, field, dir);
-    const finalFilter = cursorClause ? { $and: [baseFilter, cursorClause] } : baseFilter;
+    const finalFilter = cursorClause
+      ? { $and: [scopedBaseFilter, cursorClause] }
+      : scopedBaseFilter;
 
     const [rows, totalMatching] = await Promise.all([
       Application.find(finalFilter)
         .select(
-          'applicationId applicationType status createdAt updatedAt submittedAt latestStatusChangedAt fullNameEnglish fullNameBangla fatherName motherName phone email birthRegistrationNumber existingNidNumber rejectionReason documentAssets'
+          'applicationId applicationType status createdAt updatedAt submittedAt latestStatusChangedAt fullNameEnglish fullNameBangla fatherName motherName phone email birthRegistrationNumber existingNidNumber rejectionReason documentAssets resubmissionInfo'
         )
         .populate('applicant', 'fullName email phone role status')
         .sort({ [field]: dir, _id: dir })
         .limit(limit + 1)
         .lean(),
-      Application.countDocuments(baseFilter)
+      Application.countDocuments(scopedBaseFilter)
     ]);
 
     const hasMore = rows.length > limit;
@@ -192,7 +264,8 @@ const getApplicationReviewQueue = async (req, res) => {
 
     const data = visibleRows.map((item) => ({
       ...item,
-      documentSummary: buildDocumentSummary(item)
+      documentSummary: buildDocumentSummary(item),
+      documentVerification: buildBirthCertificateVerificationData(item)
     }));
 
     const last = data[data.length - 1];
@@ -244,10 +317,19 @@ const getApplicationReviewDetails = async (req, res) => {
       });
     }
 
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
     return res.status(200).json({
       success: true,
       data: {
         ...application,
+        documentVerification: buildBirthCertificateVerificationData(application),
+        correctionSummary: buildCorrectionSummary(application),
         reviewAssets: buildReviewAssets(application),
         supportingReferences: buildSupportingReferences(application)
       }
@@ -297,6 +379,13 @@ const updateApplicationReviewDecision = async (req, res) => {
       });
     }
 
+    if (!canAccessApplicationByJurisdiction(req, application)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this application jurisdiction'
+      });
+    }
+
     const currentStatus = application.status;
 
     const allowedTransitions = {
@@ -334,6 +423,7 @@ const updateApplicationReviewDecision = async (req, res) => {
     if (status === 'approved') {
       application.approvedAt = new Date();
       application.rejectionReason = '';
+      // TODO: Apply approved correction changes to a stable issued-NID profile model when that model exists.
     }
 
     if (status === 'rejected') {
@@ -345,7 +435,10 @@ const updateApplicationReviewDecision = async (req, res) => {
       req,
       currentStatus,
       status,
-      rejectionReason || `Application moved to ${status}`,
+      rejectionReason ||
+        (status === 'approved'
+          ? 'Application approved. Biometric appointment is required.'
+          : `Application moved to ${status}`),
       decisionNote
     );
 
@@ -360,6 +453,8 @@ const updateApplicationReviewDecision = async (req, res) => {
       message: `Application updated to ${status}`,
       data: {
         ...refreshed,
+        documentVerification: buildBirthCertificateVerificationData(refreshed),
+        correctionSummary: buildCorrectionSummary(refreshed),
         reviewAssets: buildReviewAssets(refreshed),
         supportingReferences: buildSupportingReferences(refreshed)
       }
