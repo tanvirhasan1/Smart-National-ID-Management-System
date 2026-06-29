@@ -191,11 +191,21 @@ const refreshAccessToken = async () => {
 const api = axios.create({
   baseURL: apiBaseURL,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
   },
   timeout: apiTimeoutMs,
   withCredentials: true
 });
+
+// const api = axios.create({
+//   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+//   headers: {
+//     'Content-Type': 'application/json',
+//     'ngrok-skip-browser-warning': 'true'
+//   },
+//   timeout: apiTimeoutMs
+// });
 
 const storedToken = localStorage.getItem(TOKEN_KEY);
 if (storedToken) {
