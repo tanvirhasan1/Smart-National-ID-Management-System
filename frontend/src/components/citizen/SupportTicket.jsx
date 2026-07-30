@@ -1,5 +1,5 @@
 // Support Ticket Page Start
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
@@ -37,6 +37,7 @@ const SupportTicket = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const messagesEndRef = useRef(null);
 
   const {
     register,
@@ -81,7 +82,8 @@ const SupportTicket = () => {
             emptyHint: 'প্রথম টিকিট তৈরি করলে এখানে কথোপকথন দেখা যাবে।',
             categoryFallback: 'সাধারণ',
             priority: 'অগ্রাধিকার',
-            status: 'স্ট্যাটাস'
+            status: 'স্ট্যাটাস',
+            liveUpdates: 'মেসেজ স্বয়ংক্রিয়ভাবে আপডেট হবে'
           }
         : {
             totalTickets: 'Total Tickets',
@@ -113,7 +115,8 @@ const SupportTicket = () => {
             emptyHint: 'Create your first ticket and the conversation will appear here.',
             categoryFallback: 'General',
             priority: 'Priority',
-            status: 'Status'
+            status: 'Status',
+            liveUpdates: 'Messages update automatically'
           },
     [isBangla]
   );
@@ -122,6 +125,50 @@ const SupportTicket = () => {
     fetchTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selectedTicket?._id) return undefined;
+
+    const refreshConversation = async () => {
+      if (document.visibilityState !== 'visible' || sendingMessage) return;
+
+      try {
+        const response = await api.get(`/support/tickets/${selectedTicket._id}`);
+        const liveTicket = response?.data?.data;
+
+        if (!liveTicket) return;
+
+        setSelectedTicket(liveTicket);
+        setTickets((currentTickets) =>
+          currentTickets.map((ticket) =>
+            ticket._id === liveTicket._id
+              ? {
+                  ...ticket,
+                  status: liveTicket.status,
+                  assignedTo: liveTicket.assignedTo,
+                  updatedAt: liveTicket.updatedAt,
+                  lastMessageAt: liveTicket.lastMessageAt
+                }
+              : ticket
+          )
+        );
+      } catch (error) {
+        // Keep background refresh silent; normal actions still show errors.
+      }
+    };
+
+    const intervalId = window.setInterval(refreshConversation, 4000);
+    document.addEventListener('visibilitychange', refreshConversation);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshConversation);
+    };
+  }, [selectedTicket?._id, sendingMessage]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [selectedTicket?._id, selectedTicket?.responses?.length]);
 
   const ticketStats = useMemo(() => {
     const open = tickets.filter((ticket) => ticket.status === 'open').length;
@@ -539,7 +586,7 @@ const SupportTicket = () => {
                   <div className="support-conversation-section">
                     <div className="support-section-heading compact">
                       <h3>{copy.conversation}</h3>
-                      <p>{selectedTicket.responses?.length ? `${selectedTicket.responses.length} replies` : ui.noConversation}</p>
+                      <p>{selectedTicket.responses?.length ? `${selectedTicket.responses.length} replies · ${ui.liveUpdates}` : `${ui.noConversation} · ${ui.liveUpdates}`}</p>
                     </div>
 
                     <div className="support-messages-list">
@@ -552,9 +599,7 @@ const SupportTicket = () => {
                       </div>
 
                       {selectedTicket.responses?.map((response, index) => {
-                        const isAdmin =
-                          response.responderRole === 'admin' ||
-                          response.responderRole === 'super_admin';
+                        const isAdmin = response.responderRole !== 'citizen';
 
                         return (
                           <div
@@ -569,6 +614,7 @@ const SupportTicket = () => {
                           </div>
                         );
                       })}
+                      <div ref={messagesEndRef} />
                     </div>
 
                     {!['resolved', 'closed'].includes(selectedTicket.status) ? (
