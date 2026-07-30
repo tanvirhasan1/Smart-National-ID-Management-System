@@ -63,6 +63,79 @@ const prettyJson = (value) => {
   }
 };
 
+const getEffectiveBeforeState = (log = {}) =>
+  log.beforeState ?? log.meta?.before ?? null;
+
+const getEffectiveAfterState = (log = {}) =>
+  log.afterState ?? log.meta?.after ?? null;
+
+const getEffectiveReason = (log = {}) =>
+  log.reason || log.meta?.reason || 'No reason provided';
+
+const deriveChangedFields = (beforeState, afterState) => {
+  if (
+    !beforeState ||
+    !afterState ||
+    typeof beforeState !== 'object' ||
+    typeof afterState !== 'object'
+  ) {
+    return [];
+  }
+
+  return Array.from(
+    new Set([...Object.keys(beforeState), ...Object.keys(afterState)])
+  ).filter(
+    (field) =>
+      JSON.stringify(beforeState[field]) !== JSON.stringify(afterState[field])
+  );
+};
+
+const getEffectiveChangedFields = (log, beforeState, afterState) =>
+  Array.isArray(log?.changedFields) && log.changedFields.length > 0
+    ? log.changedFields
+    : deriveChangedFields(beforeState, afterState);
+
+const formatAuditField = (field) =>
+  formatStatus(String(field || '').replace(/([a-z0-9])([A-Z])/g, '$1_$2'));
+
+const formatAuditValue = (value, field = '') => {
+  if (value === undefined || value === null || value === '') return 'Not set';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return prettyJson(value);
+
+  const textValue = String(value);
+  const looksLikeDateField = /(at|date|time)$/i.test(String(field || ''));
+  const parsedDate = looksLikeDateField ? new Date(textValue) : null;
+
+  if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
+    return formatDateTime(parsedDate);
+  }
+
+  return textValue;
+};
+
+const formatIpAddress = (value) => {
+  const ipAddress = String(value || '').trim();
+
+  if (!ipAddress) return 'N/A';
+  if (ipAddress === '::1' || ipAddress === '0:0:0:0:0:0:0:1') {
+    return '127.0.0.1 (Localhost)';
+  }
+  if (ipAddress.toLowerCase().startsWith('::ffff:')) {
+    return ipAddress.slice(7);
+  }
+
+  return ipAddress;
+};
+
+const getTechnicalMeta = (log = {}) => {
+  const meta = log.meta && typeof log.meta === 'object' ? { ...log.meta } : {};
+  delete meta.before;
+  delete meta.after;
+  delete meta.reason;
+  return meta;
+};
+
 const ENTITY_FILTER_OPTIONS = [
   { value: '', label: 'All Entities' },
   { value: 'User', label: 'User' },
@@ -134,6 +207,12 @@ const getSourceLabel = (log) =>
 const AuditDetailModal = ({ log, onClose }) => {
   if (!log) return null;
 
+  const beforeState = getEffectiveBeforeState(log);
+  const afterState = getEffectiveAfterState(log);
+  const changedFields = getEffectiveChangedFields(log, beforeState, afterState);
+  const technicalMeta = getTechnicalMeta(log);
+  const hasTechnicalMeta = Object.keys(technicalMeta).length > 0;
+
   return (
     <div className="audit-logs-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <div
@@ -202,6 +281,10 @@ const AuditDetailModal = ({ log, onClose }) => {
                 <dt>Entity ID</dt>
                 <dd>{log.entityId || 'N/A'}</dd>
               </div>
+              <div>
+                <dt>District</dt>
+                <dd>{log.district || 'National / Not specified'}</dd>
+              </div>
             </dl>
           </section>
 
@@ -213,7 +296,7 @@ const AuditDetailModal = ({ log, onClose }) => {
             <dl className="audit-logs-detail-list">
               <div>
                 <dt>Reason</dt>
-                <dd>{log.reason || 'No reason provided'}</dd>
+                <dd>{getEffectiveReason(log)}</dd>
               </div>
               <div>
                 <dt>Request ID</dt>
@@ -221,7 +304,7 @@ const AuditDetailModal = ({ log, onClose }) => {
               </div>
               <div>
                 <dt>IP Address</dt>
-                <dd>{log.ipAddress || 'N/A'}</dd>
+                <dd>{formatIpAddress(log.ipAddress)}</dd>
               </div>
               <div>
                 <dt>User Agent</dt>
@@ -236,12 +319,19 @@ const AuditDetailModal = ({ log, onClose }) => {
             <FaHistory />
             <h3>Changed Fields</h3>
           </div>
-          {Array.isArray(log.changedFields) && log.changedFields.length > 0 ? (
-            <div className="audit-logs-chip-list">
-              {log.changedFields.map((field) => (
-                <span key={field} className="audit-logs-field-chip">
-                  {field}
-                </span>
+          {changedFields.length > 0 ? (
+            <div className="audit-logs-change-list">
+              <div className="audit-logs-change-head">
+                <span>Field</span>
+                <span>Before</span>
+                <span>After</span>
+              </div>
+              {changedFields.map((field) => (
+                <div key={field} className="audit-logs-change-row">
+                  <strong>{formatAuditField(field)}</strong>
+                  <span>{formatAuditValue(beforeState?.[field], field)}</span>
+                  <span>{formatAuditValue(afterState?.[field], field)}</span>
+                </div>
               ))}
             </div>
           ) : (
@@ -252,18 +342,20 @@ const AuditDetailModal = ({ log, onClose }) => {
         <div className="audit-logs-json-grid">
           <section className="audit-logs-json-card">
             <h3>Before State</h3>
-            <pre>{prettyJson(log.beforeState)}</pre>
+            <pre>{prettyJson(beforeState)}</pre>
           </section>
           <section className="audit-logs-json-card">
             <h3>After State</h3>
-            <pre>{prettyJson(log.afterState)}</pre>
+            <pre>{prettyJson(afterState)}</pre>
           </section>
         </div>
 
-        <section className="audit-logs-json-card single">
-          <h3>Meta</h3>
-          <pre>{prettyJson(log.meta)}</pre>
-        </section>
+        {hasTechnicalMeta ? (
+          <details className="audit-logs-json-card single audit-logs-technical-details">
+            <summary>Technical Metadata</summary>
+            <pre>{prettyJson(technicalMeta)}</pre>
+          </details>
+        ) : null}
       </div>
     </div>
   );
