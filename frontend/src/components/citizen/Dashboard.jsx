@@ -102,6 +102,142 @@ const DEFAULT_STAGE_LABELS_BN = {
   cancelled: 'বাতিল হয়েছে'
 };
 
+const CORRECTION_DASHBOARD_COPY = {
+  en: {
+    primary: {
+      submitted: {
+        badge: 'Submitted',
+        title: 'Your correction request has been submitted',
+        description:
+          'Your NID correction request is waiting for official review.'
+      },
+      under_review: {
+        badge: 'In Review',
+        title: 'Your correction request is under review',
+        description:
+          'The authority is reviewing your requested changes and supporting documents.'
+      },
+      approved: {
+        badge: 'Approved',
+        title: 'Your NID correction has been approved',
+        description:
+          'Your corrected Smart NID is ready. Complete the delivery request to receive the corrected physical card.'
+      },
+      rejected: {
+        badge: 'Rejected',
+        title: 'Your correction request was rejected',
+        description:
+          'Review the official reason before submitting another correction request.'
+      },
+      cancelled: {
+        badge: 'Cancelled',
+        title: 'Your correction request was cancelled',
+        description: 'This correction request is no longer active.'
+      }
+    },
+    stageLabels: {
+      submitted: 'Correction submitted',
+      under_review: 'Correction under review',
+      approved: 'Correction approved',
+      rejected: 'Correction rejected',
+      cancelled: 'Correction cancelled'
+    },
+    nextStepLabels: {
+      review: 'Wait for review',
+      requestDelivery: 'Request delivery',
+      waitForDispatch: 'Wait for dispatch',
+      reviewReason: 'Review rejection reason',
+      noActionNeeded: 'No action needed'
+    },
+    sidePanels: {
+      review: {
+        title: 'Correction under review',
+        description:
+          'Your requested NID changes and supporting documents are being reviewed.'
+      },
+      approved: {
+        title: 'Corrected card printed',
+        description:
+          'Your approved changes have been applied. The corrected Digital NID and physical card are now ready.',
+        actionLabel: 'View Digital NID'
+      },
+      rejected: {
+        title: 'Correction rejected',
+        description:
+          'Check the rejection reason before submitting another correction request.'
+      },
+      cancelled: {
+        title: 'Correction cancelled',
+        description: 'This correction request is no longer active.'
+      }
+    }
+  },
+  bn: {
+    primary: {
+      submitted: {
+        badge: 'জমা হয়েছে',
+        title: 'আপনার সংশোধন আবেদন জমা হয়েছে',
+        description: 'আপনার এনআইডি সংশোধন আবেদন অফিসিয়াল রিভিউর অপেক্ষায় আছে।'
+      },
+      under_review: {
+        badge: 'রিভিউ চলছে',
+        title: 'আপনার সংশোধন আবেদন পর্যালোচনাধীন',
+        description: 'কর্তৃপক্ষ আপনার চাওয়া পরিবর্তন ও সহায়ক ডকুমেন্ট যাচাই করছে।'
+      },
+      approved: {
+        badge: 'অনুমোদিত',
+        title: 'আপনার এনআইডি সংশোধন অনুমোদিত হয়েছে',
+        description:
+          'আপনার সংশোধিত স্মার্ট এনআইডি প্রস্তুত। সংশোধিত কার্ড পেতে ডেলিভারি অনুরোধ সম্পন্ন করুন।'
+      },
+      rejected: {
+        badge: 'বাতিল',
+        title: 'আপনার সংশোধন আবেদন বাতিল হয়েছে',
+        description: 'আবার সংশোধনের আবেদন করার আগে অফিসিয়াল কারণটি দেখুন।'
+      },
+      cancelled: {
+        badge: 'বাতিল হয়েছে',
+        title: 'আপনার সংশোধন আবেদন বাতিল করা হয়েছে',
+        description: 'এই সংশোধন আবেদনটি আর সক্রিয় নয়।'
+      }
+    },
+    stageLabels: {
+      submitted: 'সংশোধন জমা হয়েছে',
+      under_review: 'সংশোধন পর্যালোচনাধীন',
+      approved: 'সংশোধন অনুমোদিত',
+      rejected: 'সংশোধন বাতিল',
+      cancelled: 'সংশোধন বাতিল হয়েছে'
+    },
+    nextStepLabels: {
+      review: 'রিভিউর অপেক্ষা করুন',
+      requestDelivery: 'ডেলিভারি অনুরোধ করুন',
+      waitForDispatch: 'ডিসপ্যাচের অপেক্ষা করুন',
+      reviewReason: 'বাতিলের কারণ দেখুন',
+      noActionNeeded: 'কোনো পদক্ষেপ প্রয়োজন নেই'
+    },
+    sidePanels: {
+      review: {
+        title: 'সংশোধন পর্যালোচনাধীন',
+        description: 'আপনার চাওয়া এনআইডি পরিবর্তন ও সহায়ক ডকুমেন্ট যাচাই করা হচ্ছে।'
+      },
+      approved: {
+        title: 'সংশোধিত কার্ড প্রিন্ট হয়েছে',
+        description:
+          'আপনার অনুমোদিত পরিবর্তন প্রয়োগ হয়েছে। সংশোধিত ডিজিটাল এনআইডি ও কার্ড এখন প্রস্তুত।',
+        actionLabel: 'ডিজিটাল এনআইডি দেখুন'
+      },
+      rejected: {
+        title: 'সংশোধন বাতিল হয়েছে',
+        description: 'আবার সংশোধনের আবেদন করার আগে বাতিলের কারণটি দেখুন।'
+      },
+      cancelled: {
+        title: 'সংশোধন বাতিল করা হয়েছে',
+        description: 'এই সংশোধন আবেদনটি আর সক্রিয় নয়।'
+      }
+    }
+  }
+};
+
 const formatAppointmentDate = (appointment, language = 'en') => {
   const rawDate =
     appointment?.appointmentDate ||
@@ -190,6 +326,19 @@ const getSafeTime = (value) => {
   if (!value) return 0;
   const time = new Date(value).getTime();
   return Number.isNaN(time) ? 0 : time;
+};
+
+const isCorrectionDashboardItem = (item = {}) =>
+  item?.source === 'correction' || item?.isCorrectionRequest === true;
+
+const getBaseApplicationObjectId = (item = {}) => {
+  if (item?.baseApplicationObjectId) return item.baseApplicationObjectId;
+
+  if (typeof item?.baseApplication === 'object') {
+    return item.baseApplication?._id || item.baseApplication?.id || '';
+  }
+
+  return item?.baseApplication || '';
 };
 
 const ACTIVE_APPLICATION_STATUSES = new Set([
@@ -293,6 +442,7 @@ const CitizenDashboard = () => {
     value ? formatDashboardDateTime(value, language) : copy.na;
 
   const [applications, setApplications] = useState([]);
+  const [corrections, setCorrections] = useState([]);
   const [dashboardSummary, setDashboardSummary] = useState({
     applications: {
       total: 0,
@@ -331,15 +481,23 @@ const CitizenDashboard = () => {
         setLoading(true);
       }
 
-      const [summaryResponse, applicationsResponse, eligibilityResponse] = await Promise.all([
+      const [summaryResponse, applicationsResponse, eligibilityResponse, correctionsResponse] = await Promise.all([
         api.get('/users/dashboard/summary'),
         api.get('/applications/my'),
-        api.get('/applications/eligibility')
+        api.get('/applications/eligibility'),
+        api.get('/corrections/my').catch((error) => {
+          console.error('Error fetching dashboard correction requests:', error);
+          return null;
+        })
       ]);
 
       const summaryData = summaryResponse?.data?.data || {};
       const applicationList = applicationsResponse?.data?.applications || [];
       const eligibilityData = eligibilityResponse?.data?.data || null;
+      const correctionList =
+        correctionsResponse?.data?.corrections ||
+        correctionsResponse?.data?.data ||
+        [];
 
       setDashboardSummary({
         applications: summaryData.applications || {
@@ -368,6 +526,9 @@ const CitizenDashboard = () => {
       });
 
       setApplications(applicationList);
+      if (correctionsResponse) {
+        setCorrections(correctionList);
+      }
       setEligibility(eligibilityData);
       setLastSyncedAt(new Date());
     } catch (error) {
@@ -500,16 +661,56 @@ const CitizenDashboard = () => {
     });
   }, [applications]);
 
+  const sortedDashboardItems = useMemo(() => {
+    const applicationMap = new Map(
+      applications.map((application) => [String(application?._id), application])
+    );
+
+    const correctionItems = corrections.map((correction) => {
+      const baseApplicationObjectId = getBaseApplicationObjectId(correction);
+      const baseApplicationRecord =
+        applicationMap.get(String(baseApplicationObjectId)) ||
+        (typeof correction?.baseApplication === 'object'
+          ? correction.baseApplication
+          : null);
+
+      return {
+        ...correction,
+        source: 'correction',
+        isCorrectionRequest: true,
+        applicationId: correction.correctionId || correction.applicationId,
+        applicationType: 'correction',
+        baseApplicationObjectId,
+        baseApplicationRecord,
+        deliveryInfo: baseApplicationRecord?.deliveryInfo || null,
+        printedAt: baseApplicationRecord?.printedAt || null
+      };
+    });
+
+    return [...applications, ...correctionItems].sort((a, b) => {
+      const firstTime = getSafeTime(
+        a?.latestStatusChangedAt || a?.updatedAt || a?.createdAt
+      );
+      const secondTime = getSafeTime(
+        b?.latestStatusChangedAt || b?.updatedAt || b?.createdAt
+      );
+      return secondTime - firstTime;
+    });
+  }, [applications, corrections]);
+
   const currentApplication = useMemo(() => {
     return (
-      sortedApplications.find((app) => app.status !== 'cancelled') ||
-      sortedApplications[0] ||
+      sortedDashboardItems.find((app) => app.status !== 'cancelled') ||
+      sortedDashboardItems[0] ||
       null
     );
-  }, [sortedApplications]);
+  }, [sortedDashboardItems]);
 
   const currentAppointment = useMemo(
-    () => getApplicationAppointment(currentApplication, eligibility, dashboardSummary),
+    () =>
+      isCorrectionDashboardItem(currentApplication)
+        ? null
+        : getApplicationAppointment(currentApplication, eligibility, dashboardSummary),
     [currentApplication, eligibility, dashboardSummary]
   );
 
@@ -575,9 +776,11 @@ const CitizenDashboard = () => {
   const appointmentActionLabel =
     copy.heroStatusLabels?.appointmentNeeded || 'Appointment needed';
 
-  const hasApplications = applications.length > 0;
-  const displayedRecentApplications = applications.slice(0, 3);
+  const hasApplications = sortedDashboardItems.length > 0;
+  const displayedRecentApplications = sortedDashboardItems.slice(0, 3);
   const sideCardCopy = copy.sideCards || {};
+  const correctionCopy =
+    CORRECTION_DASHBOARD_COPY[language === 'bn' ? 'bn' : 'en'];
   const appointmentDetailsCopy =
     sideCardCopy.appointmentDetails ||
     copy.appointmentDetails ||
@@ -596,6 +799,13 @@ const CitizenDashboard = () => {
 
   const getCurrentStageLabel = (application, appointment) => {
     if (!application) return copy.na;
+
+    if (isCorrectionDashboardItem(application)) {
+      return (
+        correctionCopy.stageLabels[application.status] ||
+        translateStatus(application.status)
+      );
+    }
 
     switch (application.status) {
       case 'submitted':
@@ -634,6 +844,31 @@ const CitizenDashboard = () => {
 
   const getNextStepLabel = (application, appointment) => {
     if (!application) return copy.na;
+
+    if (isCorrectionDashboardItem(application)) {
+      const baseApplication = application.baseApplicationRecord || {};
+
+      switch (application.status) {
+        case 'submitted':
+        case 'under_review':
+          return correctionCopy.nextStepLabels.review;
+
+        case 'approved':
+          return needsDeliveryPayment(baseApplication)
+            ? correctionCopy.nextStepLabels.requestDelivery
+            : correctionCopy.nextStepLabels.waitForDispatch;
+
+        case 'rejected':
+          return correctionCopy.nextStepLabels.reviewReason;
+
+        case 'cancelled':
+        case 'canceled':
+          return correctionCopy.nextStepLabels.noActionNeeded;
+
+        default:
+          return correctionCopy.nextStepLabels.noActionNeeded;
+      }
+    }
 
     const nextStepLabels = copy.nextStepLabels || {};
 
@@ -733,6 +968,52 @@ const CitizenDashboard = () => {
         secondaryActionLabel: '',
         secondaryActionTo: '',
         icon: <FaIdCard />
+      };
+    }
+
+    if (isCorrectionDashboardItem(application)) {
+      const status = String(application.status || 'submitted').toLowerCase();
+      const state = correctionCopy.primary[status] || correctionCopy.primary.submitted;
+      const baseApplicationObjectId = getBaseApplicationObjectId(application);
+      const actionTo = baseApplicationObjectId
+        ? `/track-application?id=${baseApplicationObjectId}`
+        : `/application-details/${application._id}`;
+
+      const correctionStateMap = {
+        submitted: {
+          badgeClass: 'bg-blue-100 text-blue-700',
+          icon: <FaClock />
+        },
+        under_review: {
+          badgeClass: 'bg-amber-100 text-amber-700',
+          icon: <FaClock />
+        },
+        approved: {
+          badgeClass: 'bg-emerald-100 text-emerald-700',
+          icon: <FaCheckCircle />
+        },
+        rejected: {
+          badgeClass: 'bg-red-100 text-red-700',
+          icon: <FaExclamationTriangle />
+        },
+        cancelled: {
+          badgeClass: 'bg-slate-100 text-slate-700',
+          icon: <FaIdCard />
+        }
+      };
+      const presentation =
+        correctionStateMap[status] || correctionStateMap.submitted;
+
+      return {
+        badge: state.badge,
+        badgeClass: presentation.badgeClass,
+        title: state.title,
+        description: state.description,
+        actionLabel: copy.viewFullStatus || 'View full status',
+        actionTo,
+        secondaryActionLabel: '',
+        secondaryActionTo: '',
+        icon: presentation.icon
       };
     }
 
@@ -914,6 +1195,64 @@ const CitizenDashboard = () => {
       ];
     }
 
+    if (isCorrectionDashboardItem(application)) {
+      const baseApplicationObjectId = getBaseApplicationObjectId(application);
+      const baseApplication = application.baseApplicationRecord || {};
+
+      if (['submitted', 'under_review'].includes(application.status)) {
+        return [
+          {
+            ...correctionCopy.sidePanels.review,
+            icon: <FaClock />
+          }
+        ];
+      }
+
+      if (application.status === 'approved') {
+        const deliveryPaymentNeeded = needsDeliveryPayment(baseApplication);
+
+        return [
+          {
+            ...correctionCopy.sidePanels.approved,
+            actionTo: baseApplicationObjectId
+              ? `/digital-nid/${baseApplicationObjectId}`
+              : '',
+            icon: <FaIdCard />
+          },
+          {
+            ...(deliveryPaymentNeeded
+              ? sideCardCopy.deliveryRequest
+              : sideCardCopy.deliveryRequested),
+            actionTo:
+              deliveryPaymentNeeded && baseApplicationObjectId
+                ? `/delivery-payment/${baseApplicationObjectId}`
+                : '',
+            icon: deliveryPaymentNeeded ? <FaMoneyBillWave /> : <FaTruck />
+          }
+        ];
+      }
+
+      if (application.status === 'rejected') {
+        return [
+          {
+            ...correctionCopy.sidePanels.rejected,
+            actionLabel: copy.viewDetails,
+            actionTo: `/application-details/${application._id}`,
+            icon: <FaExclamationTriangle />
+          }
+        ];
+      }
+
+      if (['cancelled', 'canceled'].includes(application.status)) {
+        return [
+          {
+            ...correctionCopy.sidePanels.cancelled,
+            icon: <FaIdCard />
+          }
+        ];
+      }
+    }
+
     if (application.status === 'correction_required') {
       return [
         {
@@ -1048,7 +1387,9 @@ const CitizenDashboard = () => {
     ? {
       ...rawPrimaryApplicationState,
       actionLabel: copy.viewFullStatus || 'View full status',
-      actionTo: `/track-application?id=${currentApplication._id}`,
+      actionTo: isCorrectionDashboardItem(currentApplication)
+        ? rawPrimaryApplicationState.actionTo
+        : `/track-application?id=${currentApplication._id}`,
       secondaryActionLabel: '',
       secondaryActionTo: ''
     }
@@ -1150,7 +1491,9 @@ const CitizenDashboard = () => {
                 <div className="dashboard-primary-status-meta mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
-                      {copy.applicationId}
+                      {isCorrectionDashboardItem(currentApplication)
+                        ? (language === 'bn' ? 'সংশোধন আবেদন আইডি' : 'Correction Request ID')
+                        : copy.applicationId}
                     </p>
                     <p className="mt-1 break-all text-sm font-semibold text-[#111827]">
                       #{currentApplication.applicationId || copy.na}
