@@ -991,3 +991,80 @@
     width: 100%;
   }
 }
+
+.support-management-reply-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+/* Compact, role-aware support conversation bubbles */
+.support-management-history-list {
+  max-height: 25rem;
+  overflow-y: auto;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  scroll-behavior: smooth;
+}
+
+.support-management-history-item {
+  width: 100%;
+  display: flex;
+  gap: 0;
+}
+
+.support-management-history-dot {
+  display: none;
+}
+
+.support-management-history-content {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 76%;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.support-management-history-citizen {
+  justify-content: flex-start;
+}
+
+.support-management-history-citizen .support-management-history-content {
+  background: #ffffff;
+  border-color: #dfe4eb;
+  border-bottom-left-radius: 2px;
+}
+
+.support-management-history-staff {
+  justify-content: flex-end;
+}
+
+.support-management-history-staff .support-management-history-content {
+  background: #edf8f2;
+  border-color: #cfe8da;
+  border-bottom-right-radius: 2px;
+}
+
+.support-management-history-top {
+  margin-bottom: 0.25rem;
+  align-items: center;
+}
+
+.support-management-history-content p {
+  line-height: 1.5;
+}
+
+.support-management-conversation-card {
+  background: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .support-management-history-content {
+    max-width: 88%;
+  }
+}

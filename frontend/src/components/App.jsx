@@ -36,6 +36,7 @@ import DeliveryPayment from './citizen/DeliveryPayment';
 import SupportTicket from './citizen/SupportTicket';
 
 // Admin pages
+import AdminLogin from './admin/AdminLogin';
 import AdminDashboard from './admin/AdminDashboard';
 import AdminUsers from './admin/AdminUsers';
 import AdminUserDetails from './admin/AdminUserDetails';
@@ -106,6 +107,15 @@ const AppShell = () => {
             }
           />
 
+
+          <Route
+            path="/admin/login"
+            element={
+              <PublicRoute>
+                <AdminLogin />
+              </PublicRoute>
+            }
+          />
 
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />

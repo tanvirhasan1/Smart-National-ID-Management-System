@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   FaChevronLeft,
@@ -9,6 +9,7 @@ import {
   FaEye,
   FaFilter,
   FaHeadset,
+  FaPaperPlane,
   FaSearch,
   FaSpinner,
   FaTicketAlt,
@@ -91,6 +92,9 @@ const SupportManagement = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const messagesEndRef = useRef(null);
 
   const [searchInput, setSearchInput] = useState('');
 
@@ -176,56 +180,47 @@ const SupportManagement = () => {
   }, [filters]);
 
   // Load single ticket details if the endpoint exists, otherwise keep selected list data.
-  const fetchTicketDetails = useCallback(async (ticketId) => {
+  const fetchTicketDetails = useCallback(async (ticketId, options = {}) => {
     if (!ticketId) {
       setSelectedTicket(null);
       return;
     }
 
+    const silent = Boolean(options.silent);
+
     try {
-      setLoadingDetails(true);
+      if (!silent) setLoadingDetails(true);
+      const response = await api.get(`/admin/support/tickets/${ticketId}`);
+      const ticket = getTicketDetailsFromResponse(response);
 
-      try {
-        const response = await api.get(`/admin/support/tickets/${ticketId}`);
-        const ticket = getTicketDetailsFromResponse(response);
-        if (ticket) {
-          setSelectedTicket(ticket);
-          return;
-        }
-      } catch (detailsError) {
-        console.error('Ticket details endpoint fallback used:', detailsError);
+      if (ticket) {
+        setSelectedTicket(ticket);
       }
-
-      const fromList = tickets.find((ticket) => ticket._id === ticketId);
-      if (fromList) {
-        setSelectedTicket(fromList);
+    } catch (error) {
+      if (!silent) {
+        toast.error(error?.response?.data?.message || 'Failed to load ticket details');
       }
     } finally {
-      setLoadingDetails(false);
+      if (!silent) setLoadingDetails(false);
     }
-  }, [tickets]);
+  }, []);
 
   // Load internal support/admin users for assignment.
   const fetchTeamMembers = useCallback(async () => {
     try {
       setLoadingTeam(true);
 
-      const response = await api.get(
-        '/admin/users?page=1&limit=100&sort=fullName'
-      );
-
-      const users = response?.data?.data || response?.data?.users || [];
-      const filteredUsers = users.filter((user) =>
-        ['admin', 'support_staff'].includes(user.role)
-      );
-
-      setTeamMembers(filteredUsers);
+      const ticketQuery = selectedTicket?._id
+        ? `?ticketId=${encodeURIComponent(selectedTicket._id)}`
+        : '';
+      const response = await api.get(`/admin/support/assignees${ticketQuery}`);
+      setTeamMembers(response?.data?.data || []);
     } catch (error) {
       console.error('Error fetching team members:', error);
     } finally {
       setLoadingTeam(false);
     }
-  }, []);
+  }, [selectedTicket?._id]);
 
   useEffect(() => {
     fetchSupportStats();
@@ -234,6 +229,29 @@ const SupportManagement = () => {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+  useEffect(() => {
+    if (!detailsModalOpen || !selectedTicket?._id) return undefined;
+
+    const refreshLiveTicket = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTicketDetails(selectedTicket._id, { silent: true });
+      }
+    };
+
+    const intervalId = window.setInterval(refreshLiveTicket, 4000);
+    document.addEventListener('visibilitychange', refreshLiveTicket);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshLiveTicket);
+    };
+  }, [detailsModalOpen, selectedTicket?._id, fetchTicketDetails]);
+
+  useEffect(() => {
+    if (!detailsModalOpen) return;
+    messagesEndRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [detailsModalOpen, selectedTicket?._id, selectedTicket?.responses?.length]);
 
   const statCards = useMemo(() => {
     return [
@@ -336,6 +354,7 @@ const SupportManagement = () => {
   const closeTicketDetails = () => {
     if (actionLoading) return;
     setDetailsModalOpen(false);
+    setReplyMessage('');
   };
 
   const openAssignModal = () => {
@@ -351,8 +370,8 @@ const SupportManagement = () => {
     fetchTeamMembers();
   };
 
-  const closeAssignModal = () => {
-    if (actionLoading) return;
+  const closeAssignModal = (force = false) => {
+    if (actionLoading && force !== true) return;
     setAssignModalOpen(false);
     setAssignForm({
       assignedTo: '',
@@ -373,8 +392,8 @@ const SupportManagement = () => {
     setStatusModalOpen(true);
   };
 
-  const closeStatusModal = () => {
-    if (actionLoading) return;
+  const closeStatusModal = (force = false) => {
+    if (actionLoading && force !== true) return;
     setStatusModalOpen(false);
     setStatusForm({
       status: '',
@@ -411,12 +430,40 @@ const SupportManagement = () => {
       });
 
       toast.success('Support ticket assigned successfully');
-      closeAssignModal();
+      closeAssignModal(true);
       await refreshCurrentTicketData(selectedTicket._id);
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to assign support ticket');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSendReply = async (event) => {
+    event.preventDefault();
+
+    const message = replyMessage.trim();
+    if (!message || !selectedTicket?._id) return;
+
+    try {
+      setSendingReply(true);
+      const response = await api.post(
+        `/support/tickets/${selectedTicket._id}/respond`,
+        { message }
+      );
+      const updatedTicket = getTicketDetailsFromResponse(response);
+
+      if (updatedTicket) {
+        setSelectedTicket(updatedTicket);
+      }
+
+      setReplyMessage('');
+      toast.success('Reply sent successfully');
+      await Promise.all([fetchTickets(), fetchSupportStats()]);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to send reply');
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -443,7 +490,7 @@ const SupportManagement = () => {
       });
 
       toast.success('Support ticket status updated successfully');
-      closeStatusModal();
+      closeStatusModal(true);
       await refreshCurrentTicketData(selectedTicket._id);
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update ticket status');
@@ -805,6 +852,15 @@ const SupportManagement = () => {
                           <h4>{formatStatus(selectedTicket.category || 'N/A')}</h4>
                         </div>
                         <div>
+                          <p>District</p>
+                          <h4>
+                            {selectedTicket.district ||
+                              selectedTicket.citizen?.permanentAddress?.district ||
+                              selectedTicket.citizen?.presentAddress?.district ||
+                              'N/A'}
+                          </h4>
+                        </div>
+                        <div>
                           <p>Created At</p>
                           <h4>
                             {selectedTicket.createdAt
@@ -840,7 +896,7 @@ const SupportManagement = () => {
                       </div>
                     ) : null}
 
-                    <div className="support-management-section-card">
+                    <div className="support-management-section-card support-management-conversation-card">
                       <h3>Response History</h3>
 
                       {selectedResponses.length === 0 ? (
@@ -849,21 +905,29 @@ const SupportManagement = () => {
                         </div>
                       ) : (
                         <div className="support-management-history-list">
-                          {[...selectedResponses]
-                            .slice()
-                            .reverse()
-                            .map((responseItem, index) => (
+                          {selectedResponses.map((responseItem, index) => {
+                            const responderRole =
+                              responseItem.responderRole || responseItem.responder?.role || '';
+                            const isCitizenMessage = responderRole === 'citizen';
+                            const responderName = isCitizenMessage
+                              ? responseItem.responder?.fullName ||
+                                selectedTicket?.citizen?.fullName ||
+                                'Citizen'
+                              : responseItem.responder?.fullName ||
+                                formatStatus(responderRole || 'support_staff');
+
+                            return (
                               <div
                                 key={`${responseItem.createdAt || index}-${index}`}
-                                className="support-management-history-item"
+                                className={`support-management-history-item ${
+                                  isCitizenMessage
+                                    ? 'support-management-history-citizen'
+                                    : 'support-management-history-staff'
+                                }`}
                               >
-                                <div className="support-management-history-dot" />
                                 <div className="support-management-history-content">
                                   <div className="support-management-history-top">
-                                    <span>
-                                      {responseItem.responder?.fullName ||
-                                        formatStatus(responseItem.responder?.role || 'staff')}
-                                    </span>
+                                    <span>{responderName}</span>
                                     <small>
                                       {responseItem.createdAt
                                         ? formatDateTime(responseItem.createdAt)
@@ -874,10 +938,39 @@ const SupportManagement = () => {
                                   <p>{responseItem.message || 'No message available'}</p>
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
+                          <div ref={messagesEndRef} />
                         </div>
                       )}
                     </div>
+
+                    {!['resolved', 'closed'].includes(selectedTicket.status) ? (
+                      <form
+                        className="support-management-section-card"
+                        onSubmit={handleSendReply}
+                      >
+                        <h3>Reply to Citizen</h3>
+                        <div className="support-management-modal-field">
+                          <textarea
+                            rows={4}
+                            value={replyMessage}
+                            onChange={(event) => setReplyMessage(event.target.value)}
+                            placeholder="Type a clear support message..."
+                          />
+                        </div>
+                        <div className="support-management-reply-actions">
+                          <button
+                            type="submit"
+                            className="support-management-toolbar-button primary"
+                            disabled={sendingReply || !replyMessage.trim()}
+                          >
+                            {sendingReply ? <FaSpinner className="spin" /> : <FaPaperPlane />}
+                            <span>{sendingReply ? 'Sending...' : 'Send Reply'}</span>
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
                   </div>
 
                   <div className="support-management-action-row support-management-ticket-modal-actions">
