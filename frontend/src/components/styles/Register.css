@@ -175,14 +175,16 @@
 
 .register-form-input.border-red-500,
 .register-form-select.border-red-500 {
-  border-color: #ef4444 !important;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.075) !important;
+  border-color: #dc2626 !important;
+  border-width: 2px !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
 }
 
 .register-form-input.border-red-500:focus,
 .register-form-select.border-red-500:focus {
-  border-color: #ef4444 !important;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.11) !important;
+  border-color: #dc2626 !important;
+  border-width: 2px !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.18) !important;
 }
 
 .register-checkbox-group {
@@ -298,6 +300,12 @@
   background: #105d37;
   border-color: #105d37;
   transform: translateY(-1px);
+}
+
+.register-next-button:disabled {
+  cursor: wait;
+  opacity: 0.78;
+  transform: none;
 }
 
 .register-prev-button {
