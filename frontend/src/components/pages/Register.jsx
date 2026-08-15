@@ -23,6 +23,26 @@ import '../styles/Register.css';
 
 const EMAIL_PATTERN = /^[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 
+const getLatestEligibleBirthDate = () => {
+  const today = new Date();
+  const eligibleDate = new Date(
+    today.getFullYear() - 18,
+    today.getMonth(),
+    today.getDate()
+  );
+
+  const year = eligibleDate.getFullYear();
+  const month = String(eligibleDate.getMonth() + 1).padStart(2, '0');
+  const day = String(eligibleDate.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const isAtLeast18YearsOld = (dateOfBirth) => {
+  if (!dateOfBirth) return false;
+  return dateOfBirth <= getLatestEligibleBirthDate();
+};
+
 const Register = () => {
   const { register: registerUser } = useAuth();
   const { t, isBangla } = useLanguage();
@@ -254,11 +274,14 @@ const Register = () => {
             message
           });
         } catch (error) {
-          const message =
+          const apiMessage =
             error.response?.data?.message ||
             error.safeMessage ||
             error.message ||
             'Unable to verify this email address. Please try again.';
+          const message = /could not be verified/i.test(apiMessage)
+            ? 'This email address is not valid.'
+            : apiMessage;
           const retryable = Boolean(error.response?.data?.retryable);
 
           if (!retryable) {
@@ -365,8 +388,16 @@ const Register = () => {
                     </label>
                     <input
                       type="date"
+                      max={getLatestEligibleBirthDate()}
                       className={getInputClass(!!errors.dateOfBirth)}
-                      {...register('dateOfBirth', { required: t('register.dateOfBirthRequired') })}
+                      {...register('dateOfBirth', {
+                        required: t('register.dateOfBirthRequired'),
+                        validate: (value) =>
+                          isAtLeast18YearsOld(value) ||
+                          (isBangla
+                            ? 'NID-এর জন্য আবেদন করতে বয়স কমপক্ষে ১৮ বছর হতে হবে।'
+                            : 'You must be at least 18 years old to apply for an NID.')
+                      })}
                     />
                     {errors.dateOfBirth && <span className="register-form-error">{errors.dateOfBirth.message}</span>}
                   </div>
