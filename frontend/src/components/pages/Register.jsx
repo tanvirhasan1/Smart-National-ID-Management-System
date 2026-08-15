@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -17,8 +17,11 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import api from '../api/axios';
 import { bangladeshLocations } from '../utils/helpers';
 import '../styles/Register.css';
+
+const EMAIL_PATTERN = /^[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 
 const Register = () => {
   const { register: registerUser } = useAuth();
@@ -28,6 +31,9 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEmailVerifying, setIsEmailVerifying] = useState(false);
+  const emailVerificationCache = useRef(new Map());
+  const emailVerificationInFlight = useRef(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPresentDivision, setSelectedPresentDivision] = useState('');
   const [selectedPermanentDivision, setSelectedPermanentDivision] = useState('');
@@ -38,6 +44,7 @@ const Register = () => {
     handleSubmit,
     watch,
     setValue,
+    setError,
     trigger,
     clearErrors,
     formState: { errors }
@@ -217,6 +224,63 @@ const Register = () => {
       return;
     }
 
+    if (currentStep === 1) {
+      const email = String(watch('email') || '').trim().toLowerCase();
+      const cachedResult = emailVerificationCache.current.get(email);
+
+      if (cachedResult) {
+        if (!cachedResult.valid) {
+          setError('email', {
+            type: 'server',
+            message: cachedResult.message
+          });
+          toast.error(cachedResult.message);
+          return;
+        }
+      } else {
+        if (emailVerificationInFlight.current) {
+          return;
+        }
+
+        emailVerificationInFlight.current = true;
+        setIsEmailVerifying(true);
+
+        try {
+          const response = await api.post('/auth/validate-email', { email });
+          const message = response.data?.message || 'Email verified successfully.';
+
+          emailVerificationCache.current.set(email, {
+            valid: true,
+            message
+          });
+        } catch (error) {
+          const message =
+            error.response?.data?.message ||
+            error.safeMessage ||
+            error.message ||
+            'Unable to verify this email address. Please try again.';
+          const retryable = Boolean(error.response?.data?.retryable);
+
+          if (!retryable) {
+            emailVerificationCache.current.set(email, {
+              valid: false,
+              message
+            });
+          }
+
+          setError('email', {
+            type: 'server',
+            message
+          });
+          toast.error(message);
+          return;
+        } finally {
+          emailVerificationInFlight.current = false;
+          setIsEmailVerifying(false);
+        }
+      }
+    }
+
     setCurrentStep((prev) => Math.min(prev + 1, 3));
     scrollToRegisterTop();
   };
@@ -354,7 +418,7 @@ const Register = () => {
                       {...register('mobile', {
                         required: t('register.mobileRequired'),
                         pattern: {
-                          value: /^01[0-9]{9}$/,
+                          value: /^01[3-9][0-9]{8}$/,
                           message: t('register.mobileInvalid')
                         }
                       })}
@@ -374,7 +438,7 @@ const Register = () => {
                       {...register('email', {
                         required: t('register.emailRequired'),
                         pattern: {
-                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                          value: EMAIL_PATTERN,
                           message: t('register.emailInvalid')
                         }
                       })}
@@ -384,8 +448,20 @@ const Register = () => {
                 </div>
 
                 <div className="register-actions-row register-actions-row-end">
-                  <button type="button" className="register-next-button" onClick={nextStep}>
-                    {t('register.nextStep')}
+                  <button
+                    type="button"
+                    className="register-next-button"
+                    onClick={nextStep}
+                    disabled={isEmailVerifying}
+                  >
+                    {isEmailVerifying ? (
+                      <>
+                        <FaSpinner className="register-spinner animate-spin" />
+                        <span>{isBangla ? 'ইমেইল যাচাই হচ্ছে...' : 'Verifying email...'}</span>
+                      </>
+                    ) : (
+                      t('register.nextStep')
+                    )}
                   </button>
                 </div>
               </div>
