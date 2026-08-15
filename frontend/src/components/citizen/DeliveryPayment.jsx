@@ -41,10 +41,10 @@ const DELIVERY_PAYMENT_COPY = {
     dispatchedBody: 'Your card has been dispatched.',
     unavailableTitle: 'Payment not available',
     unavailableBody: 'Delivery payment is available after your card is printed.',
-    demoTitle: 'Demo payment',
-    demoBody: 'Demo payment: no real money will be charged.',
+    demoTitle: 'SSLCOMMERZ Sandbox',
+    demoBody: 'Secure sandbox payment: no real money will be charged.',
     detailsTitle: 'Payment and delivery details',
-    detailsSubtitle: 'Confirm the delivery address and payment reference.',
+    detailsSubtitle: 'Confirm the delivery address and continue to secure sandbox payment.',
     deliveryAddress: 'Delivery address',
     contactPhone: 'Contact phone',
     paymentMethod: 'Payment method',
@@ -52,7 +52,7 @@ const DELIVERY_PAYMENT_COPY = {
     optionalNote: 'Optional note',
     addressPlaceholder: 'Enter full delivery address',
     phonePlaceholder: 'Enter delivery contact phone',
-    transactionPlaceholder: 'Auto generated if empty',
+    transactionPlaceholder: 'Generated securely when payment starts',
     notePlaceholder: 'Add delivery instruction if needed',
     trackApplication: 'Track application',
     processing: 'Processing...',
@@ -63,15 +63,13 @@ const DELIVERY_PAYMENT_COPY = {
     phoneRequired: 'Contact phone is required',
     alreadySubmittedToast: 'Your delivery request has already been received.',
     notPrintedToast: 'Delivery payment is available after your card is printed.',
-    successToast: 'Delivery request received.',
+    successToast: 'Payment successful. Delivery request received.',
+    paymentFailedToast: 'Payment was not completed. Please try again.',
+    paymentCancelledToast: 'Payment was cancelled. You can try again.',
     failedLoad: 'Failed to load application',
-    failedPayment: 'Failed to complete payment',
+    failedPayment: 'Failed to start SSLCOMMERZ payment',
     paymentMethods: {
-      bkash: 'bKash demo',
-      nagad: 'Nagad demo',
-      rocket: 'Rocket demo',
-      card: 'Card demo',
-      mock: 'Demo payment'
+      sslcommerz: 'SSLCOMMERZ Sandbox'
     }
   },
   bn: {
@@ -94,10 +92,10 @@ const DELIVERY_PAYMENT_COPY = {
     dispatchedBody: 'আপনার কার্ড পাঠানো হয়েছে।',
     unavailableTitle: 'পেমেন্ট এখনো চালু নয়',
     unavailableBody: 'কার্ড প্রিন্ট সম্পন্ন হলে ডেলিভারি পেমেন্ট করা যাবে।',
-    demoTitle: 'ডেমো পেমেন্ট',
-    demoBody: 'ডেমো পেমেন্ট: কোনো বাস্তব অর্থ কাটা হবে না।',
+    demoTitle: 'SSLCOMMERZ স্যান্ডবক্স',
+    demoBody: 'নিরাপদ স্যান্ডবক্স পেমেন্ট: কোনো বাস্তব অর্থ কাটা হবে না।',
     detailsTitle: 'পেমেন্ট ও ডেলিভারি তথ্য',
-    detailsSubtitle: 'ডেলিভারি ঠিকানা ও পেমেন্ট রেফারেন্স নিশ্চিত করুন।',
+    detailsSubtitle: 'ডেলিভারি ঠিকানা নিশ্চিত করে নিরাপদ স্যান্ডবক্স পেমেন্টে যান।',
     deliveryAddress: 'ডেলিভারি ঠিকানা',
     contactPhone: 'যোগাযোগের ফোন নম্বর',
     paymentMethod: 'পেমেন্ট পদ্ধতি',
@@ -105,7 +103,7 @@ const DELIVERY_PAYMENT_COPY = {
     optionalNote: 'ঐচ্ছিক নোট',
     addressPlaceholder: 'সম্পূর্ণ ডেলিভারি ঠিকানা লিখুন',
     phonePlaceholder: 'ডেলিভারির যোগাযোগ নম্বর লিখুন',
-    transactionPlaceholder: 'খালি থাকলে স্বয়ংক্রিয়ভাবে তৈরি হবে',
+    transactionPlaceholder: 'পেমেন্ট শুরু হলে নিরাপদভাবে তৈরি হবে',
     notePlaceholder: 'প্রয়োজন হলে ডেলিভারি নির্দেশনা লিখুন',
     trackApplication: 'আবেদন ট্র্যাক করুন',
     processing: 'প্রক্রিয়াধীন...',
@@ -116,15 +114,13 @@ const DELIVERY_PAYMENT_COPY = {
     phoneRequired: 'যোগাযোগের ফোন নম্বর প্রয়োজন',
     alreadySubmittedToast: 'আপনার ডেলিভারি অনুরোধ ইতিমধ্যে গ্রহণ করা হয়েছে।',
     notPrintedToast: 'কার্ড প্রিন্ট সম্পন্ন হলে ডেলিভারি পেমেন্ট করা যাবে।',
-    successToast: 'ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে।',
+    successToast: 'পেমেন্ট সফল হয়েছে। ডেলিভারি অনুরোধ গ্রহণ করা হয়েছে।',
+    paymentFailedToast: 'পেমেন্ট সম্পন্ন হয়নি। আবার চেষ্টা করুন।',
+    paymentCancelledToast: 'পেমেন্ট বাতিল করা হয়েছে। আবার চেষ্টা করতে পারেন।',
     failedLoad: 'আবেদন লোড করা যায়নি',
-    failedPayment: 'পেমেন্ট সম্পন্ন করা যায়নি',
+    failedPayment: 'SSLCOMMERZ পেমেন্ট শুরু করা যায়নি',
     paymentMethods: {
-      bkash: 'বিকাশ ডেমো',
-      nagad: 'নগদ ডেমো',
-      rocket: 'রকেট ডেমো',
-      card: 'কার্ড ডেমো',
-      mock: 'ডেমো পেমেন্ট'
+      sslcommerz: 'SSLCOMMERZ স্যান্ডবক্স'
     }
   }
 };
@@ -229,7 +225,7 @@ const DeliveryPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
-    paymentMethod: 'bkash',
+    paymentMethod: 'sslcommerz',
     transactionId: '',
     deliveryAddress: '',
     contactPhone: '',
@@ -245,6 +241,23 @@ const DeliveryPayment = () => {
       buildAddressText(application.presentAddress)
     );
   }, [application]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get('payment');
+
+    if (!paymentResult) return;
+
+    if (paymentResult === 'success') {
+      toast.success(copy.successToast);
+    } else if (paymentResult === 'cancelled') {
+      toast.info(copy.paymentCancelledToast);
+    } else if (paymentResult === 'failed') {
+      toast.error(copy.paymentFailedToast);
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [copy.paymentCancelledToast, copy.paymentFailedToast, copy.successToast]);
 
   const deliveryInfo = application?.deliveryInfo || {};
   const currentStatus = String(application?.status || '').toLowerCase();
@@ -270,7 +283,7 @@ const DeliveryPayment = () => {
         if (applicationData) {
           setFormData((current) => ({
             ...current,
-            paymentMethod: applicationData.deliveryInfo?.paymentMethod || 'bkash',
+            paymentMethod: 'sslcommerz',
             transactionId: applicationData.deliveryInfo?.transactionId || '',
             deliveryAddress:
               applicationData.deliveryInfo?.deliveryAddress ||
@@ -349,8 +362,6 @@ const DeliveryPayment = () => {
       setFieldErrors({});
 
       const response = await api.patch(`/applications/${id}/delivery-payment`, {
-        paymentMethod: formData.paymentMethod,
-        transactionId: formData.transactionId.trim(),
         deliveryAddress: formData.deliveryAddress.trim(),
         contactPhone: formData.contactPhone.trim(),
         note: formData.note.trim()
@@ -362,7 +373,17 @@ const DeliveryPayment = () => {
         setApplication(updatedApplication);
       }
 
-      toast.success(copy.successToast);
+      if (response?.data?.gatewayUrl) {
+        window.location.assign(response.data.gatewayUrl);
+        return;
+      }
+
+      if (response?.data?.code === 'DELIVERY_ALREADY_REQUESTED') {
+        toast.info(copy.alreadySubmittedToast);
+        return;
+      }
+
+      throw new Error(copy.failedPayment);
     } catch (error) {
       console.error('Delivery payment failed:', error);
       toast.error(error?.response?.data?.message || copy.failedPayment);
@@ -546,11 +567,7 @@ const DeliveryPayment = () => {
                   onChange={handleChange}
                   disabled={!canPayForDelivery || submitting}
                 >
-                  <option value="bkash">{copy.paymentMethods.bkash}</option>
-                  <option value="nagad">{copy.paymentMethods.nagad}</option>
-                  <option value="rocket">{copy.paymentMethods.rocket}</option>
-                  <option value="card">{copy.paymentMethods.card}</option>
-                  <option value="mock">{copy.paymentMethods.mock}</option>
+                  <option value="sslcommerz">{copy.paymentMethods.sslcommerz}</option>
                 </select>
               </label>
 
@@ -562,7 +579,8 @@ const DeliveryPayment = () => {
                   value={formData.transactionId}
                   onChange={handleChange}
                   placeholder={copy.transactionPlaceholder}
-                  disabled={!canPayForDelivery || submitting}
+                  disabled
+                  readOnly
                 />
               </label>
 

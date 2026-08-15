@@ -31,6 +31,11 @@ import '../styles/DeliveryTracking.css';
 const isUsefulValue = (value) =>
   Boolean(value) && !['Not recorded', 'N/A'].includes(String(value));
 
+const formatPaymentMethod = (value) =>
+  String(value || '').toLowerCase() === 'sslcommerz'
+    ? 'SSLCOMMERZ (Sandbox)'
+    : formatStatus(value);
+
 const CompactDetailList = ({ items, emptyMessage }) => {
   const visibleItems = items.filter((item) => isUsefulValue(item.value));
 
@@ -163,7 +168,7 @@ const DeliveryDetails = () => {
     { label: 'Dispatched At', value: formatDateTime(deliveryInfo.dispatchedAt || application.dispatchedAt) },
     { label: 'Delivered At', value: formatDateTime(deliveryInfo.deliveredAt || application.deliveredAt) },
     { label: 'Payment Status', value: formatStatus(deliveryInfo.paymentStatus) },
-    { label: 'Payment Method', value: formatStatus(deliveryInfo.paymentMethod) },
+    { label: 'Payment Method', value: formatPaymentMethod(deliveryInfo.paymentMethod) },
     { label: 'Payment Completed At', value: formatDateTime(deliveryInfo.paymentCompletedAt) },
     { label: 'Transaction ID', value: deliveryInfo.transactionId },
     {
