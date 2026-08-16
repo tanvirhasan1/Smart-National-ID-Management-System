@@ -32,6 +32,8 @@ import { bangladeshLocations } from '../utils/helpers';
 import { isCorrectionEligible } from '../../utils/applicationLifecycle';
 import api from '../api/axios';
 import LivenessVerificationModal from './LivenessVerificationModal';
+import EmailVerificationModal from '../common/EmailVerificationModal';
+import useEmailVerification, { normalizeVerificationEmail } from '../common/useEmailVerification';
 import {
   uploadCitizenApplicationDocument,
   uploadCitizenCorrectionDocument,
@@ -506,6 +508,20 @@ const ApplicationForm = () => {
   const photoChangeRequested = Boolean(watch('photoChangeRequested'));
   const bloodGroupValue = watch('bloodGroup');
   const occupationValue = watch('occupation');
+  const currentEmailValue = watch('email');
+  const emailVerification = useEmailVerification({
+    purpose: 'correction_email_change',
+    recipientName: user?.fullName || ''
+  });
+  const correctionOriginalEmail = normalizeVerificationEmail(
+    correctionBaseApplication?.prefill?.email || ''
+  );
+  const correctionEmailChanged =
+    applicationType === 'correction' &&
+    Boolean(correctionBaseApplication) &&
+    normalizeVerificationEmail(currentEmailValue) !== correctionOriginalEmail;
+  const correctionEmailVerified =
+    !correctionEmailChanged || emailVerification.isVerified(currentEmailValue);
 
   // These two flags make the validation feel natural:
   // once the user selects/types a valid value, the red border disappears immediately.
@@ -1530,6 +1546,16 @@ const ApplicationForm = () => {
     return true;
   };
 
+  const handleVerifyCorrectionEmail = async () => {
+    const valid = await trigger('email', { shouldFocus: true });
+    if (!valid) return;
+
+    await emailVerification.startVerification(
+      currentEmailValue,
+      watch('fullNameEnglish') || user?.fullName || ''
+    );
+  };
+
   const nextStep = async () => {
     if (currentStep === 1 || currentStep === 2) {
       const fieldsToValidate = getStepValidationFields(currentStep);
@@ -1539,6 +1565,16 @@ const ApplicationForm = () => {
         toast.error(t('apply.fillRequired'));
         return;
       }
+    }
+
+    if (
+      currentStep === 1 &&
+      applicationType === 'correction' &&
+      correctionEmailChanged &&
+      !emailVerification.isVerified(currentEmailValue)
+    ) {
+      toast.error('Please verify the changed email address before continuing.');
+      return;
     }
 
     if (currentStep === 3 && !validateDocumentStep()) {
@@ -1772,6 +1808,24 @@ const ApplicationForm = () => {
       };
 
       if (payload.applicationType === 'correction') {
+        const submittedCorrectionEmail = normalizeVerificationEmail(payload.email);
+        const submittedCorrectionEmailChanged =
+          submittedCorrectionEmail !== correctionOriginalEmail;
+
+        if (
+          submittedCorrectionEmailChanged &&
+          !emailVerification.isVerified(submittedCorrectionEmail)
+        ) {
+          toast.error('Please verify the changed email address before continuing.');
+          setCurrentStep(1);
+          return;
+        }
+
+        if (submittedCorrectionEmailChanged) {
+          payload.emailVerificationToken =
+            emailVerification.getProofToken(submittedCorrectionEmail);
+        }
+
         payload.correctionInfo = {
           reason: data.correctionReason?.trim() || '',
           photoChangeRequested,
@@ -2290,17 +2344,37 @@ const ApplicationForm = () => {
 
                       <div className="form-group">
                         <FieldLabel icon={FaEnvelope}>{t('apply.email')}</FieldLabel>
-                        <input
-                          type="email"
-                          className={getInputClass(!!errors.email)}
-                          placeholder={t('apply.emailPlaceholder')}
-                          {...register('email', {
-                            pattern: {
-                              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                              message: 'Enter a valid email address'
-                            }
-                          })}
-                        />
+                        <div className="relative">
+                          <input
+                            type="email"
+                            className={`${getInputClass(!!errors.email)} ${
+                              correctionEmailChanged ? 'pr-[108px]' : ''
+                            }`}
+                            placeholder={t('apply.emailPlaceholder')}
+                            {...register('email', {
+                              pattern: {
+                                value: /^[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i,
+                                message: 'Enter a valid email address'
+                              }
+                            })}
+                          />
+                          {correctionEmailChanged ? (
+                            correctionEmailVerified ? (
+                              <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-xs font-semibold text-emerald-700">
+                                <FaCheck /> Verified
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleVerifyCorrectionEmail}
+                                disabled={emailVerification.isStarting}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {emailVerification.isStarting ? 'Checking...' : 'Verify'}
+                              </button>
+                            )
+                          ) : null}
+                        </div>
                         {errors.email && (
                           <span className="form-error">{errors.email.message}</span>
                         )}
@@ -2382,7 +2456,17 @@ const ApplicationForm = () => {
                   </div>
 
                   <div className="form-actions">
-                    <button type="button" className="btn btn-primary" onClick={nextStep}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={nextStep}
+                      disabled={!correctionEmailVerified}
+                      title={
+                        correctionEmailVerified
+                          ? undefined
+                          : 'Verify the changed email address to continue'
+                      }
+                    >
                       {t('apply.continue')}
                     </button>
                   </div>
@@ -3412,6 +3496,16 @@ const ApplicationForm = () => {
             </div>
           </div>
         )}
+
+        <EmailVerificationModal
+          open={emailVerification.modalOpen}
+          email={emailVerification.targetEmail}
+          verifying={emailVerification.isVerifyingOtp}
+          resending={emailVerification.isResending}
+          onVerify={emailVerification.verifyOtp}
+          onResend={emailVerification.resendOtp}
+          onClose={emailVerification.closeModal}
+        />
       </div>
     </div>
   );

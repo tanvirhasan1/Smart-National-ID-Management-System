@@ -17,6 +17,8 @@ import {
 import api from '../api/axios';
 import AdminLayout from './AdminLayout';
 import InternalUserFormModal from './InternalUserFormModal';
+import EmailVerificationModal from '../common/EmailVerificationModal';
+import useEmailVerification from '../common/useEmailVerification';
 import { useAuth } from '../context/AuthContext';
 import {
   EMPTY_INTERNAL_USER_FORM,
@@ -62,6 +64,11 @@ const AdminUsers = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({ ...EMPTY_INTERNAL_USER_FORM });
+  const emailVerification = useEmailVerification({
+    purpose: 'internal_user_create',
+    recipientName: createForm.fullName
+  });
+  const createEmailVerified = emailVerification.isVerified(createForm.email);
 
   const canManageInternalUsers =
     ['admin', 'system_supervisor'].includes(user?.role) &&
@@ -121,12 +128,17 @@ const AdminUsers = () => {
 
   const openCreate = () => {
     setCreateForm({ ...EMPTY_INTERNAL_USER_FORM });
+    emailVerification.reset();
     setCreateOpen(true);
   };
 
   const handleCreate = async () => {
     if (!createForm.fullName.trim() || !createForm.email.trim() || !createForm.phone.trim()) {
       toast.error('Full name, email, and phone are required');
+      return;
+    }
+    if (!emailVerification.isVerified(createForm.email)) {
+      toast.error('Please verify the email address before creating the user.');
       return;
     }
     if (createForm.password.length < 8) {
@@ -151,9 +163,11 @@ const AdminUsers = () => {
         phone: createForm.phone.trim(),
         password: createForm.password,
         role: createForm.role,
-        adminScope
+        adminScope,
+        emailVerificationToken: emailVerification.getProofToken(createForm.email)
       });
       toast.success('Internal user created successfully');
+      emailVerification.reset();
       setCreateOpen(false);
       await fetchUsers();
     } catch (requestError) {
@@ -303,10 +317,25 @@ const AdminUsers = () => {
           form={createForm}
           setForm={setCreateForm}
           loading={createLoading}
+          emailVerified={createEmailVerified}
+          emailVerificationLoading={emailVerification.isStarting}
+          onVerifyEmail={() =>
+            emailVerification.startVerification(createForm.email, createForm.fullName)
+          }
           onClose={() => !createLoading && setCreateOpen(false)}
           onSubmit={handleCreate}
         />
       ) : null}
+
+      <EmailVerificationModal
+        open={emailVerification.modalOpen}
+        email={emailVerification.targetEmail}
+        verifying={emailVerification.isVerifyingOtp}
+        resending={emailVerification.isResending}
+        onVerify={emailVerification.verifyOtp}
+        onResend={emailVerification.resendOtp}
+        onClose={emailVerification.closeModal}
+      />
     </AdminLayout>
   );
 };
