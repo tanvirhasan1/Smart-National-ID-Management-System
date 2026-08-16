@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaSpinner, FaTimes } from 'react-icons/fa';
+import { FaCheckCircle, FaSpinner, FaTimes } from 'react-icons/fa';
 
 const Field = ({ label, children, full = false }) => (
   <label className={`admin-users-modal-field${full ? ' full' : ''}`}>
@@ -13,6 +13,9 @@ const InternalUserFormModal = ({
   form,
   setForm,
   loading,
+  emailVerified = false,
+  emailVerificationLoading = false,
+  onVerifyEmail,
   onClose,
   onSubmit
 }) => {
@@ -43,7 +46,25 @@ const InternalUserFormModal = ({
               <input value={form.fullName} onChange={update('fullName')} />
             </Field>
             <Field label="Email *">
-              <input type="email" value={form.email} onChange={update('email')} />
+              <div className="admin-users-email-verification-input">
+                <input type="email" value={form.email} onChange={update('email')} />
+                {isCreate ? (
+                  emailVerified ? (
+                    <span className="admin-users-email-verified">
+                      <FaCheckCircle /> Verified
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-users-email-verify-button"
+                      onClick={onVerifyEmail}
+                      disabled={emailVerificationLoading || !form.email.trim()}
+                    >
+                      {emailVerificationLoading ? 'Checking...' : 'Verify'}
+                    </button>
+                  )
+                ) : null}
+              </div>
             </Field>
             <Field label="Phone *">
               <input value={form.phone} onChange={update('phone')} />
@@ -101,7 +122,17 @@ const InternalUserFormModal = ({
           <button type="button" className="admin-users-secondary-button" onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <button type="button" className="admin-users-primary-button" onClick={onSubmit} disabled={loading}>
+          <button
+            type="button"
+            className="admin-users-primary-button"
+            onClick={onSubmit}
+            disabled={loading || (isCreate && !emailVerified)}
+            title={
+              isCreate && !emailVerified
+                ? 'Verify the email address to create this user'
+                : undefined
+            }
+          >
             {loading ? <FaSpinner className="spin" /> : null}
             {isCreate ? 'Create User' : 'Save Changes'}
           </button>

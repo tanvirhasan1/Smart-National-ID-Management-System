@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
   FaCalendarAlt,
+  FaCheckCircle,
   FaEnvelope,
   FaFileAlt,
   FaIdCard,
@@ -17,6 +18,8 @@ import {
 } from 'react-icons/fa';
 import api from '../api/axios';
 import Loader from '../common/Loader';
+import EmailVerificationModal from '../common/EmailVerificationModal';
+import useEmailVerification, { normalizeVerificationEmail } from '../common/useEmailVerification';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import '../styles/Profile.css';
@@ -156,6 +159,8 @@ const Profile = () => {
     register,
     handleSubmit,
     reset,
+    watch,
+    trigger,
     formState: { errors, isDirty }
   } = useForm({
     defaultValues: {
@@ -163,6 +168,18 @@ const Profile = () => {
       phone: ''
     }
   });
+
+  const emailVerification = useEmailVerification({
+    purpose: 'profile_email_change',
+    recipientName: profileData?.fullName || user?.fullName || ''
+  });
+  const currentEmailValue = watch('email');
+  const profileEmailChanged =
+    Boolean(profileData) &&
+    normalizeVerificationEmail(currentEmailValue) !==
+      normalizeVerificationEmail(profileData?.email);
+  const profileEmailVerified =
+    !profileEmailChanged || emailVerification.isVerified(currentEmailValue);
 
   const locale = language === 'bn' ? 'bn-BD' : 'en-GB';
 
@@ -404,12 +421,24 @@ const Profile = () => {
   ];
 
   const onSubmit = async (formData) => {
+    const submittedEmail = normalizeVerificationEmail(formData.email);
+    const emailChanged =
+      submittedEmail !== normalizeVerificationEmail(profileData?.email);
+
+    if (emailChanged && !emailVerification.isVerified(submittedEmail)) {
+      toast.error('Please verify the changed email address before saving.');
+      return;
+    }
+
     setSaveLoading(true);
 
     try {
       const payload = {
         email: formData.email?.trim(),
-        phone: formData.phone?.trim()
+        phone: formData.phone?.trim(),
+        ...(emailChanged
+          ? { emailVerificationToken: emailVerification.getProofToken(submittedEmail) }
+          : {})
       };
 
       const response = await api.put('/users/profile', payload);
@@ -426,6 +455,7 @@ const Profile = () => {
         setUser(nextProfile);
       }
 
+      emailVerification.reset();
       toast.success(copy.updateSuccess);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -437,6 +467,16 @@ const Profile = () => {
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  const handleVerifyProfileEmail = async () => {
+    const valid = await trigger('email', { shouldFocus: true });
+    if (!valid) return;
+
+    await emailVerification.startVerification(
+      currentEmailValue,
+      displayName || profileData?.fullName || user?.fullName || ''
+    );
   };
 
   const getInputClass = (hasError = false) =>
@@ -526,17 +566,37 @@ const Profile = () => {
                     <FaEnvelope className="text-[#16A34A]" />
                     <span>{copy.form.email}</span>
                   </label>
-                  <input
-                    type="email"
-                    className={getInputClass(!!errors.email)}
-                    placeholder={copy.form.emailPlaceholder}
-                    {...register('email', {
-                      pattern: {
-                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                        message: copy.form.emailInvalid
-                      }
-                    })}
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      className={`${getInputClass(!!errors.email)} ${
+                        profileEmailChanged ? 'pr-[108px]' : ''
+                      }`}
+                      placeholder={copy.form.emailPlaceholder}
+                      {...register('email', {
+                        pattern: {
+                          value: /^[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i,
+                          message: copy.form.emailInvalid
+                        }
+                      })}
+                    />
+                    {profileEmailChanged ? (
+                      profileEmailVerified ? (
+                        <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-xs font-semibold text-emerald-700">
+                          <FaCheckCircle /> Verified
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleVerifyProfileEmail}
+                          disabled={emailVerification.isStarting}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {emailVerification.isStarting ? 'Checking...' : 'Verify'}
+                        </button>
+                      )
+                    ) : null}
+                  </div>
                   {errors.email && (
                     <span className="mt-2 block text-sm text-red-600">
                       {errors.email.message}
@@ -629,7 +689,12 @@ const Profile = () => {
               </p>
               <button
                 type="submit"
-                disabled={saveLoading || !isDirty}
+                disabled={saveLoading || !isDirty || !profileEmailVerified}
+                title={
+                  profileEmailVerified
+                    ? undefined
+                    : 'Verify the changed email address to save changes'
+                }
                 className="profile-save-button inline-flex items-center justify-center gap-2 rounded-xl bg-[#16A34A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saveLoading ? (
@@ -648,6 +713,16 @@ const Profile = () => {
           </div>
         </form>
       </div>
+
+      <EmailVerificationModal
+        open={emailVerification.modalOpen}
+        email={emailVerification.targetEmail}
+        verifying={emailVerification.isVerifyingOtp}
+        resending={emailVerification.isResending}
+        onVerify={emailVerification.verifyOtp}
+        onResend={emailVerification.resendOtp}
+        onClose={emailVerification.closeModal}
+      />
     </div>
   );
 };

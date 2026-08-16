@@ -1,0 +1,518 @@
+.delivery-invoice-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 20, 34, 0.62);
+  backdrop-filter: blur(7px);
+}
+
+.delivery-invoice-modal {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid rgba(210, 225, 219, 0.9);
+  border-radius: 20px;
+  background: #eef4f2;
+  box-shadow: 0 28px 80px rgba(2, 18, 13, 0.28);
+}
+
+.delivery-invoice-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #dbe7e2;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.delivery-invoice-toolbar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.delivery-invoice-toolbar-kicker {
+  color: #6a7f78;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.delivery-invoice-toolbar strong {
+  color: #142b3d;
+  font-size: 0.96rem;
+}
+
+.delivery-invoice-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delivery-invoice-toolbar-actions button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #cddbd6;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #264235;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0 13px;
+  transition: 0.18s ease;
+}
+
+.delivery-invoice-toolbar-actions button:hover {
+  border-color: #91b7aa;
+  background: #f5fbf8;
+}
+
+.delivery-invoice-toolbar-actions button.primary {
+  border-color: #087f60;
+  background: #087f60;
+  color: #ffffff;
+}
+
+.delivery-invoice-toolbar-actions button.primary:hover {
+  border-color: #066d52;
+  background: #066d52;
+}
+
+.delivery-invoice-toolbar-actions button.icon {
+  width: 38px;
+  padding: 0;
+}
+
+.delivery-invoice-paper {
+  width: min(850px, calc(100% - 44px));
+  margin: 22px auto 30px;
+  overflow: hidden;
+  border: 1px solid #dce7e3;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(30, 55, 46, 0.08);
+}
+
+.delivery-invoice-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 32px 34px 26px;
+  border-bottom: 1px solid #e5eeea;
+}
+
+.delivery-invoice-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.delivery-invoice-brand-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid #8fd0b9;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #effbf6, #ffffff);
+  color: #087f60;
+  font-size: 1.35rem;
+  box-shadow: inset 0 0 0 4px #f5fcf9;
+}
+
+.delivery-invoice-brand h2,
+.delivery-invoice-brand p,
+.delivery-invoice-title-block h1,
+.delivery-invoice-title-block p {
+  margin: 0;
+}
+
+.delivery-invoice-brand h2 {
+  color: #12263a;
+  font-size: 1.16rem;
+  font-weight: 800;
+}
+
+.delivery-invoice-brand p {
+  margin-top: 3px;
+  color: #6b7f77;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.delivery-invoice-title-block {
+  text-align: right;
+}
+
+.delivery-invoice-paid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: #e8f8f2;
+  color: #067a57;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 6px 9px;
+  text-transform: uppercase;
+}
+
+.delivery-invoice-title-block h1 {
+  color: #10283c;
+  font-size: 1.72rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.delivery-invoice-title-block p {
+  margin-top: 4px;
+  color: #718179;
+  font-size: 0.78rem;
+}
+
+.delivery-invoice-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px 34px;
+  border-bottom: 1px solid #e5eeea;
+  background: #f8fbfa;
+}
+
+.delivery-invoice-meta-grid > div {
+  min-width: 0;
+  border: 1px solid #e2ebe7;
+  border-radius: 11px;
+  background: #ffffff;
+  padding: 12px 13px;
+}
+
+.delivery-invoice-meta-grid span,
+.delivery-invoice-section-label,
+.delivery-invoice-reference span {
+  display: block;
+  margin-bottom: 5px;
+  color: #71827b;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.delivery-invoice-meta-grid strong {
+  display: block;
+  overflow: hidden;
+  color: #1d3547;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-invoice-party-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 26px 34px 18px;
+}
+
+.delivery-invoice-party-card {
+  min-height: 118px;
+  border: 1px solid #e3ece8;
+  border-radius: 13px;
+  padding: 15px 16px;
+}
+
+.delivery-invoice-party-card > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #193247;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.delivery-invoice-party-card p {
+  margin: 4px 0 0;
+  color: #62746d;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.delivery-invoice-table-wrap {
+  padding: 4px 34px 0;
+  overflow-x: auto;
+}
+
+.delivery-invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.delivery-invoice-table th {
+  background: #0b7f60;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 750;
+  padding: 11px 13px;
+  text-align: left;
+}
+
+.delivery-invoice-table th:first-child {
+  border-radius: 9px 0 0 0;
+}
+
+.delivery-invoice-table th:last-child {
+  border-radius: 0 9px 0 0;
+  text-align: right;
+}
+
+.delivery-invoice-table td {
+  border-bottom: 1px solid #e5ece9;
+  color: #294052;
+  font-size: 0.78rem;
+  padding: 15px 13px;
+}
+
+.delivery-invoice-table td:first-child {
+  width: 55%;
+}
+
+.delivery-invoice-table td:first-child strong,
+.delivery-invoice-table td:first-child span {
+  display: block;
+}
+
+.delivery-invoice-table td:first-child span {
+  margin-top: 4px;
+  color: #73837d;
+  font-size: 0.69rem;
+}
+
+.delivery-invoice-table td:last-child {
+  color: #0a684f;
+  font-weight: 800;
+  text-align: right;
+}
+
+.delivery-invoice-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  gap: 28px;
+  align-items: end;
+  padding: 22px 34px 8px;
+}
+
+.delivery-invoice-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #d6eee5;
+  border-radius: 12px;
+  background: #f3fbf8;
+  color: #08785a;
+  padding: 12px 13px;
+}
+
+.delivery-invoice-security-note > svg {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.delivery-invoice-security-note strong,
+.delivery-invoice-security-note span {
+  display: block;
+}
+
+.delivery-invoice-security-note strong {
+  font-size: 0.76rem;
+}
+
+.delivery-invoice-security-note span {
+  margin-top: 3px;
+  color: #668078;
+  font-size: 0.67rem;
+  line-height: 1.45;
+}
+
+.delivery-invoice-totals > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  color: #5f716a;
+  font-size: 0.75rem;
+}
+
+.delivery-invoice-totals > div strong {
+  color: #273f50;
+  text-align: right;
+}
+
+.delivery-invoice-totals .grand-total {
+  margin-top: 5px;
+  border-top: 2px solid #0b7f60;
+  color: #08674f;
+  font-size: 0.98rem;
+  font-weight: 800;
+  padding-top: 11px;
+}
+
+.delivery-invoice-totals .grand-total strong {
+  color: #08674f;
+  font-size: 1.08rem;
+}
+
+.delivery-invoice-reference {
+  margin: 18px 34px 0;
+  border: 1px solid #dce9e4;
+  border-radius: 11px;
+  background: #fbfdfc;
+  padding: 12px 14px;
+}
+
+.delivery-invoice-reference strong {
+  display: block;
+  color: #314c5e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.delivery-invoice-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 22px 34px 28px;
+  border-top: 1px solid #e6eeeb;
+  padding-top: 16px;
+}
+
+.delivery-invoice-footer p {
+  max-width: 590px;
+  margin: 0;
+  color: #77867f;
+  font-size: 0.67rem;
+  line-height: 1.55;
+}
+
+.delivery-invoice-footer span {
+  flex: 0 0 auto;
+  color: #08785a;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.delivery-payment-invoice-trigger {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid #a8d8c7;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #08785a;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 750;
+  padding: 0 13px;
+  transition: 0.18s ease;
+}
+
+.delivery-payment-invoice-trigger:hover {
+  border-color: #79bda5;
+  background: #f4fbf8;
+  box-shadow: 0 7px 18px rgba(7, 127, 96, 0.08);
+}
+
+@media (max-width: 760px) {
+  .delivery-invoice-backdrop {
+    padding: 10px;
+  }
+
+  .delivery-invoice-modal {
+    max-height: calc(100vh - 20px);
+    border-radius: 15px;
+  }
+
+  .delivery-invoice-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .delivery-invoice-toolbar-actions {
+    width: 100%;
+  }
+
+  .delivery-invoice-toolbar-actions button:not(.icon) {
+    flex: 1;
+  }
+
+  .delivery-invoice-paper {
+    width: calc(100% - 20px);
+    margin: 10px auto 18px;
+    border-radius: 12px;
+  }
+
+  .delivery-invoice-head,
+  .delivery-invoice-meta-grid,
+  .delivery-invoice-party-grid,
+  .delivery-invoice-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-invoice-head {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 24px 20px;
+  }
+
+  .delivery-invoice-title-block {
+    text-align: left;
+  }
+
+  .delivery-invoice-meta-grid,
+  .delivery-invoice-party-grid {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .delivery-invoice-table-wrap {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .delivery-invoice-summary-row {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .delivery-invoice-reference,
+  .delivery-invoice-footer {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  .delivery-invoice-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

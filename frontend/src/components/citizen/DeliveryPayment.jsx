@@ -5,6 +5,7 @@ import {
   FaArrowLeft,
   FaCheckCircle,
   FaCreditCard,
+  FaFileInvoiceDollar,
   FaIdCard,
   FaMapMarkerAlt,
   FaMoneyBillWave,
@@ -14,6 +15,7 @@ import {
 } from 'react-icons/fa';
 import api from '../api/axios';
 import Loader from '../common/Loader';
+import DeliveryPaymentInvoice from '../common/DeliveryPaymentInvoice';
 import { useLanguage } from '../context/LanguageContext';
 import { formatStatus } from '../utils/helpers';
 import '../styles/DeliveryPayment.css';
@@ -68,6 +70,7 @@ const DELIVERY_PAYMENT_COPY = {
     paymentCancelledToast: 'Payment was cancelled. You can try again.',
     failedLoad: 'Failed to load application',
     failedPayment: 'Failed to start SSLCOMMERZ payment',
+    viewInvoice: 'View payment receipt',
     paymentMethods: {
       sslcommerz: 'SSLCOMMERZ Sandbox'
     }
@@ -119,6 +122,7 @@ const DELIVERY_PAYMENT_COPY = {
     paymentCancelledToast: 'পেমেন্ট বাতিল করা হয়েছে। আবার চেষ্টা করতে পারেন।',
     failedLoad: 'আবেদন লোড করা যায়নি',
     failedPayment: 'SSLCOMMERZ পেমেন্ট শুরু করা যায়নি',
+    viewInvoice: 'পেমেন্ট রসিদ দেখুন',
     paymentMethods: {
       sslcommerz: 'SSLCOMMERZ স্যান্ডবক্স'
     }
@@ -223,6 +227,11 @@ const DeliveryPayment = () => {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [paymentResult] = useState(() =>
+    new URLSearchParams(window.location.search).get('payment') || ''
+  );
+  const [invoiceAutoOpened, setInvoiceAutoOpened] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     paymentMethod: 'sslcommerz',
@@ -243,9 +252,6 @@ const DeliveryPayment = () => {
   }, [application]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentResult = params.get('payment');
-
     if (!paymentResult) return;
 
     if (paymentResult === 'success') {
@@ -257,12 +263,32 @@ const DeliveryPayment = () => {
     }
 
     window.history.replaceState({}, '', window.location.pathname);
-  }, [copy.paymentCancelledToast, copy.paymentFailedToast, copy.successToast]);
+  }, [
+    copy.paymentCancelledToast,
+    copy.paymentFailedToast,
+    copy.successToast,
+    paymentResult
+  ]);
 
   const deliveryInfo = application?.deliveryInfo || {};
   const currentStatus = String(application?.status || '').toLowerCase();
   const currentDeliveryStatus = String(deliveryInfo.deliveryStatus || '').toLowerCase();
   const paymentCompleted = isPaymentCompleted(application);
+  const hasPaymentReceipt =
+    String(deliveryInfo.paymentStatus || '').toLowerCase() === 'paid' &&
+    Boolean(deliveryInfo.transactionId);
+
+  useEffect(() => {
+    if (
+      paymentResult === 'success' &&
+      hasPaymentReceipt &&
+      !invoiceAutoOpened
+    ) {
+      setInvoiceOpen(true);
+      setInvoiceAutoOpened(true);
+    }
+  }, [hasPaymentReceipt, invoiceAutoOpened, paymentResult]);
+
   const deliveryRequestReceived = Boolean(deliveryInfo.requested) || paymentCompleted;
   const deliveryDispatched =
     ['dispatched', 'delivered'].includes(currentStatus) ||
@@ -374,6 +400,13 @@ const DeliveryPayment = () => {
       }
 
       if (response?.data?.gatewayUrl) {
+        const refreshedAccessToken = String(response.data?.accessToken || '').trim();
+
+        if (refreshedAccessToken) {
+          localStorage.setItem('token', refreshedAccessToken);
+          api.defaults.headers.common.Authorization = `Bearer ${refreshedAccessToken}`;
+        }
+
         window.location.assign(response.data.gatewayUrl);
         return;
       }
@@ -505,6 +538,17 @@ const DeliveryPayment = () => {
                 </div>
               </div>
             )}
+
+            {hasPaymentReceipt && (
+              <button
+                type="button"
+                className="delivery-payment-invoice-trigger"
+                onClick={() => setInvoiceOpen(true)}
+              >
+                <FaFileInvoiceDollar />
+                {copy.viewInvoice}
+              </button>
+            )}
           </section>
 
           <section className="delivery-payment-card delivery-payment-form-card">
@@ -635,6 +679,12 @@ const DeliveryPayment = () => {
           </section>
         </div>
       </div>
+
+      <DeliveryPaymentInvoice
+        open={invoiceOpen}
+        onClose={() => setInvoiceOpen(false)}
+        application={application}
+      />
     </div>
   );
 };

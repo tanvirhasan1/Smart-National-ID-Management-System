@@ -745,3 +745,52 @@
     flex-direction: column;
   }
 }
+
+/* Email verification inside the existing internal-user email field. */
+.admin-users-email-verification-input {
+  position: relative;
+}
+
+.admin-users-email-verification-input input {
+  padding-right: 104px;
+}
+
+.admin-users-email-verify-button,
+.admin-users-email-verified {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-users-email-verify-button {
+  min-height: 32px;
+  padding: 0 11px;
+  background: #047857;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.admin-users-email-verify-button:hover:not(:disabled) {
+  background: #065f46;
+}
+
+.admin-users-email-verify-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-users-email-verified {
+  color: #047857;
+  pointer-events: none;
+}
