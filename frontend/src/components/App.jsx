@@ -52,6 +52,9 @@ import DeliveryDetails from './admin/DeliveryDetails';
 import SupportManagement from './admin/SupportManagement';
 import AuditLogs from './admin/AuditLogs';
 import { USER_ROLES, ADMIN_MENU_ACCESS, INTERNAL_USER_ROLES } from './utils/roles';
+import {
+  NotificationProvider
+} from './context/NotificationContext';
 
 const AppShell = () => {
   const location = useLocation();
@@ -361,9 +364,11 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <Router>
-          <AppShell />
-        </Router>
+        <NotificationProvider>
+          <Router>
+            <AppShell />
+          </Router>
+        </NotificationProvider>
       </AuthProvider>
     </LanguageProvider>
   );

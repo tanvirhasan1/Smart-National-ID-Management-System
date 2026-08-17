@@ -2,7 +2,6 @@ import React from 'react';
 import {
   FaCheckCircle,
   FaDownload,
-  FaIdCard,
   FaPrint,
   FaShieldAlt,
   FaTimes
@@ -120,11 +119,11 @@ const buildSimpleInvoicePdf = ({
 
   rect(42, 42, 46, 46, green);
   text('ID', 58, 71, 13, true, rgb(255, 255, 255));
-  text('Smart NID Card Management System', 101, 58, 16, true, dark);
+  text('Smart NID Card Management System', 101, 58, 14.5, true, dark);
   text('Secure citizen identity & delivery services', 101, 76, 8.5, false, muted);
-  text('PAYMENT RECEIPT', 393, 58, 18, true, dark);
+  text('PAYMENT RECEIPT', 405, 58, 15.5, true, dark);
   rect(438, 67, 113, 19, lightGreen);
-  text('PAID - VERIFIED', 458, 80, 8, true, rgb(6, 122, 87));
+  text('PAID - VERIFIED', 458, 80, 7.5, true, rgb(6, 122, 87));
   line(42, 100, 553, 100, border, 0.8);
 
   const metaX = [42, 215, 388];
@@ -135,16 +134,16 @@ const buildSimpleInvoicePdf = ({
   ];
   metaData.forEach(([label, value], index) => {
     rect(metaX[index], 116, 155, 50, pale);
-    text(label, metaX[index] + 10, 132, 7, true, muted);
+    text(label, metaX[index] + 10, 132, 6.8, true, muted);
     const valueLines = wrap(value, 24).slice(0, 2);
     valueLines.forEach((lineValue, lineIndex) => {
-      text(lineValue, metaX[index] + 10, 149 + lineIndex * 10, 8.5, true, dark);
+      text(lineValue, metaX[index] + 10, 149 + lineIndex * 10, 8.2, true, dark);
     });
   });
 
   text('CITIZEN', 42, 198, 8, true, green);
   text('DELIVERY TO', 315, 198, 8, true, green);
-  text(citizenName, 42, 216, 11, true, dark);
+  text(citizenName, 42, 216, 10, true, dark);
   text(email, 42, 234, 8.5, false, muted);
   text(phone, 42, 250, 8.5, false, muted);
   wrap(address, 43).slice(0, 4).forEach((lineValue, index) => {
@@ -157,7 +156,7 @@ const buildSimpleInvoicePdf = ({
   text('UNIT FEE', 442, 312, 8, true, rgb(255, 255, 255));
   text('AMOUNT', 505, 312, 8, true, rgb(255, 255, 255));
 
-  text('Printed Smart NID Card Delivery', 54, 346, 10, true, dark);
+  text('Printed Smart NID Card Delivery', 54, 346, 9.2, true, dark);
   text(`Delivery request linked to ${applicationId}`, 54, 363, 7.8, false, muted);
   text('1', 405, 349, 9, false, dark);
   text(formatPdfMoney(amount), 442, 349, 9, false, dark);
@@ -169,8 +168,8 @@ const buildSimpleInvoicePdf = ({
   text('Payment Method', 397, 435, 8.5, false, muted);
   text(paymentMethod, 474, 435, 8, true, dark);
   line(397, 449, 553, 449, green, 1.3);
-  text('TOTAL PAID', 397, 472, 12, true, rgb(6, 104, 79));
-  text(formatPdfMoney(amount), 487, 472, 12, true, rgb(6, 104, 79));
+  text('TOTAL PAID', 397, 472, 10.5, true, rgb(6, 104, 79));
+  text(formatPdfMoney(amount), 492, 472, 10.5, true, rgb(6, 104, 79));
 
   rect(42, 516, 511, 76, rgb(243, 251, 248));
   text('TRANSACTION REFERENCE', 56, 538, 8, true, rgb(6, 104, 79));
@@ -243,16 +242,16 @@ const DeliveryPaymentInvoice = ({ open, onClose, application }) => {
   <meta charset="utf-8" />
   <title>${escapeHtml(invoiceNumber)} - Delivery Payment Receipt</title>
   <style>
-    *{box-sizing:border-box} body{margin:0;background:#f3f6f8;color:#12263a;font-family:Arial,Helvetica,sans-serif;padding:28px}
+    *{box-sizing:border-box} body{margin:0;background:#f3f6f8;color:#172033;font-family:Inter,"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;padding:28px;-webkit-font-smoothing:antialiased}
     .sheet{max-width:820px;margin:0 auto;background:#fff;border:1px solid #dbe6e2;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}
     .top{padding:30px 34px 24px;border-bottom:1px solid #e5ece9;display:flex;justify-content:space-between;gap:24px}
     .brand{display:flex;gap:14px;align-items:center}.logo{width:48px;height:48px;border:2px solid #079669;border-radius:14px;display:grid;place-items:center;color:#079669;font-size:22px;font-weight:700}
-    .brand h1{font-size:20px;margin:0 0 4px}.brand p{margin:0;color:#64748b;font-size:12px}.receipt{text-align:right}.receipt h2{margin:0 0 6px;font-size:24px}.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#e7f8f1;color:#067a57;font-size:11px;font-weight:700;letter-spacing:.06em}
-    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 34px;background:#f8fbfa;border-bottom:1px solid #e5ece9}.meta div,.party{padding:13px 14px;border:1px solid #e3ebe8;border-radius:12px;background:#fff}.label{display:block;color:#718096;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}.value{font-size:12px;font-weight:700;word-break:break-word}
-    .content{padding:26px 34px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:26px}.party h3{font-size:12px;margin:0 0 12px;color:#087c5b;text-transform:uppercase;letter-spacing:.07em}.party p{font-size:12px;line-height:1.6;margin:3px 0;color:#334155}
-    table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#0b7f60;color:#fff;text-align:left;padding:12px 14px;font-size:11px}td{padding:14px;border-bottom:1px solid #e7eeeb;font-size:12px}th:last-child,td:last-child{text-align:right}.service strong{display:block;margin-bottom:4px}.service span{color:#64748b;font-size:11px}
-    .totals{margin-left:auto;margin-top:20px;width:310px}.totals div{display:flex;justify-content:space-between;padding:8px 2px;font-size:12px}.totals .grand{border-top:2px solid #0b7f60;margin-top:5px;padding-top:13px;font-size:16px;font-weight:800;color:#075e49}
-    .footer{margin:26px 34px 30px;padding:16px 18px;border-radius:12px;background:#f3fbf8;border:1px solid #d5eee6;color:#49645b;font-size:10.5px;line-height:1.6}.footer strong{color:#0b6e54}
+    .brand h1{font-size:17px;font-weight:700;line-height:1.25;margin:0 0 4px}.brand p{margin:0;color:#687386;font-size:12px;font-weight:400}.receipt{text-align:right}.receipt h2{margin:0 0 6px;font-size:20px;font-weight:700;line-height:1.25}.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#e7f8f1;color:#067a57;font-size:10px;font-weight:600;letter-spacing:.04em}
+    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 34px;background:#f8fbfa;border-bottom:1px solid #e5ece9}.meta div,.party{padding:13px 14px;border:1px solid #e3ebe8;border-radius:12px;background:#fff}.label{display:block;color:#687386;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}.value{font-size:12px;font-weight:600;line-height:1.4;word-break:break-word}
+    .content{padding:26px 34px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:26px}.party h3{font-size:11px;font-weight:600;margin:0 0 10px;color:#687386;text-transform:uppercase;letter-spacing:.04em}.party p{font-size:12px;font-weight:400;line-height:1.55;margin:3px 0;color:#334155}.party p strong{font-weight:600}
+    table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#0b7f60;color:#fff;text-align:left;padding:12px 14px;font-size:11px;font-weight:600}td{padding:14px;border-bottom:1px solid #e7eeeb;font-size:12px;font-weight:400}th:last-child,td:last-child{text-align:right}.service strong{display:block;margin-bottom:4px;font-weight:600}.service span{color:#687386;font-size:11px;font-weight:400}
+    .totals{margin-left:auto;margin-top:20px;width:310px}.totals div{display:flex;justify-content:space-between;padding:8px 2px;font-size:12px;font-weight:400}.totals div strong{font-weight:600}.totals .grand{border-top:2px solid #0b7f60;margin-top:5px;padding-top:13px;font-size:15px;font-weight:700;color:#075e49}
+    .footer{margin:26px 34px 30px;padding:16px 18px;border-radius:12px;background:#f3fbf8;border:1px solid #d5eee6;color:#5f716a;font-size:10.5px;font-weight:400;line-height:1.55}.footer strong{color:#0b6e54;font-weight:600}
     @media print{body{background:#fff;padding:0}.sheet{box-shadow:none;border:0;border-radius:0;max-width:none}.no-print{display:none!important}}
   </style>
 </head>
@@ -339,13 +338,11 @@ const DeliveryPaymentInvoice = ({ open, onClose, application }) => {
         <div className="delivery-invoice-paper">
           <div className="delivery-invoice-head">
             <div className="delivery-invoice-brand">
-              <div className="delivery-invoice-brand-mark">
-                <FaIdCard />
-              </div>
-              <div>
-                <h2>Smart NID Card</h2>
-                <p>Management System</p>
-              </div>
+              <img
+                src="/logo/logo.webp"
+                alt="Smart NID Card Management System"
+                className="delivery-invoice-brand-logo"
+              />
             </div>
             <div className="delivery-invoice-title-block">
               <span className="delivery-invoice-paid-badge">
