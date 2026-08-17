@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import NotificationBell from './NotificationBell';
 import {
   FaBars,
   FaTimes,
@@ -306,6 +307,8 @@ const Navbar = () => {
       </Link>
 
       {renderLanguageSelector()}
+
+      <NotificationBell />
 
       <div className="site-navbar-profile-dropdown">
         <button
